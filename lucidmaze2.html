@@ -54,8 +54,8 @@
         floorBody.position.set(0, -0.5, 0);
         world.addBody(floorBody);
 
-        // Liquid (Player) - Using a soft body approximation
-        const liquidGeometry = new THREE.SphereGeometry(1, 32, 32);
+        // Liquid (Player) - Using an icosahedron for a deformable appearance
+        const liquidGeometry = new THREE.IcosahedronGeometry(1, 2);
         const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
         liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
         scene.add(liquid);
@@ -123,6 +123,13 @@
         // Sync liquid position with physics body
         liquid.position.copy(liquidBody.position);
         liquid.quaternion.copy(liquidBody.quaternion);
+
+        // Deform the liquid geometry to simulate viscosity and flow
+        liquid.geometry.vertices.forEach(vertex => {
+            const offset = new THREE.Vector3().copy(vertex).normalize().multiplyScalar(0.1 * Math.sin(Date.now() * 0.001 + vertex.length()));
+            vertex.add(offset);
+        });
+        liquid.geometry.verticesNeedUpdate = true;
 
         // Collision detection with goal
         if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
