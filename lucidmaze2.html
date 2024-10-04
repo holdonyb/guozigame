@@ -54,9 +54,28 @@
         floorBody.position.set(0, -0.5, 0);
         world.addBody(floorBody);
 
-        // Liquid (Player) - Using an icosahedron for a deformable appearance
-        const liquidGeometry = new THREE.IcosahedronGeometry(1, 2);
-        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
+        // Liquid (Player) - Using shaders for a liquid effect
+        const liquidGeometry = new THREE.SphereGeometry(1, 64, 64);
+        const liquidMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0.0 }
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normal;
+                    vec3 newPosition = position + normal * sin(position.x * 10.0 + time) * 0.1;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                void main() {
+                    gl_FragColor = vec4(0.0, 1.0, 0.8, 0.8);
+                }
+            `,
+            transparent: true
+        });
         liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
         scene.add(liquid);
 
@@ -124,12 +143,8 @@
         liquid.position.copy(liquidBody.position);
         liquid.quaternion.copy(liquidBody.quaternion);
 
-        // Deform the liquid geometry to simulate viscosity and flow
-        liquid.geometry.vertices.forEach(vertex => {
-            const offset = new THREE.Vector3().copy(vertex).normalize().multiplyScalar(0.1 * Math.sin(Date.now() * 0.001 + vertex.length()));
-            vertex.add(offset);
-        });
-        liquid.geometry.verticesNeedUpdate = true;
+        // Update shader uniform time to create liquid effect
+        liquid.material.uniforms.time.value += 0.05;
 
         // Collision detection with goal
         if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
