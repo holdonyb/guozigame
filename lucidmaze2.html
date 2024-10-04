@@ -61,6 +61,7 @@
                 time: { value: 0.0 }
             },
             vertexShader: `
+                uniform float time;
                 varying vec3 vNormal;
                 void main() {
                     vNormal = normal;
