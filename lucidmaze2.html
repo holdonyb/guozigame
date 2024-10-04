@@ -9,8 +9,7 @@
         canvas { display: block; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.1/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/js/libs/ammo.wasm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three-mesh-bvh/0.5.10/three-mesh-bvh.min.js"></script>
 </head>
 <body>
 <script>
@@ -43,12 +42,16 @@
         floor.position.y = -0.5;
         scene.add(floor);
 
-        // Liquid (Player) - Blob Effect
-        const liquidGeometry = new THREE.IcosahedronGeometry(1, 3);
-        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc, flatShading: false });
-        liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
-        liquid.position.set(0, 1, 0);
+        // Liquid (Player) - Using Metaballs for liquid effect
+        const metaballMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc, flatShading: false });
+        liquid = new THREE.Object3D();
         scene.add(liquid);
+
+        for (let i = 0; i < 10; i++) {
+            const metaball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), metaballMaterial);
+            metaball.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2);
+            liquid.add(metaball);
+        }
 
         // Goal (Yellow Block)
         const goalGeometry = new THREE.BoxGeometry(2, 2, 2);
@@ -100,26 +103,32 @@
         floor.rotation.z = tilt.y * 0.1;
 
         // Apply physics to liquid based on tilt
-        liquid.position.x += Math.sin(floor.rotation.z) * 0.1;
-        liquid.position.z += Math.sin(floor.rotation.x) * 0.1;
+        liquid.children.forEach(metaball => {
+            metaball.position.x += Math.sin(floor.rotation.z) * 0.1;
+            metaball.position.z += Math.sin(floor.rotation.x) * 0.1;
+        });
 
         // Collision detection with goal
-        if (liquid.position.distanceTo(goal.position) < 2) {
+        const liquidCenter = new THREE.Vector3();
+        liquid.children.forEach(metaball => liquidCenter.add(metaball.position));
+        liquidCenter.divideScalar(liquid.children.length);
+
+        if (liquidCenter.distanceTo(goal.position) < 2) {
             isResetting = true;
             alert("You reached the goal!");
             setTimeout(() => {
-                liquid.position.set(0, 1, 0);
+                liquid.children.forEach(metaball => metaball.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2));
                 isResetting = false;
             }, 500);
         }
 
         // Collision detection with traps
         traps.forEach(trap => {
-            if (liquid.position.distanceTo(trap.position) < 2) {
+            if (liquidCenter.distanceTo(trap.position) < 2) {
                 isResetting = true;
                 alert("You hit a trap!");
                 setTimeout(() => {
-                    liquid.position.set(0, 1, 0);
+                    liquid.children.forEach(metaball => metaball.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2));
                     isResetting = false;
                 }, 500);
             }
