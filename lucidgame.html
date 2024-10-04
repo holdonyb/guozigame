@@ -9,18 +9,21 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-        }
-        canvas {
             background-color: #f0f0f0;
-            display: block;
         }
-        #message {
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 5px solid #888;
+            box-sizing: border-box;
+        }
+        #info {
             text-align: center;
-            font-size: 24px;
-            margin-top: 10px;
+            font-size: 18px;
             position: absolute;
             width: 100%;
-            top: 20px;
+            top: 10px;
             color: #333;
         }
         #startButton {
@@ -30,198 +33,140 @@
             bottom: 50px;
             padding: 10px 20px;
             font-size: 18px;
-            display: none;
         }
     </style>
 </head>
 <body>
 
-<canvas id="gameCanvas"></canvas>
-<div id="message"></div>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+<div id="info">
+    分数：<span id="score">0</span> 关卡：<span id="level">1</span>
+</div>
 <button id="startButton">开始游戏</button>
 
+<!-- 引入 Matter.js 物理引擎 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.17.1/matter.min.js"></script>
+
 <script>
+// 模块别名
+const Engine = Matter.Engine,
+      Render = Matter.Render,
+      Runner = Matter.Runner,
+      Bodies = Matter.Bodies,
+      Body = Matter.Body,
+      Composite = Matter.Composite,
+      Events = Matter.Events,
+      Constraint = Matter.Constraint;
+
+// 创建引擎
+let engine = Engine.create();
+let world = engine.world;
+
 // 获取画布和上下文
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
-// 调整画布尺寸
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // 初始化调用
+const render = Render.create({
+    canvas: canvas,
+    engine: engine,
+    options: {
+        width: canvas.width,
+        height: canvas.height,
+        wireframes: false,
+        background: '#ffffff'
+    }
+});
 
 // 定义游戏变量
-let particles = []; // 粒子数组，表示液体
+let droplet;        // 液滴
 let traps = [];     // 陷阱数组
 let goal;           // 终点
+let bounds;         // 边界
 let isGameOver = false;
 let isGameWin = false;
 let ax = 0, ay = 0; // 加速度（根据晃动获取）
 let level = 1;      // 初始关卡
+let score = 0;      // 初始得分
 
 // 初始化游戏
 function initGame() {
-    particles = [];
-    traps = [];
+    // 重置世界
+    Composite.clear(world);
+    Engine.clear(engine);
     isGameOver = false;
     isGameWin = false;
-    document.getElementById('message').innerText = '';
+    document.getElementById('startButton').style.display = 'none';
 
-    // 创建液体粒子
-    for (let i = 0; i < 100; i++) {
-        particles.push({
-            x: canvas.width / 2 + Math.random() * 50 - 25,
-            y: canvas.height - 100 + Math.random() * 50 - 25, // 靠近屏幕底部
-            vx: 0,
-            vy: 0,
-            radius: 3,
-            color: 'blue'
-        });
-    }
+    // 更新关卡和得分显示
+    document.getElementById('level').innerText = level;
+    document.getElementById('score').innerText = score;
+
+    // 创建边界
+    let thickness = 50;
+    bounds = [
+        Bodies.rectangle(canvas.width / 2, -thickness / 2, canvas.width, thickness, { isStatic: true }), // 上
+        Bodies.rectangle(canvas.width / 2, canvas.height + thickness / 2, canvas.width, thickness, { isStatic: true }), // 下
+        Bodies.rectangle(-thickness / 2, canvas.height / 2, thickness, canvas.height, { isStatic: true }), // 左
+        Bodies.rectangle(canvas.width + thickness / 2, canvas.height / 2, thickness, canvas.height, { isStatic: true }) // 右
+    ];
+    Composite.add(world, bounds);
+
+    // 创建液滴（软体）
+    droplet = Bodies.circle(canvas.width / 2, canvas.height - 100, 30, {
+        density: 0.04,
+        frictionAir: 0.005,
+        restitution: 0.2,
+        render: { fillStyle: 'blue' }
+    });
+    Composite.add(world, droplet);
 
     // 创建终点（黄色方块）在顶部
-    goal = {
-        x: Math.random() * (canvas.width - 50), // 随机横向位置
-        y: 50,
-        width: 50,
-        height: 50,
-        color: 'yellow'
-    };
+    goal = Bodies.rectangle(Math.random() * (canvas.width - 100) + 50, 100, 60, 60, {
+        isStatic: true,
+        render: { fillStyle: 'yellow' }
+    });
+    Composite.add(world, goal);
 
     // 创建陷阱
     generateTraps();
 
-    // 开始动画循环
-    requestAnimationFrame(gameLoop);
-
     // 获取传感器数据
     initSensors();
+
+    // 运行引擎和渲染器
+    Engine.run(engine);
+    Render.run(render);
+
+    // 事件监听
+    setupEvents();
 }
 
 // 生成陷阱
 function generateTraps() {
     traps = [];
     let trapCount = level + 2; // 每一关的陷阱数量增加
+    let safeZone = {
+        x: droplet.position.x - 100,
+        y: droplet.position.y - 100,
+        width: 200,
+        height: 200
+    };
 
     for (let i = 0; i < trapCount; i++) {
-        traps.push({
-            x: Math.random() * (canvas.width - 50),
-            y: Math.random() * (canvas.height - 300) + 150,
-            width: 30,
-            height: 30,
-            color: 'red'
-        });
+        let trap;
+        let isInSafeZone;
+        do {
+            let x = Math.random() * (canvas.width - 60) + 30;
+            let y = Math.random() * (canvas.height - 300) + 150;
+            trap = Bodies.rectangle(x, y, 40, 40, {
+                isStatic: true,
+                render: { fillStyle: 'red' }
+            });
+            isInSafeZone = (x > safeZone.x && x < safeZone.x + safeZone.width &&
+                            y > safeZone.y && y < safeZone.y + safeZone.height);
+        } while (isInSafeZone);
+        traps.push(trap);
     }
-}
-
-// 游戏主循环
-function gameLoop() {
-    if (isGameOver || isGameWin) return;
-
-    // 清空画布
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 绘制终点
-    ctx.fillStyle = goal.color;
-    ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
-
-    // 绘制陷阱
-    traps.forEach(trap => {
-        ctx.fillStyle = trap.color;
-        ctx.fillRect(trap.x, trap.y, trap.width, trap.height);
-    });
-
-    // 更新并绘制粒子
-    particles.forEach(p => {
-        // 更新速度（受重力和晃动影响）
-        p.vx += ax / 2;
-        p.vy += ay / 2 + 0.05; // 0.05为模拟重力加速度
-
-        // 添加阻尼
-        p.vx *= 0.99;
-        p.vy *= 0.99;
-
-        // 更新位置
-        p.x += p.vx;
-        p.y += p.vy;
-
-        // 边界反弹
-        if (p.x <= p.radius || p.x >= canvas.width - p.radius) {
-            p.vx *= -0.5;
-            p.x = Math.max(p.radius, Math.min(canvas.width - p.radius, p.x));
-        }
-        if (p.y <= p.radius || p.y >= canvas.height - p.radius) {
-            p.vy *= -0.5;
-            p.y = Math.max(p.radius, Math.min(canvas.height - p.radius, p.y));
-        }
-
-        // 粒子之间的简单碰撞避免
-        particles.forEach(other => {
-            if (p !== other) {
-                let dx = other.x - p.x;
-                let dy = other.y - p.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                let minDist = p.radius + other.radius;
-                if (distance < minDist) {
-                    let angle = Math.atan2(dy, dx);
-                    let tx = p.x + Math.cos(angle) * minDist;
-                    let ty = p.y + Math.sin(angle) * minDist;
-                    let ax = (tx - other.x) * 0.05;
-                    let ay = (ty - other.y) * 0.05;
-                    p.vx -= ax;
-                    p.vy -= ay;
-                    other.vx += ax;
-                    other.vy += ay;
-                }
-            }
-        });
-
-        // 绘制粒子
-        ctx.beginPath();
-        ctx.fillStyle = p.color;
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 碰撞检测 - 终点
-        if (p.x > goal.x && p.x < goal.x + goal.width &&
-            p.y > goal.y && p.y < goal.y + goal.height) {
-            isGameWin = true;
-            gameWin();
-        }
-
-        // 碰撞检测 - 陷阱
-        traps.forEach(trap => {
-            if (p.x > trap.x && p.x < trap.x + trap.width &&
-                p.y > trap.y && p.y < trap.y + trap.height) {
-                isGameOver = true;
-                gameOver();
-            }
-        });
-    });
-
-    // 循环
-    requestAnimationFrame(gameLoop);
-}
-
-// 游戏胜利
-function gameWin() {
-    document.getElementById('message').innerText = '恭喜你，进入第 ' + level + ' 关！';
-    level++; // 关卡增加
-    setTimeout(() => {
-        document.getElementById('message').innerText = '';
-        initGame();
-    }, 2000);
-}
-
-// 游戏失败
-function gameOver() {
-    document.getElementById('message').innerText = '游戏结束，液体掉入陷阱！';
-    document.getElementById('startButton').style.display = 'block';
-    level = 1; // 重置关卡
+    Composite.add(world, traps);
 }
 
 // 初始化传感器
@@ -240,16 +185,16 @@ function initSensors() {
         window.addEventListener('keydown', function(event) {
             switch(event.key) {
                 case 'ArrowLeft':
-                    ax = -0.5;
+                    ax = -0.05;
                     break;
                 case 'ArrowRight':
-                    ax = 0.5;
+                    ax = 0.05;
                     break;
                 case 'ArrowUp':
-                    ay = -0.5;
+                    ay = -0.05;
                     break;
                 case 'ArrowDown':
-                    ay = 0.5;
+                    ay = 0.05;
                     break;
             }
         });
@@ -260,16 +205,72 @@ function initSensors() {
     }
 }
 
+// 事件监听
+function setupEvents() {
+    // 每次更新
+    Events.on(engine, 'beforeUpdate', function() {
+        if (isGameOver || isGameWin) return;
+
+        // 施加力（模拟倾斜）
+        Body.applyForce(droplet, droplet.position, { x: ax * droplet.mass, y: ay * droplet.mass });
+
+        // 检查是否到达终点
+        if (Matter.SAT.collides(droplet, goal).collided) {
+            isGameWin = true;
+            gameWin();
+        }
+
+        // 检查是否碰到陷阱
+        for (let trap of traps) {
+            if (Matter.SAT.collides(droplet, trap).collided) {
+                isGameOver = true;
+                gameOver();
+                break;
+            }
+        }
+
+        // 检查是否流出边界
+        if (droplet.position.x < 0 || droplet.position.x > canvas.width ||
+            droplet.position.y < 0 || droplet.position.y > canvas.height) {
+            // 模拟液体流失，减小液滴大小
+            droplet.circleRadius *= 0.9;
+            if (droplet.circleRadius < 10) {
+                isGameOver = true;
+                gameOver();
+            } else {
+                Body.scale(droplet, 0.9, 0.9);
+            }
+        }
+    });
+}
+
+// 游戏胜利
+function gameWin() {
+    score += level * 10; // 增加得分
+    level++; // 关卡增加
+    document.getElementById('score').innerText = score;
+    document.getElementById('startButton').innerText = '进入第 ' + level + ' 关';
+    document.getElementById('startButton').style.display = 'block';
+}
+
+// 游戏失败
+function gameOver() {
+    document.getElementById('startButton').innerText = '游戏结束，点击重新开始';
+    document.getElementById('startButton').style.display = 'block';
+    level = 1; // 重置关卡
+    score = 0; // 重置得分
+}
+
 // 点击开始按钮
 document.getElementById('startButton').addEventListener('click', function() {
-    this.style.display = 'none';
     initGame();
 });
 
-// 页面加载后自动开始游戏
+// 页面加载后自动显示开始按钮
 window.onload = function() {
     document.getElementById('startButton').style.display = 'block';
 };
+
 </script>
 
 </body>
