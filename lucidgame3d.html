@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>3D液体迷宫</title>
+    <title>3D液体迷宫 - 台球版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; }
@@ -34,7 +34,7 @@
 
 <!-- 引入 Three.js 库 -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<!-- 引入原版 Cannon.js 物理引擎 -->
+<!-- 引入 Cannon.js 物理引擎 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 <!-- 引入虚拟摇杆库 nipplejs -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.6/nipplejs.min.js"></script>
@@ -46,7 +46,7 @@ var world;
 var clock;
 var ball, goal;
 var obstacles = [];
-var plane;
+var table;
 var level = 1;
 var score = 0;
 var isGameOver = false;
@@ -58,15 +58,16 @@ var tilt = { x: 0, y: 0 };
 function init() {
     // 创建场景
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xcccccc);
+    scene.background = new THREE.Color(0x448844);
 
     // 创建物理世界
     world = new CANNON.World();
     world.gravity.set(0, -9.82, 0); // 重力加速度
 
     // 创建相机
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 100, 150);
+    var aspect = window.innerWidth / window.innerHeight;
+    camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+    camera.position.set(0, 150, 200);
     camera.lookAt(0, 0, 0);
 
     // 创建渲染器
@@ -77,14 +78,21 @@ function init() {
     clock = new THREE.Clock();
 
     // 添加灯光
-    var ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    var ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
+
+    var directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(100, 100, 100);
+    scene.add(directionalLight);
 
     // 初始化游戏对象
     initGameObjects();
 
     // 创建摇杆
     createJoystick();
+
+    // 调整窗口大小
+    window.addEventListener('resize', onWindowResize, false);
 
     // 开始动画循环
     animate();
@@ -106,38 +114,88 @@ function initGameObjects() {
         scene.remove(goal.mesh);
         world.remove(goal.body);
     }
-    if (plane) {
-        scene.remove(plane.mesh);
-        world.remove(plane.body);
+    if (table) {
+        scene.remove(table.mesh);
+        world.remove(table.body);
     }
 
-    // 创建平面（地面）
-    var planeGeo = new THREE.PlaneGeometry(200, 200);
-    var planeMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-    var planeMesh = new THREE.Mesh(planeGeo, planeMat);
-    planeMesh.rotation.x = -Math.PI / 2;
-    scene.add(planeMesh);
+    // 创建桌面（地面）
+    var tableGeometry = new THREE.BoxGeometry(200, 2, 100);
+    var tableMaterial = new THREE.MeshStandardMaterial({ color: 0x006400 });
+    var tableMesh = new THREE.Mesh(tableGeometry, tableMaterial);
+    tableMesh.position.set(0, 0, 0);
+    scene.add(tableMesh);
 
-    var planeBody = new CANNON.Body({ mass: 0 });
-    var planeShape = new CANNON.Plane();
-    planeBody.addShape(planeShape);
-    planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    world.addBody(planeBody);
+    var tableBody = new CANNON.Body({ mass: 0 });
+    var tableShape = new CANNON.Box(new CANNON.Vec3(100, 1, 50));
+    tableBody.addShape(tableShape);
+    tableBody.position.set(0, 0, 0);
+    world.addBody(tableBody);
 
-    plane = { mesh: planeMesh, body: planeBody };
+    // 创建桌子边缘（围栏）
+    var edgeThickness = 2;
+    var edgeHeight = 5;
+    var edgeMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+    // 前后边
+    var frontEdgeGeometry = new THREE.BoxGeometry(200 + edgeThickness * 2, edgeHeight, edgeThickness);
+    var frontEdgeMesh = new THREE.Mesh(frontEdgeGeometry, edgeMaterial);
+    frontEdgeMesh.position.set(0, edgeHeight / 2, -50 - edgeThickness / 2);
+    scene.add(frontEdgeMesh);
+
+    var backEdgeMesh = frontEdgeMesh.clone();
+    backEdgeMesh.position.set(0, edgeHeight / 2, 50 + edgeThickness / 2);
+    scene.add(backEdgeMesh);
+
+    // 左右边
+    var sideEdgeGeometry = new THREE.BoxGeometry(edgeThickness, edgeHeight, 100);
+    var leftEdgeMesh = new THREE.Mesh(sideEdgeGeometry, edgeMaterial);
+    leftEdgeMesh.position.set(-100 - edgeThickness / 2, edgeHeight / 2, 0);
+    scene.add(leftEdgeMesh);
+
+    var rightEdgeMesh = leftEdgeMesh.clone();
+    rightEdgeMesh.position.set(100 + edgeThickness / 2, edgeHeight / 2, 0);
+    scene.add(rightEdgeMesh);
+
+    // 添加边缘到物理世界
+    var frontEdgeBody = new CANNON.Body({ mass: 0 });
+    frontEdgeBody.addShape(new CANNON.Box(new CANNON.Vec3(100 + edgeThickness, edgeHeight / 2, edgeThickness / 2)));
+    frontEdgeBody.position.set(0, edgeHeight / 2, -50 - edgeThickness / 2);
+    world.addBody(frontEdgeBody);
+
+    var backEdgeBody = new CANNON.Body({ mass: 0 });
+    backEdgeBody.addShape(new CANNON.Box(new CANNON.Vec3(100 + edgeThickness, edgeHeight / 2, edgeThickness / 2)));
+    backEdgeBody.position.set(0, edgeHeight / 2, 50 + edgeThickness / 2);
+    world.addBody(backEdgeBody);
+
+    var leftEdgeBody = new CANNON.Body({ mass: 0 });
+    leftEdgeBody.addShape(new CANNON.Box(new CANNON.Vec3(edgeThickness / 2, edgeHeight / 2, 50)));
+    leftEdgeBody.position.set(-100 - edgeThickness / 2, edgeHeight / 2, 0);
+    world.addBody(leftEdgeBody);
+
+    var rightEdgeBody = new CANNON.Body({ mass: 0 });
+    rightEdgeBody.addShape(new CANNON.Box(new CANNON.Vec3(edgeThickness / 2, edgeHeight / 2, 50)));
+    rightEdgeBody.position.set(100 + edgeThickness / 2, edgeHeight / 2, 0);
+    world.addBody(rightEdgeBody);
+
+    table = {
+        mesh: tableMesh,
+        body: tableBody,
+        edges: [frontEdgeMesh, backEdgeMesh, leftEdgeMesh, rightEdgeMesh],
+        edgeBodies: [frontEdgeBody, backEdgeBody, leftEdgeBody, rightEdgeBody]
+    };
 
     // 创建小球（液滴）
-    var ballRadius = 5;
-    var ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
-    var ballMat = new THREE.MeshStandardMaterial({ color: 0x0000ff });
-    var ballMesh = new THREE.Mesh(ballGeo, ballMat);
-    ballMesh.position.set(0, ballRadius, 80);
+    var ballRadius = 3;
+    var ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+    var ballMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    var ballMesh = new THREE.Mesh(ballGeometry, ballMaterial);
+    ballMesh.position.set(0, ballRadius + 1, 40);
     scene.add(ballMesh);
 
     var ballBody = new CANNON.Body({
         mass: 1,
         shape: new CANNON.Sphere(ballRadius),
-        position: new CANNON.Vec3(0, ballRadius, 80),
+        position: new CANNON.Vec3(0, ballRadius + 1, 40),
         material: new CANNON.Material({ friction: 0.1, restitution: 0.7 })
     });
     world.addBody(ballBody);
@@ -145,16 +203,18 @@ function initGameObjects() {
     ball = { mesh: ballMesh, body: ballBody };
 
     // 创建终点（绿色立方体）
-    var goalGeo = new THREE.BoxGeometry(10, 10, 10);
-    var goalMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    var goalMesh = new THREE.Mesh(goalGeo, goalMat);
-    goalMesh.position.set((Math.random() - 0.5) * 150, 5, -80);
+    var goalGeometry = new THREE.BoxGeometry(6, 6, 6);
+    var goalMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    var goalMesh = new THREE.Mesh(goalGeometry, goalMaterial);
+    var goalX = (Math.random() - 0.5) * 80;
+    var goalZ = -40;
+    goalMesh.position.set(goalX, 3 + 1, goalZ);
     scene.add(goalMesh);
 
     var goalBody = new CANNON.Body({
         mass: 0,
-        shape: new CANNON.Box(new CANNON.Vec3(5, 5, 5)),
-        position: new CANNON.Vec3(goalMesh.position.x, goalMesh.position.y, goalMesh.position.z),
+        shape: new CANNON.Box(new CANNON.Vec3(3, 3, 3)),
+        position: new CANNON.Vec3(goalX, 3 + 1, goalZ),
     });
     world.addBody(goalBody);
 
@@ -163,18 +223,18 @@ function initGameObjects() {
     // 创建障碍物（红色立方体）
     var obstacleCount = level + 2;
     for (var i = 0; i < obstacleCount; i++) {
-        var obstacleGeo = new THREE.BoxGeometry(10, 10, 10);
-        var obstacleMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        var obstacleMesh = new THREE.Mesh(obstacleGeo, obstacleMat);
-        var x = (Math.random() - 0.5) * 180;
-        var z = (Math.random() - 0.5) * 150;
-        obstacleMesh.position.set(x, 5, z);
+        var obstacleGeometry = new THREE.BoxGeometry(6, 6, 6);
+        var obstacleMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        var obstacleMesh = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+        var x = (Math.random() - 0.5) * 180 * 0.8;
+        var z = (Math.random() - 0.5) * 80;
+        obstacleMesh.position.set(x, 3 + 1, z);
         scene.add(obstacleMesh);
 
         var obstacleBody = new CANNON.Body({
             mass: 0,
-            shape: new CANNON.Box(new CANNON.Vec3(5, 5, 5)),
-            position: new CANNON.Vec3(x, 5, z),
+            shape: new CANNON.Box(new CANNON.Vec3(3, 3, 3)),
+            position: new CANNON.Vec3(x, 3 + 1, z),
         });
         world.addBody(obstacleBody);
 
@@ -218,12 +278,22 @@ function animate() {
     var delta = clock.getDelta();
 
     // 更新物理世界
-    world.step(1 / 60, delta, 3);
+    world.step(1 / 60, delta);
 
-    // 更新场景倾斜
-    plane.mesh.rotation.x = tilt.x;
-    plane.mesh.rotation.z = tilt.y;
-    plane.body.quaternion.setFromEuler(-Math.PI / 2 + tilt.x, 0, tilt.y);
+    // 更新桌面倾斜
+    table.mesh.rotation.x = tilt.x;
+    table.mesh.rotation.z = tilt.y;
+    table.body.quaternion.setFromEuler(0 + tilt.x, 0, 0 + tilt.y);
+
+    // 更新边缘位置和旋转
+    for (var i = 0; i < table.edges.length; i++) {
+        var edgeMesh = table.edges[i];
+        var edgeBody = table.edgeBodies[i];
+
+        edgeMesh.rotation.x = table.mesh.rotation.x;
+        edgeMesh.rotation.z = table.mesh.rotation.z;
+        edgeBody.quaternion.copy(table.body.quaternion);
+    }
 
     // 更新小球位置
     ball.mesh.position.copy(ball.body.position);
@@ -282,11 +352,13 @@ function gameOver() {
 }
 
 // 调整窗口大小
-window.addEventListener('resize', function() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+function onWindowResize() {
+    var aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
     camera.updateProjectionMatrix();
+
     renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
 
 // 开始游戏
 init();
