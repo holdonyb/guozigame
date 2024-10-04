@@ -34,25 +34,25 @@
 
 <!-- 引入 Three.js 库 -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<!-- 引入 cannon-es 物理引擎 -->
-<script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+<!-- 引入原版 Cannon.js 物理引擎 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 <!-- 引入虚拟摇杆库 nipplejs -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.6/nipplejs.min.js"></script>
 
 <script>
 // 全局变量
-let scene, camera, renderer;
-let world;
-let clock;
-let ball, goal;
-let obstacles = [];
-let plane;
-let level = 1;
-let score = 0;
-let isGameOver = false;
-let isGameWin = false;
-let joystick;
-let tilt = { x: 0, y: 0 };
+var scene, camera, renderer;
+var world;
+var clock;
+var ball, goal;
+var obstacles = [];
+var plane;
+var level = 1;
+var score = 0;
+var isGameOver = false;
+var isGameWin = false;
+var joystick;
+var tilt = { x: 0, y: 0 };
 
 // 初始化场景
 function init() {
@@ -61,9 +61,8 @@ function init() {
     scene.background = new THREE.Color(0xcccccc);
 
     // 创建物理世界
-    world = new CANNON.World({
-        gravity: new CANNON.Vec3(0, -9.82, 0), // 重力加速度
-    });
+    world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0); // 重力加速度
 
     // 创建相机
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -78,7 +77,7 @@ function init() {
     clock = new THREE.Clock();
 
     // 添加灯光
-    let ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    var ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
     // 初始化游戏对象
@@ -94,33 +93,33 @@ function init() {
 // 初始化游戏对象
 function initGameObjects() {
     // 清除上一关的对象
-    obstacles.forEach(obj => {
+    obstacles.forEach(function(obj) {
         scene.remove(obj.mesh);
-        world.removeBody(obj.body);
+        world.remove(obj.body);
     });
     obstacles = [];
     if (ball) {
         scene.remove(ball.mesh);
-        world.removeBody(ball.body);
+        world.remove(ball.body);
     }
     if (goal) {
         scene.remove(goal.mesh);
-        world.removeBody(goal.body);
+        world.remove(goal.body);
     }
     if (plane) {
         scene.remove(plane.mesh);
-        world.removeBody(plane.body);
+        world.remove(plane.body);
     }
 
     // 创建平面（地面）
-    let planeGeo = new THREE.PlaneGeometry(200, 200);
-    let planeMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-    let planeMesh = new THREE.Mesh(planeGeo, planeMat);
+    var planeGeo = new THREE.PlaneGeometry(200, 200);
+    var planeMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    var planeMesh = new THREE.Mesh(planeGeo, planeMat);
     planeMesh.rotation.x = -Math.PI / 2;
     scene.add(planeMesh);
 
-    let planeBody = new CANNON.Body({ mass: 0 });
-    let planeShape = new CANNON.Plane();
+    var planeBody = new CANNON.Body({ mass: 0 });
+    var planeShape = new CANNON.Plane();
     planeBody.addShape(planeShape);
     planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     world.addBody(planeBody);
@@ -128,14 +127,14 @@ function initGameObjects() {
     plane = { mesh: planeMesh, body: planeBody };
 
     // 创建小球（液滴）
-    let ballRadius = 5;
-    let ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
-    let ballMat = new THREE.MeshStandardMaterial({ color: 0x0000ff });
-    let ballMesh = new THREE.Mesh(ballGeo, ballMat);
+    var ballRadius = 5;
+    var ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
+    var ballMat = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    var ballMesh = new THREE.Mesh(ballGeo, ballMat);
     ballMesh.position.set(0, ballRadius, 80);
     scene.add(ballMesh);
 
-    let ballBody = new CANNON.Body({
+    var ballBody = new CANNON.Body({
         mass: 1,
         shape: new CANNON.Sphere(ballRadius),
         position: new CANNON.Vec3(0, ballRadius, 80),
@@ -146,13 +145,13 @@ function initGameObjects() {
     ball = { mesh: ballMesh, body: ballBody };
 
     // 创建终点（绿色立方体）
-    let goalGeo = new THREE.BoxGeometry(10, 10, 10);
-    let goalMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    let goalMesh = new THREE.Mesh(goalGeo, goalMat);
+    var goalGeo = new THREE.BoxGeometry(10, 10, 10);
+    var goalMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    var goalMesh = new THREE.Mesh(goalGeo, goalMat);
     goalMesh.position.set((Math.random() - 0.5) * 150, 5, -80);
     scene.add(goalMesh);
 
-    let goalBody = new CANNON.Body({
+    var goalBody = new CANNON.Body({
         mass: 0,
         shape: new CANNON.Box(new CANNON.Vec3(5, 5, 5)),
         position: new CANNON.Vec3(goalMesh.position.x, goalMesh.position.y, goalMesh.position.z),
@@ -162,17 +161,17 @@ function initGameObjects() {
     goal = { mesh: goalMesh, body: goalBody };
 
     // 创建障碍物（红色立方体）
-    let obstacleCount = level + 2;
-    for (let i = 0; i < obstacleCount; i++) {
-        let obstacleGeo = new THREE.BoxGeometry(10, 10, 10);
-        let obstacleMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        let obstacleMesh = new THREE.Mesh(obstacleGeo, obstacleMat);
-        let x = (Math.random() - 0.5) * 180;
-        let z = (Math.random() - 0.5) * 150;
+    var obstacleCount = level + 2;
+    for (var i = 0; i < obstacleCount; i++) {
+        var obstacleGeo = new THREE.BoxGeometry(10, 10, 10);
+        var obstacleMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        var obstacleMesh = new THREE.Mesh(obstacleGeo, obstacleMat);
+        var x = (Math.random() - 0.5) * 180;
+        var z = (Math.random() - 0.5) * 150;
         obstacleMesh.position.set(x, 5, z);
         scene.add(obstacleMesh);
 
-        let obstacleBody = new CANNON.Body({
+        var obstacleBody = new CANNON.Body({
             mass: 0,
             shape: new CANNON.Box(new CANNON.Vec3(5, 5, 5)),
             position: new CANNON.Vec3(x, 5, z),
@@ -192,7 +191,7 @@ function initGameObjects() {
 
 // 创建摇杆
 function createJoystick() {
-    let joystickContainer = document.getElementById('joystickContainer');
+    var joystickContainer = document.getElementById('joystickContainer');
     joystick = nipplejs.create({
         zone: joystickContainer,
         mode: 'static',
@@ -216,7 +215,7 @@ function createJoystick() {
 function animate() {
     requestAnimationFrame(animate);
 
-    let delta = clock.getDelta();
+    var delta = clock.getDelta();
 
     // 更新物理世界
     world.step(1 / 60, delta, 3);
@@ -231,21 +230,22 @@ function animate() {
     ball.mesh.quaternion.copy(ball.body.quaternion);
 
     // 更新障碍物位置
-    obstacles.forEach(obstacle => {
+    obstacles.forEach(function(obstacle) {
         obstacle.mesh.position.copy(obstacle.body.position);
         obstacle.mesh.quaternion.copy(obstacle.body.quaternion);
     });
 
     // 检查是否到达终点
-    let distanceToGoal = ball.body.position.vsub(goal.body.position).length();
+    var distanceToGoal = ball.body.position.vsub(goal.body.position).length();
     if (distanceToGoal < 5 && !isGameWin) {
         isGameWin = true;
         gameWin();
     }
 
     // 检查是否碰到障碍物
-    for (let obstacle of obstacles) {
-        let distanceToObstacle = ball.body.position.vsub(obstacle.body.position).length();
+    for (var i = 0; i < obstacles.length; i++) {
+        var obstacle = obstacles[i];
+        var distanceToObstacle = ball.body.position.vsub(obstacle.body.position).length();
         if (distanceToObstacle < 5 && !isGameOver) {
             isGameOver = true;
             gameOver();
