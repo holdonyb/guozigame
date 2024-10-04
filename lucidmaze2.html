@@ -8,38 +8,9 @@
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">function createJoystickControl() {
-        // Add joystick control here for moving liquid
-        // This function should create an on-screen joystick to control tilt values
-        // Placeholder for future implementation
-    }
-function startGame() {
-        document.getElementById('start-screen').style.display = 'none';
-        document.getElementById('restart-button').style.display = 'block';
-        init();
-}
-
-function restartGame() {
-        isResetting = false;
-        score = 0;
-        level = 1;
-        document.getElementById('score-display').innerText = `Score: ${score}`;
-        document.getElementById('level-display').innerText = `Level: ${level}`;
-        // Reset world
-        world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
-
-        // Clear scene
-        while (scene.children.length > 0) {
-            scene.remove(scene.children[0]);
-        }
-
-        // Reinitialize game objects
-        init();
-}
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-<style>
+    <style>
         #score-display {
             position: absolute;
             top: 40px;
@@ -55,7 +26,7 @@ function restartGame() {
             font-size: 16px;
         }
     </style>
-<style>
+    <style>
         #start-screen {
             position: absolute;
             top: 50%;
@@ -92,7 +63,88 @@ function restartGame() {
     let score = 0;
     let level = 1;
     const collectiblesCount = 5;
-    let world, liquidBody, floorBody;
+
+    function createJoystickControl() {
+        // Create joystick control in the bottom right corner
+        const joystick = document.createElement('div');
+        joystick.style.position = 'absolute';
+        joystick.style.right = '20px';
+        joystick.style.bottom = '20px';
+        joystick.style.width = '100px';
+        joystick.style.height = '100px';
+        joystick.style.borderRadius = '50%';
+        joystick.style.background = 'rgba(255, 255, 255, 0.5)';
+        joystick.style.display = 'flex';
+        joystick.style.alignItems = 'center';
+        joystick.style.justifyContent = 'center';
+        joystick.style.fontSize = '24px';
+        joystick.style.color = 'black';
+        joystick.style.cursor = 'pointer';
+        joystick.innerText = 'Joystick';
+        document.body.appendChild(joystick);
+
+        // Implement joystick functionality
+        joystick.addEventListener('mousedown', () => {
+            // Example tilt behavior, you can adjust this to your needs
+            tilt.x -= 0.1;
+            tilt.y -= 0.1;
+        });
+    }
+
+    function createControlButtons() {
+        // Create arrow buttons for control
+        const controlContainer = document.createElement('div');
+        controlContainer.style.position = 'absolute';
+        controlContainer.style.left = '10px';
+        controlContainer.style.bottom = '20px';
+        controlContainer.style.display = 'flex';
+        controlContainer.style.flexDirection = 'column';
+        controlContainer.style.alignItems = 'center';
+
+        const directions = ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
+        const arrowSymbols = ['⬆️', '⬅️', '⬇️', '➡️'];
+
+        directions.forEach((direction, index) => {
+            const button = document.createElement('button');
+            button.innerText = arrowSymbols[index];
+            button.style.fontSize = '20px';
+            button.style.margin = '5px';
+            button.style.cursor = 'pointer';
+
+            button.addEventListener('mousedown', () => {
+                handleKey({ key: direction });
+            });
+
+            controlContainer.appendChild(button);
+        });
+
+        document.body.appendChild(controlContainer);
+    }
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('restart-button').style.display = 'block';
+        init();
+    }
+
+    function restartGame() {
+        isResetting = false;
+        score = 0;
+        level = 1;
+        document.getElementById('score-display').innerText = `Score: ${score}`;
+        document.getElementById('level-display').innerText = `Level: ${level}`;
+        // Reset world
+        world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+
+        // Clear scene
+        while (scene.children.length > 0) {
+            scene.remove(scene.children[0]);
+        }
+
+        // Reinitialize game objects
+        init();
+    }
 
     function init() {
         document.getElementById('start-button').addEventListener('click', startGame);
@@ -182,6 +234,7 @@ function restartGame() {
         window.addEventListener('deviceorientation', handleOrientation);
         document.addEventListener('keydown', handleKey);
         createJoystickControl();
+        createControlButtons();
         window.addEventListener('keydown', handleKey);
 
         animate();
@@ -224,7 +277,6 @@ function restartGame() {
             addCollectible();
         }
         isResetting = false;
-    }
     }
 
     function handleOrientation(event) {
@@ -304,9 +356,6 @@ function restartGame() {
         camera.lookAt(liquid.position);
 
         renderer.render(scene, camera);
-    }
-    }
-    }
     }
 
     init();
