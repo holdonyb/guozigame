@@ -9,7 +9,7 @@
         canvas { display: block; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three-mesh-bvh/0.5.10/three-mesh-bvh.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon-es/0.18.0/cannon-es.min.js"></script>
 </head>
 <body>
 <script>
@@ -18,8 +18,13 @@
     let tilt = { x: 0, y: 0 };
     let isResetting = false;
     let floor;
+    let world, liquidBody, floorBody;
 
     function init() {
+        // Physics world setup
+        world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+
         // Scene setup
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -42,16 +47,26 @@
         floor.position.y = -0.5;
         scene.add(floor);
 
-        // Liquid (Player) - Using Metaballs for liquid effect
-        const metaballMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc, flatShading: false });
-        liquid = new THREE.Object3D();
+        // Floor physics
+        const floorShape = new CANNON.Box(new CANNON.Vec3(10, 0.5, 10));
+        floorBody = new CANNON.Body({ mass: 0 });
+        floorBody.addShape(floorShape);
+        floorBody.position.set(0, -0.5, 0);
+        world.addBody(floorBody);
+
+        // Liquid (Player) - Using a soft body approximation
+        const liquidGeometry = new THREE.SphereGeometry(1, 32, 32);
+        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
+        liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
         scene.add(liquid);
 
-        for (let i = 0; i < 10; i++) {
-            const metaball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), metaballMaterial);
-            metaball.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2);
-            liquid.add(metaball);
-        }
+        // Liquid physics
+        const liquidShape = new CANNON.Sphere(1);
+        liquidBody = new CANNON.Body({ mass: 5 });
+        liquidBody.addShape(liquidShape);
+        liquidBody.position.set(0, 1, 0);
+        liquidBody.linearDamping = 0.9;  // Simulate viscosity
+        world.addBody(liquidBody);
 
         // Goal (Yellow Block)
         const goalGeometry = new THREE.BoxGeometry(2, 2, 2);
@@ -98,37 +113,37 @@
 
         if (isResetting) return;
 
-        // Apply tilt to the floor
-        floor.rotation.x = tilt.x * 0.1;
-        floor.rotation.z = tilt.y * 0.1;
+        // Step the physics world
+        world.step(1 / 60);
 
-        // Apply physics to liquid based on tilt
-        liquid.children.forEach(metaball => {
-            metaball.position.x += Math.sin(floor.rotation.z) * 0.1;
-            metaball.position.z += Math.sin(floor.rotation.x) * 0.1;
-        });
+        // Apply tilt to the floor
+        floorBody.quaternion.setFromEuler(tilt.x * 0.1, 0, tilt.y * 0.1);
+        floor.quaternion.copy(floorBody.quaternion);
+
+        // Sync liquid position with physics body
+        liquid.position.copy(liquidBody.position);
+        liquid.quaternion.copy(liquidBody.quaternion);
 
         // Collision detection with goal
-        const liquidCenter = new THREE.Vector3();
-        liquid.children.forEach(metaball => liquidCenter.add(metaball.position));
-        liquidCenter.divideScalar(liquid.children.length);
-
-        if (liquidCenter.distanceTo(goal.position) < 2) {
+        if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
             isResetting = true;
             alert("You reached the goal!");
             setTimeout(() => {
-                liquid.children.forEach(metaball => metaball.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2));
+                liquidBody.position.set(0, 1, 0);
+                liquidBody.velocity.set(0, 0, 0);
                 isResetting = false;
             }, 500);
         }
 
         // Collision detection with traps
         traps.forEach(trap => {
-            if (liquidCenter.distanceTo(trap.position) < 2) {
+            const trapPosition = new CANNON.Vec3(trap.position.x, trap.position.y, trap.position.z);
+            if (liquidBody.position.distanceTo(trapPosition) < 2) {
                 isResetting = true;
                 alert("You hit a trap!");
                 setTimeout(() => {
-                    liquid.children.forEach(metaball => metaball.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(2));
+                    liquidBody.position.set(0, 1, 0);
+                    liquidBody.velocity.set(0, 0, 0);
                     isResetting = false;
                 }, 500);
             }
