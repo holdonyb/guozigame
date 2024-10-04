@@ -55,26 +55,36 @@ const Engine = Matter.Engine,
       Bodies = Matter.Bodies,
       Body = Matter.Body,
       Composite = Matter.Composite,
+      Constraint = Matter.Constraint,
       Events = Matter.Events,
-      Constraint = Matter.Constraint;
+      Composites = Matter.Composites,
+      Vector = Matter.Vector;
 
-// 创建引擎
-let engine = Engine.create();
-let world = engine.world;
+let engine;
+let world;
+let render;
+let runner;
 
 // 获取画布和上下文
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const render = Render.create({
-    canvas: canvas,
-    engine: engine,
-    options: {
-        width: canvas.width,
-        height: canvas.height,
-        wireframes: false,
-        background: '#ffffff'
-    }
-});
+
+function initMatter() {
+    engine = Engine.create();
+    world = engine.world;
+
+    render = Render.create({
+        canvas: canvas,
+        engine: engine,
+        options: {
+            width: canvas.width,
+            height: canvas.height,
+            wireframes: false,
+            background: '#ffffff'
+        }
+    });
+
+    runner = Runner.create();
+}
 
 // 定义游戏变量
 let droplet;        // 液滴
@@ -90,8 +100,19 @@ let score = 0;      // 初始得分
 // 初始化游戏
 function initGame() {
     // 重置世界
-    Composite.clear(world);
-    Engine.clear(engine);
+    if (world) {
+        Composite.clear(world);
+        Engine.clear(engine);
+        Render.stop(render);
+        Runner.stop(runner);
+        render.canvas.remove();
+        render.canvas = null;
+        render.context = null;
+        render.textures = {};
+    }
+    
+    initMatter();
+
     isGameOver = false;
     isGameWin = false;
     document.getElementById('startButton').style.display = 'none';
@@ -110,14 +131,8 @@ function initGame() {
     ];
     Composite.add(world, bounds);
 
-    // 创建液滴（软体）
-    droplet = Bodies.circle(canvas.width / 2, canvas.height - 100, 30, {
-        density: 0.04,
-        frictionAir: 0.005,
-        restitution: 0.2,
-        render: { fillStyle: 'blue' }
-    });
-    Composite.add(world, droplet);
+    // 创建软体液滴
+    createSoftBodyDroplet();
 
     // 创建终点（黄色方块）在顶部
     goal = Bodies.rectangle(Math.random() * (canvas.width - 100) + 50, 100, 60, 60, {
@@ -133,11 +148,65 @@ function initGame() {
     initSensors();
 
     // 运行引擎和渲染器
-    Engine.run(engine);
+    Runner.run(runner, engine);
     Render.run(render);
 
     // 事件监听
     setupEvents();
+}
+
+// 创建软体液滴
+function createSoftBodyDroplet() {
+    let radius = 30;
+    let segments = 15; // 边数
+    let dropletPosition = { x: canvas.width / 2, y: canvas.height - 150 };
+    let group = Body.nextGroup(true);
+
+    droplet = Composites.stack(dropletPosition.x, dropletPosition.y, 1, 1, 0, 0, function(x, y) {
+        let particleOptions = {
+            collisionFilter: { group: group },
+            friction: 0.1,
+            frictionAir: 0.05,
+            restitution: 0.3,
+            density: 0.001,
+            render: { fillStyle: 'blue' }
+        };
+        return Bodies.polygon(x, y, segments, radius, particleOptions);
+    });
+
+    // 添加约束，使其具有软体特性
+    let particle = droplet.bodies[0];
+    let constraints = [];
+
+    for (let i = 0; i < segments; i++) {
+        let angle = (Math.PI * 2 / segments) * i;
+        let px = dropletPosition.x + radius * Math.cos(angle);
+        let py = dropletPosition.y + radius * Math.sin(angle);
+
+        let circle = Bodies.circle(px, py, 5, {
+            collisionFilter: { group: group },
+            friction: 0.1,
+            frictionAir: 0.05,
+            restitution: 0.3,
+            density: 0.001,
+            render: { fillStyle: 'blue' }
+        });
+
+        let constraint = Constraint.create({
+            bodyA: particle,
+            pointA: { x: 0, y: 0 },
+            bodyB: circle,
+            length: radius,
+            stiffness: 0.2,
+            damping: 0.1
+        });
+
+        constraints.push(constraint);
+        Composite.add(world, circle);
+        Composite.add(world, constraint);
+    }
+
+    Composite.add(world, droplet);
 }
 
 // 生成陷阱
@@ -145,8 +214,8 @@ function generateTraps() {
     traps = [];
     let trapCount = level + 2; // 每一关的陷阱数量增加
     let safeZone = {
-        x: droplet.position.x - 100,
-        y: droplet.position.y - 100,
+        x: canvas.width / 2 - 100,
+        y: canvas.height - 250,
         width: 200,
         height: 200
     };
@@ -212,34 +281,50 @@ function setupEvents() {
         if (isGameOver || isGameWin) return;
 
         // 施加力（模拟倾斜）
-        Body.applyForce(droplet, droplet.position, { x: ax * droplet.mass, y: ay * droplet.mass });
+        let gravityScale = 0.0005;
+        let gravity = { x: ax * gravityScale * engine.timing.timeScale, y: ay * gravityScale * engine.timing.timeScale };
+
+        // 对液滴及其周围的粒子施加力
+        Composite.allBodies(world).forEach(function(body) {
+            if (body.label === 'Circle Body' || body.label === 'Polygon Body') {
+                Body.applyForce(body, body.position, gravity);
+            }
+        });
 
         // 检查是否到达终点
-        if (Matter.SAT.collides(droplet, goal).collided) {
-            isGameWin = true;
-            gameWin();
-        }
+        Composite.allBodies(world).forEach(function(body) {
+            if ((body.label === 'Circle Body' || body.label === 'Polygon Body') &&
+                Matter.SAT.collides(body, goal).collided) {
+                isGameWin = true;
+                gameWin();
+            }
+        });
 
         // 检查是否碰到陷阱
-        for (let trap of traps) {
-            if (Matter.SAT.collides(droplet, trap).collided) {
-                isGameOver = true;
-                gameOver();
-                break;
-            }
-        }
+        traps.forEach(function(trap) {
+            Composite.allBodies(world).forEach(function(body) {
+                if ((body.label === 'Circle Body' || body.label === 'Polygon Body') &&
+                    Matter.SAT.collides(body, trap).collided) {
+                    isGameOver = true;
+                    gameOver();
+                }
+            });
+        });
 
         // 检查是否流出边界
-        if (droplet.position.x < 0 || droplet.position.x > canvas.width ||
-            droplet.position.y < 0 || droplet.position.y > canvas.height) {
-            // 模拟液体流失，减小液滴大小
-            droplet.circleRadius *= 0.9;
-            if (droplet.circleRadius < 10) {
-                isGameOver = true;
-                gameOver();
-            } else {
-                Body.scale(droplet, 0.9, 0.9);
+        Composite.allBodies(world).forEach(function(body) {
+            if ((body.label === 'Circle Body' || body.label === 'Polygon Body') &&
+                (body.position.x < 0 || body.position.x > canvas.width ||
+                body.position.y < 0 || body.position.y > canvas.height)) {
+                Composite.remove(world, body);
             }
+        });
+
+        // 如果液滴的粒子全部流失，游戏结束
+        let dropletBodies = Composite.allBodies(world).filter(body => body.parent === droplet);
+        if (dropletBodies.length === 0 && !isGameOver) {
+            isGameOver = true;
+            gameOver();
         }
     });
 }
