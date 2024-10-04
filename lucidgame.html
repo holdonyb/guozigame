@@ -3,28 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <title>液体迷宫</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
         canvas {
             background-color: #f0f0f0;
             display: block;
-            margin: 0 auto;
         }
         #message {
             text-align: center;
             font-size: 24px;
             margin-top: 10px;
+            position: absolute;
+            width: 100%;
+            top: 20px;
+            color: #333;
         }
         #startButton {
-            display: block;
-            margin: 20px auto;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 50px;
             padding: 10px 20px;
             font-size: 18px;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-<canvas id="gameCanvas" width="400" height="600"></canvas>
+<canvas id="gameCanvas"></canvas>
 <div id="message"></div>
 <button id="startButton">开始游戏</button>
 
@@ -33,6 +45,15 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// 调整画布尺寸
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // 初始化调用
+
 // 定义游戏变量
 let particles = []; // 粒子数组，表示液体
 let traps = [];     // 陷阱数组
@@ -40,6 +61,7 @@ let goal;           // 终点
 let isGameOver = false;
 let isGameWin = false;
 let ax = 0, ay = 0; // 加速度（根据晃动获取）
+let level = 1;      // 初始关卡
 
 // 初始化游戏
 function initGame() {
@@ -53,7 +75,7 @@ function initGame() {
     for (let i = 0; i < 100; i++) {
         particles.push({
             x: canvas.width / 2 + Math.random() * 50 - 25,
-            y: canvas.height - 50 + Math.random() * 50 - 25,
+            y: canvas.height - 100 + Math.random() * 50 - 25, // 靠近屏幕底部
             vx: 0,
             vy: 0,
             radius: 3,
@@ -61,26 +83,39 @@ function initGame() {
         });
     }
 
-    // 创建终点（黄色方块）
+    // 创建终点（黄色方块）在顶部
     goal = {
-        x: canvas.width / 2 - 25,
-        y: 20,
+        x: Math.random() * (canvas.width - 50), // 随机横向位置
+        y: 50,
         width: 50,
         height: 50,
         color: 'yellow'
     };
 
-    // 清除之前的陷阱
-    traps = [];
+    // 创建陷阱
+    generateTraps();
 
     // 开始动画循环
     requestAnimationFrame(gameLoop);
 
-    // 开始生成陷阱
-    spawnTraps();
-
     // 获取传感器数据
     initSensors();
+}
+
+// 生成陷阱
+function generateTraps() {
+    traps = [];
+    let trapCount = level + 2; // 每一关的陷阱数量增加
+
+    for (let i = 0; i < trapCount; i++) {
+        traps.push({
+            x: Math.random() * (canvas.width - 50),
+            y: Math.random() * (canvas.height - 300) + 150,
+            width: 30,
+            height: 30,
+            color: 'red'
+        });
+    }
 }
 
 // 游戏主循环
@@ -103,8 +138,12 @@ function gameLoop() {
     // 更新并绘制粒子
     particles.forEach(p => {
         // 更新速度（受重力和晃动影响）
-        p.vx += ax;
-        p.vy += ay + 0.1; // 0.1为模拟重力加速度
+        p.vx += ax / 2;
+        p.vy += ay / 2 + 0.05; // 0.05为模拟重力加速度
+
+        // 添加阻尼
+        p.vx *= 0.99;
+        p.vy *= 0.99;
 
         // 更新位置
         p.x += p.vx;
@@ -119,6 +158,27 @@ function gameLoop() {
             p.vy *= -0.5;
             p.y = Math.max(p.radius, Math.min(canvas.height - p.radius, p.y));
         }
+
+        // 粒子之间的简单碰撞避免
+        particles.forEach(other => {
+            if (p !== other) {
+                let dx = other.x - p.x;
+                let dy = other.y - p.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                let minDist = p.radius + other.radius;
+                if (distance < minDist) {
+                    let angle = Math.atan2(dy, dx);
+                    let tx = p.x + Math.cos(angle) * minDist;
+                    let ty = p.y + Math.sin(angle) * minDist;
+                    let ax = (tx - other.x) * 0.05;
+                    let ay = (ty - other.y) * 0.05;
+                    p.vx -= ax;
+                    p.vy -= ay;
+                    other.vx += ax;
+                    other.vy += ay;
+                }
+            }
+        });
 
         // 绘制粒子
         ctx.beginPath();
@@ -149,33 +209,19 @@ function gameLoop() {
 
 // 游戏胜利
 function gameWin() {
-    document.getElementById('message').innerText = '恭喜你，胜利了！';
-    document.getElementById('startButton').style.display = 'block';
+    document.getElementById('message').innerText = '恭喜你，进入第 ' + level + ' 关！';
+    level++; // 关卡增加
+    setTimeout(() => {
+        document.getElementById('message').innerText = '';
+        initGame();
+    }, 2000);
 }
 
 // 游戏失败
 function gameOver() {
     document.getElementById('message').innerText = '游戏结束，液体掉入陷阱！';
     document.getElementById('startButton').style.display = 'block';
-}
-
-// 生成陷阱
-function spawnTraps() {
-    // 每隔一段时间生成一个陷阱
-    const spawnInterval = setInterval(() => {
-        if (isGameOver || isGameWin) {
-            clearInterval(spawnInterval);
-            return;
-        }
-        // 随机位置生成陷阱
-        traps.push({
-            x: Math.random() * (canvas.width - 50),
-            y: Math.random() * (canvas.height - 200) + 100,
-            width: 30,
-            height: 30,
-            color: 'red'
-        });
-    }, 2000);
+    level = 1; // 重置关卡
 }
 
 // 初始化传感器
@@ -184,8 +230,8 @@ function initSensors() {
     if (window.DeviceMotionEvent) {
         // 移动设备
         window.addEventListener('devicemotion', function(event) {
-            ax = event.accelerationIncludingGravity.x / 5;
-            ay = -event.accelerationIncludingGravity.y / 5;
+            ax = -event.accelerationIncludingGravity.x / 10; // 根据需要调整系数
+            ay = event.accelerationIncludingGravity.y / 10;
         }, true);
     } else {
         // PC设备，使用键盘控制
@@ -219,6 +265,11 @@ document.getElementById('startButton').addEventListener('click', function() {
     this.style.display = 'none';
     initGame();
 });
+
+// 页面加载后自动开始游戏
+window.onload = function() {
+    document.getElementById('startButton').style.display = 'block';
+};
 </script>
 
 </body>
