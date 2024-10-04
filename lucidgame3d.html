@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>3D液体迷宫</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #000;
+            font-size: 24px;
+            text-align: center;
+            z-index: 1;
+        }
+        #joystickContainer {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div id="info">
+    分数：<span id="score">0</span> 关卡：<span id="level">1</span>
+</div>
+<div id="joystickContainer"></div>
+
+<!-- 引入 Three.js 库 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<!-- 引入 cannon-es 物理引擎 -->
+<script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+<!-- 引入虚拟摇杆库 nipplejs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.8.6/nipplejs.min.js"></script>
+
+<script>
+// 全局变量
+let scene, camera, renderer;
+let world;
+let clock;
+let ball, goal;
+let obstacles = [];
+let plane;
+let level = 1;
+let score = 0;
+let isGameOver = false;
+let isGameWin = false;
+let joystick;
+let tilt = { x: 0, y: 0 };
+
+// 初始化场景
+function init() {
+    // 创建场景
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xcccccc);
+
+    // 创建物理世界
+    world = new CANNON.World({
+        gravity: new CANNON.Vec3(0, -9.82, 0), // 重力加速度
+    });
+
+    // 创建相机
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 100, 150);
+    camera.lookAt(0, 0, 0);
+
+    // 创建渲染器
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    clock = new THREE.Clock();
+
+    // 添加灯光
+    let ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    // 初始化游戏对象
+    initGameObjects();
+
+    // 创建摇杆
+    createJoystick();
+
+    // 开始动画循环
+    animate();
+}
+
+// 初始化游戏对象
+function initGameObjects() {
+    // 清除上一关的对象
+    obstacles.forEach(obj => {
+        scene.remove(obj.mesh);
+        world.removeBody(obj.body);
+    });
+    obstacles = [];
+    if (ball) {
+        scene.remove(ball.mesh);
+        world.removeBody(ball.body);
+    }
+    if (goal) {
+        scene.remove(goal.mesh);
+        world.removeBody(goal.body);
+    }
+    if (plane) {
+        scene.remove(plane.mesh);
+        world.removeBody(plane.body);
+    }
+
+    // 创建平面（地面）
+    let planeGeo = new THREE.PlaneGeometry(200, 200);
+    let planeMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    let planeMesh = new THREE.Mesh(planeGeo, planeMat);
+    planeMesh.rotation.x = -Math.PI / 2;
+    scene.add(planeMesh);
+
+    let planeBody = new CANNON.Body({ mass: 0 });
+    let planeShape = new CANNON.Plane();
+    planeBody.addShape(planeShape);
+    planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    world.addBody(planeBody);
+
+    plane = { mesh: planeMesh, body: planeBody };
+
+    // 创建小球（液滴）
+    let ballRadius = 5;
+    let ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
+    let ballMat = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    let ballMesh = new THREE.Mesh(ballGeo, ballMat);
+    ballMesh.position.set(0, ballRadius, 80);
+    scene.add(ballMesh);
+
+    let ballBody = new CANNON.Body({
+        mass: 1,
+        shape: new CANNON.Sphere(ballRadius),
+        position: new CANNON.Vec3(0, ballRadius, 80),
+        material: new CANNON.Material({ friction: 0.1, restitution: 0.7 })
+    });
+    world.addBody(ballBody);
+
+    ball = { mesh: ballMesh, body: ballBody };
+
+    // 创建终点（绿色立方体）
+    let goalGeo = new THREE.BoxGeometry(10, 10, 10);
+    let goalMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    let goalMesh = new THREE.Mesh(goalGeo, goalMat);
+    goalMesh.position.set((Math.random() - 0.5) * 150, 5, -80);
+    scene.add(goalMesh);
+
+    let goalBody = new CANNON.Body({
+        mass: 0,
+        shape: new CANNON.Box(new CANNON.Vec3(5, 5, 5)),
+        position: new CANNON.Vec3(goalMesh.position.x, goalMesh.position.y, goalMesh.position.z),
+    });
+    world.addBody(goalBody);
+
+    goal = { mesh: goalMesh, body: goalBody };
+
+    // 创建障碍物（红色立方体）
+    let obstacleCount = level + 2;
+    for (let i = 0; i < obstacleCount; i++) {
+        let obstacleGeo = new THREE.BoxGeometry(10, 10, 10);
+        let obstacleMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        let obstacleMesh = new THREE.Mesh(obstacleGeo, obstacleMat);
+        let x = (Math.random() - 0.5) * 180;
+        let z = (Math.random() - 0.5) * 150;
+        obstacleMesh.position.set(x, 5, z);
+        scene.add(obstacleMesh);
+
+        let obstacleBody = new CANNON.Body({
+            mass: 0,
+            shape: new CANNON.Box(new CANNON.Vec3(5, 5, 5)),
+            position: new CANNON.Vec3(x, 5, z),
+        });
+        world.addBody(obstacleBody);
+
+        obstacles.push({ mesh: obstacleMesh, body: obstacleBody });
+    }
+
+    // 更新关卡和得分显示
+    document.getElementById('level').innerText = level;
+    document.getElementById('score').innerText = score;
+
+    isGameOver = false;
+    isGameWin = false;
+}
+
+// 创建摇杆
+function createJoystick() {
+    let joystickContainer = document.getElementById('joystickContainer');
+    joystick = nipplejs.create({
+        zone: joystickContainer,
+        mode: 'static',
+        position: { left: '50%', top: '50%' },
+        color: 'blue',
+        size: 100
+    });
+
+    joystick.on('move', function(evt, data) {
+        tilt.x = data.vector.y * 0.2;
+        tilt.y = data.vector.x * 0.2;
+    });
+
+    joystick.on('end', function() {
+        tilt.x = 0;
+        tilt.y = 0;
+    });
+}
+
+// 动画循环
+function animate() {
+    requestAnimationFrame(animate);
+
+    let delta = clock.getDelta();
+
+    // 更新物理世界
+    world.step(1 / 60, delta, 3);
+
+    // 更新场景倾斜
+    plane.mesh.rotation.x = tilt.x;
+    plane.mesh.rotation.z = tilt.y;
+    plane.body.quaternion.setFromEuler(-Math.PI / 2 + tilt.x, 0, tilt.y);
+
+    // 更新小球位置
+    ball.mesh.position.copy(ball.body.position);
+    ball.mesh.quaternion.copy(ball.body.quaternion);
+
+    // 更新障碍物位置
+    obstacles.forEach(obstacle => {
+        obstacle.mesh.position.copy(obstacle.body.position);
+        obstacle.mesh.quaternion.copy(obstacle.body.quaternion);
+    });
+
+    // 检查是否到达终点
+    let distanceToGoal = ball.body.position.vsub(goal.body.position).length();
+    if (distanceToGoal < 5 && !isGameWin) {
+        isGameWin = true;
+        gameWin();
+    }
+
+    // 检查是否碰到障碍物
+    for (let obstacle of obstacles) {
+        let distanceToObstacle = ball.body.position.vsub(obstacle.body.position).length();
+        if (distanceToObstacle < 5 && !isGameOver) {
+            isGameOver = true;
+            gameOver();
+            break;
+        }
+    }
+
+    // 检查是否掉落
+    if (ball.body.position.y < -50 && !isGameOver) {
+        isGameOver = true;
+        gameOver();
+    }
+
+    // 渲染场景
+    renderer.render(scene, camera);
+}
+
+// 游戏胜利
+function gameWin() {
+    score += level * 10;
+    level++;
+    document.getElementById('score').innerText = score;
+    alert('恭喜你，进入第 ' + level + ' 关！');
+    initGameObjects();
+}
+
+// 游戏失败
+function gameOver() {
+    level = 1;
+    score = 0;
+    document.getElementById('score').innerText = score;
+    alert('游戏结束，点击确定重新开始');
+    initGameObjects();
+}
+
+// 调整窗口大小
+window.addEventListener('resize', function() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// 开始游戏
+init();
+
+</script>
+
+</body>
+</html>
