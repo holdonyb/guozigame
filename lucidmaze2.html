@@ -17,6 +17,7 @@
     let scene, camera, renderer;
     let liquid, goal, traps = [];
     let tilt = { x: 0, y: 0 };
+    let isResetting = false;
 
     function init() {
         // Scene setup
@@ -91,21 +92,31 @@
     function animate() {
         requestAnimationFrame(animate);
 
+        if (isResetting) return;
+
         // Apply tilt to the liquid
         liquid.position.x += tilt.y * 0.1;
         liquid.position.z += tilt.x * 0.1;
 
         // Collision detection with goal
         if (liquid.position.distanceTo(goal.position) < 2) {
+            isResetting = true;
             alert("You reached the goal!");
-            liquid.position.set(0, 1, 0);
+            setTimeout(() => {
+                liquid.position.set(0, 1, 0);
+                isResetting = false;
+            }, 500);
         }
 
         // Collision detection with traps
         traps.forEach(trap => {
             if (liquid.position.distanceTo(trap.position) < 2) {
+                isResetting = true;
                 alert("You hit a trap!");
-                liquid.position.set(0, 1, 0);
+                setTimeout(() => {
+                    liquid.position.set(0, 1, 0);
+                    isResetting = false;
+                }, 500);
             }
         });
 
