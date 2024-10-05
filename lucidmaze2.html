@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.93</title>
+    <title>Liquid Maze Game - Version 2.94</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -89,6 +89,7 @@
     const collectiblesCount = 5;
     let useJoystick = false;
     let joystick, joystickKnob;
+    let animationRunning = false;
 
     function createJoystickControl() {
         joystick = document.createElement('div');
@@ -179,17 +180,18 @@
         if (controlToggle) {
             controlToggle.style.display = 'block';
         }
-        isResetting = false; // Ensure the game is not in a resetting state
-        animate(); // Start the animation loop
+        isResetting = false;
+        if (!animationRunning) {
+            animate();
+        }
     }
 
     function restartGame() {
         console.log("Restarting game...");
-        isResetting = true; // Set isResetting to true to pause the game loop
+        isResetting = true;
         score = 0;
         level = 1;
-    
-        // Update score and level displays
+
         const scoreDisplay = document.getElementById('score-display');
         const levelDisplay = document.getElementById('level-display');
         if (scoreDisplay) {
@@ -198,52 +200,57 @@
         if (levelDisplay) {
             levelDisplay.innerText = `Level: ${level}`;
         }
-    
-        // Clear existing scene and world
-        while (scene.children.length > 0) {
-            scene.remove(scene.children[0]);
-        }
+
+        traps.forEach(trap => scene.remove(trap));
+        traps = [];
+        collectibles.forEach(collectible => scene.remove(collectible));
+        collectibles = [];
+        if (floor) scene.remove(floor);
+        if (liquid) scene.remove(liquid);
+        if (goal) scene.remove(goal);
         world.bodies.forEach(body => world.remove(body));
-    
-        // Re-initialize the game
-        init();
-    
-        // Reset camera position
+
+        initGameObjects();
+
         updateCameraPosition();
-    
-        // Resume the game loop
         isResetting = false;
-        requestAnimationFrame(animate);
     }
 
     function init() {
         console.log("Initializing game...");
-        
+
         if (!renderer) {
             console.log("Initializing renderer...");
-            renderer = new THREE.WebGLRenderer();
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
         }
-        
-        console.log("Creating physics world...");
-        world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
 
-        console.log("Setting up scene and camera...");
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        if (!scene) {
+            console.log("Creating scene...");
+            scene = new THREE.Scene();
+        }
+
+        if (!camera) {
+            console.log("Creating camera...");
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        }
         updateCameraPosition();
-
-        console.log("Initializing renderer...");
-        renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
 
         console.log("Adding light to the scene...");
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(10, 10, 10);
         scene.add(light);
+
+        console.log("Creating physics world...");
+        world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+
+        initGameObjects();
+    }
+
+    function initGameObjects() {
+        console.log("Initializing game objects...");
 
         console.log("Creating floor...");
         const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
@@ -257,41 +264,26 @@
         floorBody = new CANNON.Body({ mass: 0 });
         floorBody.addShape(floorShape);
         floorBody.position.set(0, -0.5, 0);
-        floorBody.quaternion.setFromEuler(0, 0, 0); // Reset floor orientation
+        floorBody.quaternion.setFromEuler(0, 0, 0);
         world.addBody(floorBody);
 
         console.log("Creating liquid object...");
-        const liquidGeometry = new THREE.SphereGeometry(1, 64, 64);
-        const liquidMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0.0 }
-            },
-            vertexShader: `
-                uniform float time;
-                varying vec3 vNormal;
-                void main() {
-                    vNormal = normal;
-                    vec3 newPosition = position + normal * sin(position.x * 10.0 + time) * 0.1;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-                }
-            `,
-            fragmentShader: `
-                varying vec3 vNormal;
-                void main() {
-                    gl_FragColor = vec4(0.0, 1.0, 0.8, 0.8);
-                }
-            `,
-            transparent: true
-        });
+        const liquidGeometry = new THREE.CylinderGeometry(1, 1, 0.2, 32);
+        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
         liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
+        liquid.rotation.x = Math.PI / 2;
         scene.add(liquid);
 
         console.log("Adding liquid to physics world...");
-        const liquidShape = new CANNON.Sphere(1);
-        liquidBody = new CANNON.Body({ mass: 5 });
+        const liquidShape = new CANNON.Cylinder(1, 1, 0.2, 32);
+        liquidBody = new CANNON.Body({
+            mass: 5,
+            material: new CANNON.Material({ friction: 0.5, restitution: 0 })
+        });
         liquidBody.addShape(liquidShape);
         liquidBody.position.set(0, 1, 0);
         liquidBody.linearDamping = 0.9;
+        liquidBody.angularDamping = 0.9;
         world.addBody(liquidBody);
 
         console.log("Creating goal object...");
@@ -352,7 +344,7 @@
 
     function nextLevel() {
         console.log("Advancing to next level...");
-        isResetting = true; // Pause the game loop while setting up the next level
+        isResetting = true;
         level++;
         const levelDisplay = document.getElementById('level-display');
         if (levelDisplay) {
@@ -366,20 +358,20 @@
         floorBody = new CANNON.Body({ mass: 0 });
         floorBody.addShape(floorShape);
         floorBody.position.set(0, -0.5, 0);
-        floorBody.quaternion.setFromEuler(0, 0, 0); // Reset floor orientation
+        floorBody.quaternion.setFromEuler(0, 0, 0);
         world.addBody(floorBody);
-    
+
         traps.forEach(trap => scene.remove(trap));
         traps = [];
         collectibles.forEach(collectible => scene.remove(collectible));
         collectibles = [];
-    
+
         for (let i = 0; i < level; i++) {
             addTrap();
             addCollectible();
         }
         updateCameraPosition();
-        isResetting = false; // Resume the game loop
+        isResetting = false;
     }
 
     function updateCameraPosition() {
@@ -392,8 +384,25 @@
 
     function handleOrientation(event) {
         if (!useJoystick) {
-            tilt.x = event.beta / 90;
-            tilt.y = -event.gamma / 90; // Reverse the direction
+            let beta = event.beta || 0;
+            let gamma = event.gamma || 0;
+
+            if (window.orientation === 90) {
+                tilt.x = gamma / 90;
+                tilt.y = beta / 90;
+            } else if (window.orientation === -90) {
+                tilt.x = -gamma / 90;
+                tilt.y = -beta / 90;
+            } else {
+                tilt.x = beta / 90;
+                tilt.y = -gamma / 90;
+            }
+
+            tilt.x *= 1.5;
+            tilt.y *= 1.5;
+
+            tilt.x = Math.max(-1, Math.min(1, tilt.x));
+            tilt.y = Math.max(-1, Math.min(1, tilt.y));
         }
     }
 
@@ -401,8 +410,8 @@
         if (useJoystick) return;
         if (event.key === 'ArrowUp') tilt.x = Math.max(tilt.x - 0.1, -1);
         if (event.key === 'ArrowDown') tilt.x = Math.min(tilt.x + 0.1, 1);
-        if (event.key === 'ArrowLeft') tilt.y = Math.min(tilt.y + 0.1, 1); // Reverse the direction
-        if (event.key === 'ArrowRight') tilt.y = Math.max(tilt.y - 0.1, -1); // Reverse the direction
+        if (event.key === 'ArrowLeft') tilt.y = Math.min(tilt.y + 0.1, 1);
+        if (event.key === 'ArrowRight') tilt.y = Math.max(tilt.y - 0.1, -1);
     }
 
     function toggleHelp() {
@@ -413,23 +422,24 @@
     }
 
     function animate() {
+        animationRunning = true;
         requestAnimationFrame(animate);
-    
+
         if (isResetting) {
             renderer.render(scene, camera);
             return;
         }
-    
+
         world.step(1 / 60);
-    
-        floorBody.quaternion.setFromEuler(tilt.x * 0.1, 0, tilt.y * 0.1);
+
+        floorBody.quaternion.setFromEuler(-tilt.x * 0.1, 0, -tilt.y * 0.1);
         floor.quaternion.copy(floorBody.quaternion);
-    
+
         liquid.position.copy(liquidBody.position);
         liquid.quaternion.copy(liquidBody.quaternion);
-    
+
         liquid.material.uniforms.time.value += 0.05;
-    
+
         if (liquid.position.y < -5) {
             isResetting = true;
             alert("You fell off the platform!");
@@ -438,7 +448,7 @@
             }, 500);
             return;
         }
-    
+
         if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
             isResetting = true;
             alert("You reached the goal!");
@@ -447,8 +457,7 @@
             }, 500);
             return;
         }
-    
-        // Collision detection with traps
+
         traps.forEach(trap => {
             const trapPosition = new CANNON.Vec3(trap.position.x, trap.position.y, trap.position.z);
             if (liquidBody.position.distanceTo(trapPosition) < 2) {
@@ -460,8 +469,7 @@
                 return;
             }
         });
-    
-        // Collision detection with collectibles
+
         collectibles.forEach((collectible, index) => {
             if (liquidBody.position.distanceTo(new CANNON.Vec3(collectible.position.x, collectible.position.y, collectible.position.z)) < 1.5) {
                 scene.remove(collectible);
@@ -473,18 +481,13 @@
                 }
             }
         });
-    
-        // Adjust camera to keep the liquid in view
+
         camera.position.set(liquid.position.x, 20, liquid.position.z + 20);
         camera.lookAt(liquid.position);
-    
+
         renderer.render(scene, camera);
     }
 
-    // Remove the init() call here
-    // init();
-
-    // Add this event listener to run init function after DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         console.log("DOM已完全加载并解析");
         const startButton = document.getElementById('start-button');
@@ -497,7 +500,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.93</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.94</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
