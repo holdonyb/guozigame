@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Liquid Maze Game - Version 3.0</title>
+    <title>Liquid Maze Game - Version 3.1</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -273,14 +273,16 @@
     }
 
     function initPhysics() {
-        physicsWorld = new Ammo.btSoftRigidDynamicsWorld(
-            new Ammo.btDefaultCollisionConfiguration(),
-            new Ammo.btCollisionDispatcher(),
-            new Ammo.btDbvtBroadphase(),
-            new Ammo.btSequentialImpulseConstraintSolver(),
-            new Ammo.btDefaultSoftBodySolver()
-        );
+        const collisionConfiguration = new Ammo.btSoftBodyRigidBodyCollisionConfiguration();
+        const dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+        const broadphase = new Ammo.btDbvtBroadphase();
+        const solver = new Ammo.btSequentialImpulseConstraintSolver();
+        const softBodySolver = new Ammo.btDefaultSoftBodySolver();
+
+        physicsWorld = new Ammo.btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
         physicsWorld.setGravity(new Ammo.btVector3(0, -9.82, 0));
+        physicsWorld.getWorldInfo().set_m_gravity(new Ammo.btVector3(0, -9.82, 0));
+
         softBodyHelpers = new Ammo.btSoftBodyHelpers();
     }
 
@@ -567,22 +569,27 @@
         });
     }
 
-    // Initialize Ammo.js before starting the game
-    Ammo().then(() => {
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM fully loaded and parsed");
-            const startButton = document.getElementById('start-button');
-            if (startButton) {
-                console.log("Start button found, setting up event listener...");
-                startButton.addEventListener('click', startGame);
-            } else {
-                console.log("Start button not found.");
-            }
-            init();
-        });
+    // Wait for the DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded and parsed");
+        // Ensure Ammo.js is loaded
+        if (typeof Ammo === 'undefined') {
+            console.error("Ammo.js not loaded.");
+            return;
+        } else {
+            console.log("Ammo.js loaded successfully.");
+        }
+        const startButton = document.getElementById('start-button');
+        if (startButton) {
+            console.log("Start button found, setting up event listener...");
+            startButton.addEventListener('click', startGame);
+        } else {
+            console.log("Start button not found.");
+        }
+        init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 3.0</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 3.1</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
