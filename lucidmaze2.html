@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 1.8</title>
+    <title>Liquid Maze Game - Version 1.9</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -33,7 +33,9 @@
             position: absolute;
             left: 10px;
             color: white;
-            display: none;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 5px;
         }
         #restart-button { top: 100px; }
         #control-toggle { top: 140px; }
@@ -394,7 +396,7 @@
 
     init();
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 1.8</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 1.9</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
