@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 1.9</title>
+    <title>Liquid Maze Game - Version 2.0</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -73,7 +73,11 @@
             cursor: pointer;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">function toggleHelp() {
+    const helpModal = document.getElementById('help-modal');
+    helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
+}
+</script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
 </head>
 <body>
@@ -163,7 +167,7 @@
     }
 
     function startGame() {
-        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('start-screen').remove();
         document.getElementById('restart-button').style.display = 'block';
         document.getElementById('control-toggle').style.display = 'block';
         init();
@@ -396,7 +400,7 @@
 
     init();
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 1.9</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.0</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
@@ -404,5 +408,16 @@
     <button id="start-button">Start Game</button>
 </div>
 <button id="restart-button" onclick="restartGame()">Restart</button>
+<button id="help-button" onclick="toggleHelp()">❓</button>
+<div id="help-modal">
+    <div id="help-content">
+        <span class="close" onclick="toggleHelp()">&times;</span>
+        <h2>How to Play</h2>
+        <p>Move the liquid to the yellow goal without hitting any traps. You can use the on-screen joystick, tilt your device, or use the arrow buttons on-screen for control.</p>
+        <p>Collectibles are worth 10 points each.</p>
+        <p>Reach the goal to advance to the next level.</p>
+        <p>If you fall off the platform or hit a trap, you'll need to restart.</p>
+    </div>
+</div>
 </body>
 </html>
