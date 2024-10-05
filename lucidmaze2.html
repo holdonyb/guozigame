@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.3</title>
+    <title>Liquid Maze Game - Version 2.4</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -207,36 +207,47 @@
         console.log("Initializing game...");
         const startButton = document.getElementById('start-button');
         if (startButton) {
+            console.log("Start button found, setting up event listener...");
             startButton.removeEventListener('click', startGame);
             startButton.addEventListener('click', startGame);
+        } else {
+            console.log("Start button not found.");
         }
+        
+        console.log("Creating physics world...");
         world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
 
+        console.log("Setting up scene and camera...");
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         updateCameraPosition();
 
+        console.log("Initializing renderer...");
         renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        console.log("Adding light to the scene...");
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(10, 10, 10);
         scene.add(light);
 
+        console.log("Creating floor...");
         const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
         floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.position.y = -0.5;
         scene.add(floor);
 
+        console.log("Adding floor to physics world...");
         const floorShape = new CANNON.Box(new CANNON.Vec3(10, 0.5, 10));
         floorBody = new CANNON.Body({ mass: 0 });
         floorBody.addShape(floorShape);
         floorBody.position.set(0, -0.5, 0);
         world.addBody(floorBody);
 
+        console.log("Creating liquid object...");
         const liquidGeometry = new THREE.SphereGeometry(1, 64, 64);
         const liquidMaterial = new THREE.ShaderMaterial({
             uniforms: {
@@ -262,6 +273,7 @@
         liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
         scene.add(liquid);
 
+        console.log("Adding liquid to physics world...");
         const liquidShape = new CANNON.Sphere(1);
         liquidBody = new CANNON.Body({ mass: 5 });
         liquidBody.addShape(liquidShape);
@@ -269,27 +281,36 @@
         liquidBody.linearDamping = 0.9;
         world.addBody(liquidBody);
 
+        console.log("Creating goal object...");
         const goalGeometry = new THREE.BoxGeometry(2, 2, 2);
         const goalMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
         goal = new THREE.Mesh(goalGeometry, goalMaterial);
         goal.position.set(8, 1, 8);
         scene.add(goal);
 
+        console.log("Adding collectibles...");
         for (let i = 0; i < collectiblesCount; i++) {
             addCollectible();
         }
+
+        console.log("Adding traps...");
         for (let i = 0; i < 3; i++) {
             addTrap();
         }
 
+        console.log("Setting up event listeners...");
         window.addEventListener('deviceorientation', handleOrientation);
         document.addEventListener('keydown', handleKey);
         createJoystickControl();
         const controlToggle = document.getElementById('control-toggle');
         if (controlToggle) {
+            console.log("Control toggle found, setting up event listener...");
             controlToggle.addEventListener('click', toggleControl);
+        } else {
+            console.log("Control toggle not found.");
         }
 
+        console.log("Starting animation loop...");
         animate();
     }
 
@@ -297,7 +318,15 @@
         const trapGeometry = new THREE.BoxGeometry(2, 2, 2);
         const trapMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
         const trap = new THREE.Mesh(trapGeometry, trapMaterial);
-        trap.position.set((Math.random() - 0.5) * 18, 1, (Math.random() - 0.5) * 18);
+        let position;
+        do {
+            position = {
+                x: (Math.random() - 0.5) * 18,
+                y: 1,
+                z: (Math.random() - 0.5) * 18
+            };
+        } while (Math.abs(position.x) < 3 && Math.abs(position.z) < 3);
+        trap.position.set(position.x, position.y, position.z);
         traps.push(trap);
         scene.add(trap);
     }
@@ -327,6 +356,11 @@
         floorBody.addShape(floorShape);
         floorBody.position.set(0, -0.5, 0);
         world.addBody(floorBody);
+
+        traps.forEach(trap => scene.remove(trap));
+        traps = [];
+        collectibles.forEach(collectible => scene.remove(collectible));
+        collectibles = [];
 
         for (let i = 0; i < level; i++) {
             addTrap();
@@ -432,7 +466,7 @@
 
     init();
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.3</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.4</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
