@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.8</title>
+    <title>Liquid Maze Game - Version 2.9</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -141,7 +141,7 @@
         const knobY = Math.sin(angle) * distance * 30;
         joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
         tilt.x = Math.max(-1, Math.min(1, dy));
-        tilt.y = Math.max(-1, Math.min(1, -dx));
+        tilt.y = Math.max(-1, Math.min(1, dx)); // Reverse the direction
     }
 
     function handleJoystickEnd(event) {
@@ -202,7 +202,7 @@
             scene.remove(scene.children[0]);
         }
         init();
-        animate(); // Ensure the animation loop is restarted
+        requestAnimationFrame(animate); // Ensure the animation loop is restarted
     }
 
     function init() {
@@ -374,7 +374,7 @@
     function handleOrientation(event) {
         if (!useJoystick) {
             tilt.x = event.beta / 90;
-            tilt.y = event.gamma / 90;
+            tilt.y = -event.gamma / 90; // Reverse the direction
         }
     }
 
@@ -382,8 +382,8 @@
         if (useJoystick) return;
         if (event.key === 'ArrowUp') tilt.x = Math.max(tilt.x - 0.1, -1);
         if (event.key === 'ArrowDown') tilt.x = Math.min(tilt.x + 0.1, 1);
-        if (event.key === 'ArrowLeft') tilt.y = Math.max(tilt.y - 0.1, -1);
-        if (event.key === 'ArrowRight') tilt.y = Math.min(tilt.y + 0.1, 1);
+        if (event.key === 'ArrowLeft') tilt.y = Math.min(tilt.y + 0.1, 1); // Reverse the direction
+        if (event.key === 'ArrowRight') tilt.y = Math.max(tilt.y - 0.1, -1); // Reverse the direction
     }
 
     function toggleHelp() {
@@ -473,7 +473,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.8</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.9</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
