@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.9</title>
+    <title>Liquid Maze Game - Version 2.91</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -185,9 +185,11 @@
 
     function restartGame() {
         console.log("Restarting game...");
-        isResetting = false;
+        isResetting = true; // Set isResetting to true to pause the game loop
         score = 0;
         level = 1;
+    
+        // Update score and level displays
         const scoreDisplay = document.getElementById('score-display');
         const levelDisplay = document.getElementById('level-display');
         if (scoreDisplay) {
@@ -196,15 +198,24 @@
         if (levelDisplay) {
             levelDisplay.innerText = `Level: ${level}`;
         }
-        world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
+    
+        // Clear existing scene and world
         while (scene.children.length > 0) {
             scene.remove(scene.children[0]);
         }
+        world.bodies.forEach(body => world.remove(body));
+    
+        // Re-initialize the game
         init();
-        requestAnimationFrame(animate); // Ensure the animation loop is restarted
+    
+        // Reset camera position
+        updateCameraPosition();
+    
+        // Resume the game loop
+        isResetting = false;
+        requestAnimationFrame(animate);
     }
-
+    
     function init() {
         console.log("Initializing game...");
         
@@ -473,7 +484,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.9</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.91</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
