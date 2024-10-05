@@ -3,30 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 1.5</title>
+    <title>Liquid Maze Game - Version 1.7</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
-    <style>
-        #score-display {
+        #score-display, #level-display {
             position: absolute;
-            top: 40px;
             left: 10px;
             color: white;
             font-size: 16px;
         }
-        #level-display {
-            position: absolute;
-            top: 70px;
-            left: 10px;
-            color: white;
-            font-size: 16px;
-        }
-    </style>
-    <style>
+        #score-display { top: 40px; }
+        #level-display { top: 70px; }
         #start-screen {
             position: absolute;
             top: 50%;
@@ -36,21 +24,55 @@
             color: white;
             font-size: 24px;
         }
-        #start-button {
+        #start-button, #restart-button, #control-toggle {
             padding: 10px 20px;
             font-size: 20px;
             cursor: pointer;
         }
-        #restart-button {
+        #restart-button, #control-toggle {
             position: absolute;
-            top: 100px;
             left: 10px;
             color: white;
-            font-size: 16px;
-            cursor: pointer;
             display: none;
         }
+        #restart-button { top: 100px; }
+        #control-toggle { top: 140px; }
+        #help-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+        }
+        #help-modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        #help-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
 </head>
 <body>
 <script>
@@ -63,10 +85,11 @@
     let score = 0;
     let level = 1;
     const collectiblesCount = 5;
+    let useJoystick = false;
+    let joystick, joystickKnob;
 
     function createJoystickControl() {
-        // Create joystick control in the bottom right corner
-        const joystick = document.createElement('div');
+        joystick = document.createElement('div');
         joystick.style.position = 'absolute';
         joystick.style.right = '20px';
         joystick.style.bottom = '20px';
@@ -74,56 +97,73 @@
         joystick.style.height = '100px';
         joystick.style.borderRadius = '50%';
         joystick.style.background = 'rgba(255, 255, 255, 0.5)';
-        joystick.style.display = 'flex';
-        joystick.style.alignItems = 'center';
-        joystick.style.justifyContent = 'center';
-        joystick.style.fontSize = '24px';
-        joystick.style.color = 'black';
-        joystick.style.cursor = 'pointer';
-        joystick.innerText = 'Joystick';
+        joystick.style.display = 'none';
         document.body.appendChild(joystick);
 
-        // Implement joystick functionality
-        joystick.addEventListener('mousedown', () => {
-            // Example tilt behavior, you can adjust this to your needs
-            tilt.x -= 0.1;
-            tilt.y -= 0.1;
-        });
+        joystickKnob = document.createElement('div');
+        joystickKnob.style.width = '40px';
+        joystickKnob.style.height = '40px';
+        joystickKnob.style.borderRadius = '50%';
+        joystickKnob.style.background = 'rgba(255, 255, 255, 0.8)';
+        joystickKnob.style.position = 'absolute';
+        joystickKnob.style.left = '30px';
+        joystickKnob.style.top = '30px';
+        joystick.appendChild(joystickKnob);
+
+        joystick.addEventListener('mousedown', handleJoystickStart);
+        joystick.addEventListener('mousemove', handleJoystickMove);
+        joystick.addEventListener('mouseup', handleJoystickEnd);
+        joystick.addEventListener('touchstart', handleJoystickStart);
+        joystick.addEventListener('touchmove', handleJoystickMove);
+        joystick.addEventListener('touchend', handleJoystickEnd);
     }
 
-    function createControlButtons() {
-        // Create arrow buttons for control
-        const controlContainer = document.createElement('div');
-        controlContainer.style.position = 'absolute';
-        controlContainer.style.left = '10px';
-        controlContainer.style.bottom = '20px';
-        controlContainer.style.display = 'flex';
-        controlContainer.style.flexDirection = 'column';
-        controlContainer.style.alignItems = 'center';
+    function handleJoystickStart(event) {
+        event.preventDefault();
+        joystick.style.background = 'rgba(255, 255, 255, 0.7)';
+    }
 
-        const directions = ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
-        const arrowSymbols = ['⬆️', '⬅️', '⬇️', '➡️'];
+    function handleJoystickMove(event) {
+        event.preventDefault();
+        if (event.buttons !== 1 && event.type !== 'touchmove') return;
+        const rect = joystick.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const clientX = event.clientX || event.touches[0].clientX;
+        const clientY = event.clientY || event.touches[0].clientY;
+        const dx = (clientX - centerX) / (rect.width / 2);
+        const dy = (clientY - centerY) / (rect.height / 2);
+        const distance = Math.min(1, Math.sqrt(dx * dx + dy * dy));
+        const angle = Math.atan2(dy, dx);
+        const knobX = Math.cos(angle) * distance * 30;
+        const knobY = Math.sin(angle) * distance * 30;
+        joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+        tilt.x = Math.max(-1, Math.min(1, dy));
+        tilt.y = Math.max(-1, Math.min(1, -dx));
+    }
 
-        directions.forEach((direction, index) => {
-            const button = document.createElement('button');
-            button.innerText = arrowSymbols[index];
-            button.style.fontSize = '20px';
-            button.style.margin = '5px';
-            button.style.cursor = 'pointer';
+    function handleJoystickEnd(event) {
+        event.preventDefault();
+        joystick.style.background = 'rgba(255, 255, 255, 0.5)';
+        joystickKnob.style.transform = 'translate(0px, 0px)';
+        tilt.x = 0;
+        tilt.y = 0;
+    }
 
-            button.addEventListener('mousedown', () => {
-                handleKey({ key: direction });
-            });
-
-            controlContainer.appendChild(button);
-        });
-
-        document.body.appendChild(controlContainer);
+    function toggleControl() {
+        useJoystick = !useJoystick;
+        joystick.style.display = useJoystick ? 'block' : 'none';
+        document.getElementById('control-toggle').innerText = useJoystick ? 'Use Tilt/Arrows' : 'Use Joystick';
+        if (!useJoystick) {
+            tilt.x = 0;
+            tilt.y = 0;
+        }
     }
 
     function startGame() {
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('restart-button').style.display = 'block';
+        document.getElementById('control-toggle').style.display = 'block';
         init();
     }
 
@@ -133,16 +173,11 @@
         level = 1;
         document.getElementById('score-display').innerText = `Score: ${score}`;
         document.getElementById('level-display').innerText = `Level: ${level}`;
-        // Reset world
         world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
-
-        // Clear scene
         while (scene.children.length > 0) {
             scene.remove(scene.children[0]);
         }
-
-        // Reinitialize game objects
         init();
     }
 
@@ -151,40 +186,33 @@
         if (startButton) {
             startButton.addEventListener('click', startGame);
         }
-        // Physics world setup
         world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
 
-        // Scene setup
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 20, 20);
-        camera.lookAt(0, 0, 0);
+        updateCameraPosition();
 
         renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Ambient light
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(10, 10, 10);
         scene.add(light);
 
-        // Floor
         const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
         floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.position.y = -0.5;
         scene.add(floor);
 
-        // Floor physics
         const floorShape = new CANNON.Box(new CANNON.Vec3(10, 0.5, 10));
         floorBody = new CANNON.Body({ mass: 0 });
         floorBody.addShape(floorShape);
         floorBody.position.set(0, -0.5, 0);
         world.addBody(floorBody);
 
-        // Liquid (Player) - Using shaders for a liquid effect
         const liquidGeometry = new THREE.SphereGeometry(1, 64, 64);
         const liquidMaterial = new THREE.ShaderMaterial({
             uniforms: {
@@ -210,22 +238,19 @@
         liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
         scene.add(liquid);
 
-        // Liquid physics
         const liquidShape = new CANNON.Sphere(1);
         liquidBody = new CANNON.Body({ mass: 5 });
         liquidBody.addShape(liquidShape);
         liquidBody.position.set(0, 1, 0);
-        liquidBody.linearDamping = 0.9;  // Simulate viscosity
+        liquidBody.linearDamping = 0.9;
         world.addBody(liquidBody);
 
-        // Goal (Yellow Block)
         const goalGeometry = new THREE.BoxGeometry(2, 2, 2);
         const goalMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
         goal = new THREE.Mesh(goalGeometry, goalMaterial);
         goal.position.set(8, 1, 8);
         scene.add(goal);
 
-        // Add initial traps (Red Blocks)
         for (let i = 0; i < collectiblesCount; i++) {
             addCollectible();
         }
@@ -233,12 +258,10 @@
             addTrap();
         }
 
-        // Event listeners for tilt
         window.addEventListener('deviceorientation', handleOrientation);
         document.addEventListener('keydown', handleKey);
         createJoystickControl();
-        createControlButtons();
-        window.addEventListener('keydown', handleKey);
+        document.getElementById('control-toggle').addEventListener('click', toggleControl);
 
         animate();
     }
@@ -274,20 +297,31 @@
         floorBody.position.set(0, -0.5, 0);
         world.addBody(floorBody);
 
-        // Add more traps and collectibles
         for (let i = 0; i < level; i++) {
             addTrap();
             addCollectible();
         }
+        updateCameraPosition();
         isResetting = false;
     }
 
+    function updateCameraPosition() {
+        const floorSize = 20 * level;
+        const cameraHeight = floorSize * 0.75;
+        const cameraDistance = floorSize * 0.5;
+        camera.position.set(0, cameraHeight, cameraDistance);
+        camera.lookAt(0, 0, 0);
+    }
+
     function handleOrientation(event) {
-        tilt.x = event.beta / 90;  // Tilt range -90 to 90
-        tilt.y = event.gamma / 90; // Tilt range -45 to 45
+        if (!useJoystick) {
+            tilt.x = event.beta / 90;
+            tilt.y = event.gamma / 90;
+        }
     }
 
     function handleKey(event) {
+        if (useJoystick) return;
         if (event.key === 'ArrowUp') tilt.x = Math.max(tilt.x - 0.1, -1);
         if (event.key === 'ArrowDown') tilt.x = Math.min(tilt.x + 0.1, 1);
         if (event.key === 'ArrowLeft') tilt.y = Math.max(tilt.y - 0.1, -1);
@@ -299,21 +333,16 @@
 
         if (isResetting) return;
 
-        // Step the physics world
         world.step(1 / 60);
 
-        // Apply tilt to the floor
         floorBody.quaternion.setFromEuler(tilt.x * 0.1, 0, tilt.y * 0.1);
         floor.quaternion.copy(floorBody.quaternion);
 
-        // Sync liquid position with physics body
         liquid.position.copy(liquidBody.position);
         liquid.quaternion.copy(liquidBody.quaternion);
 
-        // Update shader uniform time to create liquid effect
         liquid.material.uniforms.time.value += 0.05;
 
-        // Check if liquid falls off the platform
         if (liquid.position.y < -5) {
             isResetting = true;
             alert("You fell off the platform!");
@@ -323,7 +352,6 @@
             return;
         }
 
-        // Collision detection with goal
         if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
             isResetting = true;
             alert("You reached the goal!");
@@ -363,7 +391,7 @@
 
     init();
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 1.5</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 1.7</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
