@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.5</title>
+    <title>Liquid Maze Game - Version 2.6</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -179,7 +179,8 @@
         if (controlToggle) {
             controlToggle.style.display = 'block';
         }
-        init();
+        isResetting = false; // Ensure the game is not in a resetting state
+        animate(); // Start the animation loop
     }
 
     function restartGame() {
@@ -301,9 +302,6 @@
         } else {
             console.log("Control toggle not found.");
         }
-
-        console.log("Starting animation loop...");
-        animate();
     }
 
     function addTrap() {
@@ -472,7 +470,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.5</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.6</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
