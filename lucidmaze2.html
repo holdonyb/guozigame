@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Liquid Maze Game - Version 2.96</title>
+    <title>Liquid Maze Game - Version 3.0</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -72,25 +72,29 @@
             cursor: pointer;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+    <!-- Include Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <!-- Include Ammo.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ammo.js@0.0.10/ammo.js"></script>
 </head>
 <body>
 <script>
     let scene, camera, renderer;
-    let liquidParticles = [];
-    let liquidMesh;
+    let softBodyHelpers;
+    let slimeMesh, slimeBody;
     let goal, traps = [], collectibles = [];
     let tilt = { x: 0, y: 0 };
     let isResetting = false;
-    let floor;
-    let world, floorBody;
+    let floor, floorBody;
+    let physicsWorld;
     let score = 0;
     let level = 1;
     const collectiblesCount = 5;
     let useJoystick = false;
     let joystick, joystickKnob;
     let animationRunning = false;
+    let clock = new THREE.Clock();
+    let rigidBodies = [];
 
     function createJoystickControl() {
         joystick = document.createElement('div');
@@ -210,10 +214,10 @@
         collectibles.forEach(collectible => scene.remove(collectible));
         collectibles = [];
         if (floor) scene.remove(floor);
-        if (liquidMesh) scene.remove(liquidMesh);
+        if (slimeMesh) scene.remove(slimeMesh);
         if (goal) scene.remove(goal);
-        world.bodies.forEach(body => world.removeBody(body));
-        liquidParticles = [];
+        rigidBodies = [];
+        physicsWorld.clear();
 
         // Re-initialize the game objects
         initGameObjects();
@@ -250,11 +254,8 @@
         light.position.set(10, 10, 10);
         scene.add(light);
 
-        console.log("Creating physics world...");
-        world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
-        world.broadphase = new CANNON.NaiveBroadphase();
-        world.solver.iterations = 10;
+        console.log("Initializing physics...");
+        initPhysics();
 
         initGameObjects();
 
@@ -271,53 +272,66 @@
         }
     }
 
+    function initPhysics() {
+        physicsWorld = new Ammo.btSoftRigidDynamicsWorld(
+            new Ammo.btDefaultCollisionConfiguration(),
+            new Ammo.btCollisionDispatcher(),
+            new Ammo.btDbvtBroadphase(),
+            new Ammo.btSequentialImpulseConstraintSolver(),
+            new Ammo.btDefaultSoftBodySolver()
+        );
+        physicsWorld.setGravity(new Ammo.btVector3(0, -9.82, 0));
+        softBodyHelpers = new Ammo.btSoftBodyHelpers();
+    }
+
     function initGameObjects() {
         console.log("Initializing game objects...");
 
         // Create floor
         console.log("Creating floor...");
-        const floorGeometry = new THREE.PlaneGeometry(20, 20);
-        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide });
+        const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
         floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.5;
         scene.add(floor);
 
         console.log("Adding floor to physics world...");
-        const floorShape = new CANNON.Plane();
-        floorBody = new CANNON.Body({ mass: 0 });
-        floorBody.addShape(floorShape);
-        floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-        world.addBody(floorBody);
+        const floorShape = new Ammo.btBoxShape(new Ammo.btVector3(10, 0.5, 10));
+        const floorTransform = new Ammo.btTransform();
+        floorTransform.setIdentity();
+        floorTransform.setOrigin(new Ammo.btVector3(0, -0.5, 0));
+        floorBody = createRigidBody(floor, floorShape, 0, floorTransform);
+        floorBody.setFriction(1);
 
-        // Create liquid particles
-        console.log("Creating liquid particles...");
-        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff });
-        const particleGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-        liquidMesh = new THREE.Group();
-        for (let i = 0; i < 100; i++) {
-            const particleMesh = new THREE.Mesh(particleGeometry, liquidMaterial);
-            particleMesh.position.set(
-                (Math.random() - 0.5) * 2,
-                1 + Math.random() * 0.5,
-                (Math.random() - 0.5) * 2
-            );
-            liquidMesh.add(particleMesh);
+        // Create slime (soft body)
+        console.log("Creating slime...");
+        const slimeGeometry = new THREE.SphereGeometry(1.5, 20, 20);
+        const slimeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
+        slimeMesh = new THREE.Mesh(slimeGeometry, slimeMaterial);
+        scene.add(slimeMesh);
 
-            const particleBody = new CANNON.Body({
-                mass: 0.1,
-                shape: new CANNON.Sphere(0.2),
-                position: new CANNON.Vec3(
-                    particleMesh.position.x,
-                    particleMesh.position.y,
-                    particleMesh.position.z
-                )
-            });
-            particleBody.linearDamping = 0.9;
-            particleBody.angularDamping = 0.9;
-            world.addBody(particleBody);
-            liquidParticles.push({ mesh: particleMesh, body: particleBody });
-        }
-        scene.add(liquidMesh);
+        // Create soft body from mesh
+        const volumeSoftBody = softBodyHelpers.CreateFromTriMesh(
+            physicsWorld.getWorldInfo(),
+            slimeGeometry.attributes.position.array,
+            slimeGeometry.index.array,
+            slimeGeometry.index.count / 3,
+            true
+        );
+
+        const sbConfig = volumeSoftBody.get_m_cfg();
+        sbConfig.set_viterations(40);
+        sbConfig.set_piterations(40);
+        sbConfig.set_collisions(0x11);
+        sbConfig.set_kDF(0.5);
+        sbConfig.set_kDP(0.01);
+        sbConfig.set_kPR(500);
+
+        volumeSoftBody.setTotalMass(5, false);
+        Ammo.castObject(volumeSoftBody, Ammo.btCollisionObject).getCollisionShape().setMargin(0.05);
+        physicsWorld.addSoftBody(volumeSoftBody, 1, -1);
+        slimeBody = volumeSoftBody;
+        slimeMesh.userData.physicsBody = slimeBody;
 
         // Create goal
         console.log("Creating goal object...");
@@ -338,6 +352,28 @@
         for (let i = 0; i < 3; i++) {
             addTrap();
         }
+    }
+
+    function createRigidBody(threeObject, physicsShape, mass, startTransform) {
+        let isDynamic = (mass !== 0);
+        let localInertia = new Ammo.btVector3(0, 0, 0);
+        if (isDynamic) {
+            physicsShape.calculateLocalInertia(mass, localInertia);
+        }
+
+        let motionState = new Ammo.btDefaultMotionState(startTransform);
+        let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, physicsShape, localInertia);
+        let body = new Ammo.btRigidBody(rbInfo);
+
+        threeObject.userData.physicsBody = body;
+
+        if (isDynamic) {
+            rigidBodies.push(threeObject);
+            body.setActivationState(4); // Disable deactivation
+        }
+
+        physicsWorld.addRigidBody(body);
+        return body;
     }
 
     function addTrap() {
@@ -376,21 +412,10 @@
         }
 
         // Scale up the floor
-        floor.scale.set(level, level, level);
-        world.removeBody(floorBody);
-        const floorShape = new CANNON.Plane();
-        floorBody = new CANNON.Body({ mass: 0 });
-        floorBody.addShape(floorShape);
-        floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-        world.addBody(floorBody);
-
-        // Remove old particles and create new ones
-        liquidParticles.forEach(lp => {
-            scene.remove(lp.mesh);
-            world.removeBody(lp.body);
-        });
-        liquidParticles = [];
-        scene.remove(liquidMesh);
+        floor.scale.set(level, 1, level);
+        // Remove old soft body and create new one
+        physicsWorld.removeSoftBody(slimeBody);
+        scene.remove(slimeMesh);
         initGameObjects(); // Reinitialize game objects for the new level
 
         updateCameraPosition();
@@ -456,34 +481,58 @@
             return;
         }
 
-        world.step(1 / 60);
+        let deltaTime = clock.getDelta();
+        updatePhysics(deltaTime);
 
+        // Adjust camera to keep the slime in view
+        let slimePosition = new THREE.Vector3();
+        slimeMesh.getWorldPosition(slimePosition);
+        camera.position.set(slimePosition.x, 20, slimePosition.z + 20);
+        camera.lookAt(slimePosition);
+
+        renderer.render(scene, camera);
+    }
+
+    function updatePhysics(deltaTime) {
         // Apply tilt to the floor
-        floorBody.quaternion.setFromEuler(-tilt.x * 0.1, 0, -tilt.y * 0.1);
-        floor.quaternion.copy(floorBody.quaternion);
+        let transform = new Ammo.btTransform();
+        floorBody.getMotionState().getWorldTransform(transform);
+        let rotation = new Ammo.btQuaternion();
+        rotation.setEulerZYX(-tilt.y * 0.1, 0, -tilt.x * 0.1);
+        transform.setRotation(rotation);
+        floorBody.getMotionState().setWorldTransform(transform);
 
-        // Update liquid particles
-        let averagePosition = new THREE.Vector3(0, 0, 0);
-        for (let i = 0; i < liquidParticles.length; i++) {
-            const lp = liquidParticles[i];
-            lp.mesh.position.copy(lp.body.position);
-            lp.mesh.quaternion.copy(lp.body.quaternion);
-            averagePosition.add(lp.mesh.position);
+        physicsWorld.stepSimulation(deltaTime, 10);
 
-            // Check if particle fell off the platform
-            if (lp.body.position.y < -5) {
-                isResetting = true;
-                alert("You fell off the platform!");
-                setTimeout(() => {
-                    restartGame();
-                }, 500);
-                return;
-            }
+        // Update soft body (slime)
+        let softBody = slimeMesh.userData.physicsBody;
+        let mesh = slimeMesh;
+        let geometry = mesh.geometry;
+        let volumePositions = geometry.attributes.position.array;
+        let numVerts = volumePositions.length / 3;
+        let nodes = softBody.get_m_nodes();
+        for (let i = 0; i < numVerts; i++) {
+            let node = nodes.at(i);
+            let nodePos = node.get_m_x();
+            volumePositions[3 * i] = nodePos.x();
+            volumePositions[3 * i + 1] = nodePos.y();
+            volumePositions[3 * i + 2] = nodePos.z();
         }
-        averagePosition.divideScalar(liquidParticles.length);
+        geometry.attributes.position.needsUpdate = true;
+        geometry.computeVertexNormals();
 
-        // Check if liquid reached the goal
-        if (averagePosition.distanceTo(goal.position) < 2) {
+        // Check if slime fell off the platform
+        if (slimeMesh.position.y < -5) {
+            isResetting = true;
+            alert("You fell off the platform!");
+            setTimeout(() => {
+                restartGame();
+            }, 500);
+            return;
+        }
+
+        // Check if slime reached the goal
+        if (slimeMesh.position.distanceTo(goal.position) < 2) {
             isResetting = true;
             alert("You reached the goal!");
             setTimeout(() => {
@@ -493,57 +542,47 @@
         }
 
         // Collision detection with traps
-        traps.forEach(trap => {
-            const trapPosition = trap.position;
-            for (let lp of liquidParticles) {
-                if (lp.body.position.distanceTo(trapPosition) < 1) {
-                    isResetting = true;
-                    alert("You hit a trap!");
-                    setTimeout(() => {
-                        restartGame();
-                    }, 500);
-                    return;
-                }
+        for (let trap of traps) {
+            if (slimeMesh.position.distanceTo(trap.position) < 2) {
+                isResetting = true;
+                alert("You hit a trap!");
+                setTimeout(() => {
+                    restartGame();
+                }, 500);
+                return;
             }
-        });
+        }
 
         // Collision detection with collectibles
         collectibles.forEach((collectible, index) => {
-            for (let lp of liquidParticles) {
-                if (lp.body.position.distanceTo(collectible.position) < 1) {
-                    scene.remove(collectible);
-                    collectibles.splice(index, 1);
-                    score += 10;
-                    const scoreDisplay = document.getElementById('score-display');
-                    if (scoreDisplay) {
-                        scoreDisplay.innerText = `Score: ${score}`;
-                    }
-                    break;
+            if (slimeMesh.position.distanceTo(collectible.position) < 1.5) {
+                scene.remove(collectible);
+                collectibles.splice(index, 1);
+                score += 10;
+                const scoreDisplay = document.getElementById('score-display');
+                if (scoreDisplay) {
+                    scoreDisplay.innerText = `Score: ${score}`;
                 }
             }
         });
-
-        // Adjust camera to keep the liquid in view
-        camera.position.set(averagePosition.x, 20, averagePosition.z + 20);
-        camera.lookAt(averagePosition);
-
-        renderer.render(scene, camera);
     }
 
-    // Initialize the game after the DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM fully loaded and parsed");
-        const startButton = document.getElementById('start-button');
-        if (startButton) {
-            console.log("Start button found, setting up event listener...");
-            startButton.addEventListener('click', startGame);
-        } else {
-            console.log("Start button not found.");
-        }
-        init();
+    // Initialize Ammo.js before starting the game
+    Ammo().then(() => {
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM fully loaded and parsed");
+            const startButton = document.getElementById('start-button');
+            if (startButton) {
+                console.log("Start button found, setting up event listener...");
+                startButton.addEventListener('click', startGame);
+            } else {
+                console.log("Start button not found.");
+            }
+            init();
+        });
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.96</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 3.0</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
