@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.7</title>
+    <title>Liquid Maze Game - Version 2.8</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -115,9 +115,9 @@
         joystick.addEventListener('mousedown', handleJoystickStart);
         joystick.addEventListener('mousemove', handleJoystickMove);
         joystick.addEventListener('mouseup', handleJoystickEnd);
-        joystick.addEventListener('touchstart', handleJoystickStart);
-        joystick.addEventListener('touchmove', handleJoystickMove);
-        joystick.addEventListener('touchend', handleJoystickEnd);
+        joystick.addEventListener('touchstart', handleJoystickStart, { passive: true });
+        joystick.addEventListener('touchmove', handleJoystickMove, { passive: true });
+        joystick.addEventListener('touchend', handleJoystickEnd, { passive: true });
     }
 
     function handleJoystickStart(event) {
@@ -473,7 +473,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.7</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.8</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
