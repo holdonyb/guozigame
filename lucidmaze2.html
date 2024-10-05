@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.94</title>
+    <title>Liquid Maze Game - Version 2.95</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -116,6 +115,7 @@
         joystick.addEventListener('mousedown', handleJoystickStart);
         joystick.addEventListener('mousemove', handleJoystickMove);
         joystick.addEventListener('mouseup', handleJoystickEnd);
+        joystick.addEventListener('mouseleave', handleJoystickEnd);
         joystick.addEventListener('touchstart', handleJoystickStart, { passive: true });
         joystick.addEventListener('touchmove', handleJoystickMove, { passive: true });
         joystick.addEventListener('touchend', handleJoystickEnd, { passive: true });
@@ -142,7 +142,7 @@
         const knobY = Math.sin(angle) * distance * 30;
         joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
         tilt.x = Math.max(-1, Math.min(1, dy));
-        tilt.y = Math.max(-1, Math.min(1, dx)); // Reverse the direction
+        tilt.y = Math.max(-1, Math.min(1, dx));
     }
 
     function handleJoystickEnd(event) {
@@ -192,6 +192,7 @@
         score = 0;
         level = 1;
 
+        // Update score and level displays
         const scoreDisplay = document.getElementById('score-display');
         const levelDisplay = document.getElementById('level-display');
         if (scoreDisplay) {
@@ -201,6 +202,7 @@
             levelDisplay.innerText = `Level: ${level}`;
         }
 
+        // Clear existing scene and world
         traps.forEach(trap => scene.remove(trap));
         traps = [];
         collectibles.forEach(collectible => scene.remove(collectible));
@@ -210,9 +212,12 @@
         if (goal) scene.remove(goal);
         world.bodies.forEach(body => world.remove(body));
 
+        // Re-initialize the game objects
         initGameObjects();
 
+        // Reset camera position
         updateCameraPosition();
+
         isResetting = false;
     }
 
@@ -247,11 +252,24 @@
         world.gravity.set(0, -9.82, 0);
 
         initGameObjects();
+
+        console.log("Setting up event listeners...");
+        window.addEventListener('deviceorientation', handleOrientation);
+        document.addEventListener('keydown', handleKey);
+        createJoystickControl();
+        const controlToggle = document.getElementById('control-toggle');
+        if (controlToggle) {
+            console.log("Control toggle found, setting up event listener...");
+            controlToggle.addEventListener('click', toggleControl);
+        } else {
+            console.log("Control toggle not found.");
+        }
     }
 
     function initGameObjects() {
         console.log("Initializing game objects...");
 
+        // Create floor
         console.log("Creating floor...");
         const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
@@ -267,6 +285,7 @@
         floorBody.quaternion.setFromEuler(0, 0, 0);
         world.addBody(floorBody);
 
+        // Create liquid
         console.log("Creating liquid object...");
         const liquidGeometry = new THREE.CylinderGeometry(1, 1, 0.2, 32);
         const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
@@ -286,6 +305,7 @@
         liquidBody.angularDamping = 0.9;
         world.addBody(liquidBody);
 
+        // Create goal
         console.log("Creating goal object...");
         const goalGeometry = new THREE.BoxGeometry(2, 2, 2);
         const goalMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
@@ -293,26 +313,16 @@
         goal.position.set(8, 1, 8);
         scene.add(goal);
 
+        // Add collectibles
         console.log("Adding collectibles...");
         for (let i = 0; i < collectiblesCount; i++) {
             addCollectible();
         }
 
+        // Add traps
         console.log("Adding traps...");
         for (let i = 0; i < 3; i++) {
             addTrap();
-        }
-
-        console.log("Setting up event listeners...");
-        window.addEventListener('deviceorientation', handleOrientation);
-        document.addEventListener('keydown', handleKey);
-        createJoystickControl();
-        const controlToggle = document.getElementById('control-toggle');
-        if (controlToggle) {
-            console.log("Control toggle found, setting up event listener...");
-            controlToggle.addEventListener('click', toggleControl);
-        } else {
-            console.log("Control toggle not found.");
         }
     }
 
@@ -387,6 +397,7 @@
             let beta = event.beta || 0;
             let gamma = event.gamma || 0;
 
+            // Adjust for device orientation
             if (window.orientation === 90) {
                 tilt.x = gamma / 90;
                 tilt.y = beta / 90;
@@ -398,9 +409,11 @@
                 tilt.y = -gamma / 90;
             }
 
+            // Increase sensitivity
             tilt.x *= 1.5;
             tilt.y *= 1.5;
 
+            // Clamp values
             tilt.x = Math.max(-1, Math.min(1, tilt.x));
             tilt.y = Math.max(-1, Math.min(1, tilt.y));
         }
@@ -432,13 +445,13 @@
 
         world.step(1 / 60);
 
+        // Apply tilt to the floor
         floorBody.quaternion.setFromEuler(-tilt.x * 0.1, 0, -tilt.y * 0.1);
         floor.quaternion.copy(floorBody.quaternion);
 
+        // Update liquid position
         liquid.position.copy(liquidBody.position);
         liquid.quaternion.copy(liquidBody.quaternion);
-
-        liquid.material.uniforms.time.value += 0.05;
 
         if (liquid.position.y < -5) {
             isResetting = true;
@@ -458,6 +471,7 @@
             return;
         }
 
+        // Collision detection with traps
         traps.forEach(trap => {
             const trapPosition = new CANNON.Vec3(trap.position.x, trap.position.y, trap.position.z);
             if (liquidBody.position.distanceTo(trapPosition) < 2) {
@@ -470,6 +484,7 @@
             }
         });
 
+        // Collision detection with collectibles
         collectibles.forEach((collectible, index) => {
             if (liquidBody.position.distanceTo(new CANNON.Vec3(collectible.position.x, collectible.position.y, collectible.position.z)) < 1.5) {
                 scene.remove(collectible);
@@ -482,25 +497,27 @@
             }
         });
 
+        // Adjust camera to keep the liquid in view
         camera.position.set(liquid.position.x, 20, liquid.position.z + 20);
         camera.lookAt(liquid.position);
 
         renderer.render(scene, camera);
     }
 
+    // Initialize the game after the DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM已完全加载并解析");
+        console.log("DOM fully loaded and parsed");
         const startButton = document.getElementById('start-button');
         if (startButton) {
-            console.log("找到开始按钮,设置事件监听器...");
+            console.log("Start button found, setting up event listener...");
             startButton.addEventListener('click', startGame);
         } else {
-            console.log("未找到开始按钮。");
+            console.log("Start button not found.");
         }
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.94</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.95</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
