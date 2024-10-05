@@ -73,11 +73,7 @@
             cursor: pointer;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">function toggleHelp() {
-    const helpModal = document.getElementById('help-modal');
-    helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
-}
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
 </head>
 <body>
@@ -167,7 +163,10 @@
     }
 
     function startGame() {
-        document.getElementById('start-screen').remove();
+        const startScreen = document.getElementById('start-screen');
+        if (startScreen) {
+            startScreen.style.display = 'none';
+        }
         document.getElementById('restart-button').style.display = 'block';
         document.getElementById('control-toggle').style.display = 'block';
         init();
@@ -335,6 +334,11 @@
         if (event.key === 'ArrowDown') tilt.x = Math.min(tilt.x + 0.1, 1);
         if (event.key === 'ArrowLeft') tilt.y = Math.max(tilt.y - 0.1, -1);
         if (event.key === 'ArrowRight') tilt.y = Math.min(tilt.y + 0.1, 1);
+    }
+
+    function toggleHelp() {
+        const helpModal = document.getElementById('help-modal');
+        helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
     }
 
     function animate() {
