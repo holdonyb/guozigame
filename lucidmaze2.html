@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Liquid Maze Game - Version 2.95</title>
+    <title>Liquid Maze Game - Version 2.96</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -73,16 +73,18 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.18.1/dist/cannon-es.js"></script>
 </head>
 <body>
 <script>
     let scene, camera, renderer;
-    let liquid, goal, traps = [], collectibles = [];
+    let liquidParticles = [];
+    let liquidMesh;
+    let goal, traps = [], collectibles = [];
     let tilt = { x: 0, y: 0 };
     let isResetting = false;
     let floor;
-    let world, liquidBody, floorBody;
+    let world, floorBody;
     let score = 0;
     let level = 1;
     const collectiblesCount = 5;
@@ -208,9 +210,10 @@
         collectibles.forEach(collectible => scene.remove(collectible));
         collectibles = [];
         if (floor) scene.remove(floor);
-        if (liquid) scene.remove(liquid);
+        if (liquidMesh) scene.remove(liquidMesh);
         if (goal) scene.remove(goal);
-        world.bodies.forEach(body => world.remove(body));
+        world.bodies.forEach(body => world.removeBody(body));
+        liquidParticles = [];
 
         // Re-initialize the game objects
         initGameObjects();
@@ -250,6 +253,8 @@
         console.log("Creating physics world...");
         world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
 
         initGameObjects();
 
@@ -271,46 +276,55 @@
 
         // Create floor
         console.log("Creating floor...");
-        const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
-        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const floorGeometry = new THREE.PlaneGeometry(20, 20);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide });
         floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.position.y = -0.5;
+        floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
         console.log("Adding floor to physics world...");
-        const floorShape = new CANNON.Box(new CANNON.Vec3(10, 0.5, 10));
+        const floorShape = new CANNON.Plane();
         floorBody = new CANNON.Body({ mass: 0 });
         floorBody.addShape(floorShape);
-        floorBody.position.set(0, -0.5, 0);
-        floorBody.quaternion.setFromEuler(0, 0, 0);
+        floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         world.addBody(floorBody);
 
-        // Create liquid
-        console.log("Creating liquid object...");
-        const liquidGeometry = new THREE.CylinderGeometry(1, 1, 0.2, 32);
-        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
-        liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
-        liquid.rotation.x = Math.PI / 2;
-        scene.add(liquid);
+        // Create liquid particles
+        console.log("Creating liquid particles...");
+        const liquidMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff });
+        const particleGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+        liquidMesh = new THREE.Group();
+        for (let i = 0; i < 100; i++) {
+            const particleMesh = new THREE.Mesh(particleGeometry, liquidMaterial);
+            particleMesh.position.set(
+                (Math.random() - 0.5) * 2,
+                1 + Math.random() * 0.5,
+                (Math.random() - 0.5) * 2
+            );
+            liquidMesh.add(particleMesh);
 
-        console.log("Adding liquid to physics world...");
-        const liquidShape = new CANNON.Cylinder(1, 1, 0.2, 32);
-        liquidBody = new CANNON.Body({
-            mass: 5,
-            material: new CANNON.Material({ friction: 0.5, restitution: 0 })
-        });
-        liquidBody.addShape(liquidShape);
-        liquidBody.position.set(0, 1, 0);
-        liquidBody.linearDamping = 0.9;
-        liquidBody.angularDamping = 0.9;
-        world.addBody(liquidBody);
+            const particleBody = new CANNON.Body({
+                mass: 0.1,
+                shape: new CANNON.Sphere(0.2),
+                position: new CANNON.Vec3(
+                    particleMesh.position.x,
+                    particleMesh.position.y,
+                    particleMesh.position.z
+                )
+            });
+            particleBody.linearDamping = 0.9;
+            particleBody.angularDamping = 0.9;
+            world.addBody(particleBody);
+            liquidParticles.push({ mesh: particleMesh, body: particleBody });
+        }
+        scene.add(liquidMesh);
 
         // Create goal
         console.log("Creating goal object...");
-        const goalGeometry = new THREE.BoxGeometry(2, 2, 2);
+        const goalGeometry = new THREE.BoxGeometry(2, 0.5, 2);
         const goalMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
         goal = new THREE.Mesh(goalGeometry, goalMaterial);
-        goal.position.set(8, 1, 8);
+        goal.position.set(8, 0.25, 8);
         scene.add(goal);
 
         // Add collectibles
@@ -327,14 +341,14 @@
     }
 
     function addTrap() {
-        const trapGeometry = new THREE.BoxGeometry(2, 2, 2);
+        const trapGeometry = new THREE.BoxGeometry(2, 0.5, 2);
         const trapMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
         const trap = new THREE.Mesh(trapGeometry, trapMaterial);
         let position;
         do {
             position = {
                 x: (Math.random() - 0.5) * 18,
-                y: 1,
+                y: 0.25,
                 z: (Math.random() - 0.5) * 18
             };
         } while (Math.abs(position.x) < 3 && Math.abs(position.z) < 3);
@@ -344,10 +358,10 @@
     }
 
     function addCollectible() {
-        const collectibleGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const collectibleGeometry = new THREE.SphereGeometry(0.5, 16, 16);
         const collectibleMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
         const collectible = new THREE.Mesh(collectibleGeometry, collectibleMaterial);
-        collectible.position.set((Math.random() - 0.5) * 18, 1, (Math.random() - 0.5) * 18);
+        collectible.position.set((Math.random() - 0.5) * 18, 0.5, (Math.random() - 0.5) * 18);
         collectibles.push(collectible);
         scene.add(collectible);
     }
@@ -360,26 +374,25 @@
         if (levelDisplay) {
             levelDisplay.innerText = `Level: ${level}`;
         }
-        liquidBody.position.set(0, 1, 0);
-        liquidBody.velocity.set(0, 0, 0);
-        floor.scale.set(level, 1, level);
+
+        // Scale up the floor
+        floor.scale.set(level, level, level);
         world.removeBody(floorBody);
-        const floorShape = new CANNON.Box(new CANNON.Vec3(10 * level, 0.5, 10 * level));
+        const floorShape = new CANNON.Plane();
         floorBody = new CANNON.Body({ mass: 0 });
         floorBody.addShape(floorShape);
-        floorBody.position.set(0, -0.5, 0);
-        floorBody.quaternion.setFromEuler(0, 0, 0);
+        floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         world.addBody(floorBody);
 
-        traps.forEach(trap => scene.remove(trap));
-        traps = [];
-        collectibles.forEach(collectible => scene.remove(collectible));
-        collectibles = [];
+        // Remove old particles and create new ones
+        liquidParticles.forEach(lp => {
+            scene.remove(lp.mesh);
+            world.removeBody(lp.body);
+        });
+        liquidParticles = [];
+        scene.remove(liquidMesh);
+        initGameObjects(); // Reinitialize game objects for the new level
 
-        for (let i = 0; i < level; i++) {
-            addTrap();
-            addCollectible();
-        }
         updateCameraPosition();
         isResetting = false;
     }
@@ -449,20 +462,28 @@
         floorBody.quaternion.setFromEuler(-tilt.x * 0.1, 0, -tilt.y * 0.1);
         floor.quaternion.copy(floorBody.quaternion);
 
-        // Update liquid position
-        liquid.position.copy(liquidBody.position);
-        liquid.quaternion.copy(liquidBody.quaternion);
+        // Update liquid particles
+        let averagePosition = new THREE.Vector3(0, 0, 0);
+        for (let i = 0; i < liquidParticles.length; i++) {
+            const lp = liquidParticles[i];
+            lp.mesh.position.copy(lp.body.position);
+            lp.mesh.quaternion.copy(lp.body.quaternion);
+            averagePosition.add(lp.mesh.position);
 
-        if (liquid.position.y < -5) {
-            isResetting = true;
-            alert("You fell off the platform!");
-            setTimeout(() => {
-                restartGame();
-            }, 500);
-            return;
+            // Check if particle fell off the platform
+            if (lp.body.position.y < -5) {
+                isResetting = true;
+                alert("You fell off the platform!");
+                setTimeout(() => {
+                    restartGame();
+                }, 500);
+                return;
+            }
         }
+        averagePosition.divideScalar(liquidParticles.length);
 
-        if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
+        // Check if liquid reached the goal
+        if (averagePosition.distanceTo(goal.position) < 2) {
             isResetting = true;
             alert("You reached the goal!");
             setTimeout(() => {
@@ -473,33 +494,38 @@
 
         // Collision detection with traps
         traps.forEach(trap => {
-            const trapPosition = new CANNON.Vec3(trap.position.x, trap.position.y, trap.position.z);
-            if (liquidBody.position.distanceTo(trapPosition) < 2) {
-                isResetting = true;
-                alert("You hit a trap!");
-                setTimeout(() => {
-                    restartGame();
-                }, 500);
-                return;
+            const trapPosition = trap.position;
+            for (let lp of liquidParticles) {
+                if (lp.body.position.distanceTo(trapPosition) < 1) {
+                    isResetting = true;
+                    alert("You hit a trap!");
+                    setTimeout(() => {
+                        restartGame();
+                    }, 500);
+                    return;
+                }
             }
         });
 
         // Collision detection with collectibles
         collectibles.forEach((collectible, index) => {
-            if (liquidBody.position.distanceTo(new CANNON.Vec3(collectible.position.x, collectible.position.y, collectible.position.z)) < 1.5) {
-                scene.remove(collectible);
-                collectibles.splice(index, 1);
-                score += 10;
-                const scoreDisplay = document.getElementById('score-display');
-                if (scoreDisplay) {
-                    scoreDisplay.innerText = `Score: ${score}`;
+            for (let lp of liquidParticles) {
+                if (lp.body.position.distanceTo(collectible.position) < 1) {
+                    scene.remove(collectible);
+                    collectibles.splice(index, 1);
+                    score += 10;
+                    const scoreDisplay = document.getElementById('score-display');
+                    if (scoreDisplay) {
+                        scoreDisplay.innerText = `Score: ${score}`;
+                    }
+                    break;
                 }
             }
         });
 
         // Adjust camera to keep the liquid in view
-        camera.position.set(liquid.position.x, 20, liquid.position.z + 20);
-        camera.lookAt(liquid.position);
+        camera.position.set(averagePosition.x, 20, averagePosition.z + 20);
+        camera.lookAt(averagePosition);
 
         renderer.render(scene, camera);
     }
@@ -517,7 +543,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.95</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.96</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
