@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.92</title>
+    <title>Liquid Maze Game - Version 2.93</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -352,6 +352,7 @@
 
     function nextLevel() {
         console.log("Advancing to next level...");
+        isResetting = true; // Pause the game loop while setting up the next level
         level++;
         const levelDisplay = document.getElementById('level-display');
         if (levelDisplay) {
@@ -367,18 +368,18 @@
         floorBody.position.set(0, -0.5, 0);
         floorBody.quaternion.setFromEuler(0, 0, 0); // Reset floor orientation
         world.addBody(floorBody);
-
+    
         traps.forEach(trap => scene.remove(trap));
         traps = [];
         collectibles.forEach(collectible => scene.remove(collectible));
         collectibles = [];
-
+    
         for (let i = 0; i < level; i++) {
             addTrap();
             addCollectible();
         }
         updateCameraPosition();
-        isResetting = false;
+        isResetting = false; // Resume the game loop
     }
 
     function updateCameraPosition() {
@@ -412,67 +413,72 @@
     }
 
     function animate() {
-        if (!isResetting) {
-            requestAnimationFrame(animate);
-
-            world.step(1 / 60);
-
-            floorBody.quaternion.setFromEuler(tilt.x * 0.1, 0, tilt.y * 0.1);
-            floor.quaternion.copy(floorBody.quaternion);
-
-            liquid.position.copy(liquidBody.position);
-            liquid.quaternion.copy(liquidBody.quaternion);
-
-            liquid.material.uniforms.time.value += 0.05;
-
-            if (liquid.position.y < -5) {
+        requestAnimationFrame(animate);
+    
+        if (isResetting) {
+            renderer.render(scene, camera);
+            return;
+        }
+    
+        world.step(1 / 60);
+    
+        floorBody.quaternion.setFromEuler(tilt.x * 0.1, 0, tilt.y * 0.1);
+        floor.quaternion.copy(floorBody.quaternion);
+    
+        liquid.position.copy(liquidBody.position);
+        liquid.quaternion.copy(liquidBody.quaternion);
+    
+        liquid.material.uniforms.time.value += 0.05;
+    
+        if (liquid.position.y < -5) {
+            isResetting = true;
+            alert("You fell off the platform!");
+            setTimeout(() => {
+                restartGame();
+            }, 500);
+            return;
+        }
+    
+        if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
+            isResetting = true;
+            alert("You reached the goal!");
+            setTimeout(() => {
+                nextLevel();
+            }, 500);
+            return;
+        }
+    
+        // Collision detection with traps
+        traps.forEach(trap => {
+            const trapPosition = new CANNON.Vec3(trap.position.x, trap.position.y, trap.position.z);
+            if (liquidBody.position.distanceTo(trapPosition) < 2) {
                 isResetting = true;
-                alert("You fell off the platform!");
+                alert("You hit a trap!");
                 setTimeout(() => {
                     restartGame();
                 }, 500);
                 return;
             }
-
-            if (liquidBody.position.distanceTo(new CANNON.Vec3(goal.position.x, goal.position.y, goal.position.z)) < 2) {
-                isResetting = true;
-                alert("You reached the goal!");
-                setTimeout(() => {
-                    nextLevel();
-                }, 500);
+        });
+    
+        // Collision detection with collectibles
+        collectibles.forEach((collectible, index) => {
+            if (liquidBody.position.distanceTo(new CANNON.Vec3(collectible.position.x, collectible.position.y, collectible.position.z)) < 1.5) {
+                scene.remove(collectible);
+                collectibles.splice(index, 1);
+                score += 10;
+                const scoreDisplay = document.getElementById('score-display');
+                if (scoreDisplay) {
+                    scoreDisplay.innerText = `Score: ${score}`;
+                }
             }
-
-            // Collision detection with traps
-            traps.forEach(trap => {
-                const trapPosition = new CANNON.Vec3(trap.position.x, trap.position.y, trap.position.z);
-                if (liquidBody.position.distanceTo(trapPosition) < 2) {
-                    isResetting = true;
-                    alert("You hit a trap!");
-                    setTimeout(() => {
-                        restartGame();
-                    }, 500);
-                }
-            });
-
-            // Collision detection with collectibles
-            collectibles.forEach((collectible, index) => {
-                if (liquidBody.position.distanceTo(new CANNON.Vec3(collectible.position.x, collectible.position.y, collectible.position.z)) < 1.5) {
-                    scene.remove(collectible);
-                    collectibles.splice(index, 1);
-                    score += 10;
-                    const scoreDisplay = document.getElementById('score-display');
-                    if (scoreDisplay) {
-                        scoreDisplay.innerText = `Score: ${score}`;
-                    }
-                }
-            });
-
-            // Adjust camera to keep the liquid in view
-            camera.position.set(liquid.position.x, 20, liquid.position.z + 20);
-            camera.lookAt(liquid.position);
-
-            renderer.render(scene, camera);
-        }
+        });
+    
+        // Adjust camera to keep the liquid in view
+        camera.position.set(liquid.position.x, 20, liquid.position.z + 20);
+        camera.lookAt(liquid.position);
+    
+        renderer.render(scene, camera);
     }
 
     // Remove the init() call here
@@ -491,7 +497,7 @@
         init();
     });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.92</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.93</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
