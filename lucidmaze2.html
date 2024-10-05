@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.0</title>
+    <title>Liquid Maze Game - Version 2.2</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -38,7 +38,7 @@
             border-radius: 5px;
         }
         #restart-button { top: 100px; }
-        #control-toggle { top: 140px; }
+        #control-toggle { top: 140px; display: none; }
         #help-button {
             position: absolute;
             top: 10px;
@@ -155,7 +155,10 @@
     function toggleControl() {
         useJoystick = !useJoystick;
         joystick.style.display = useJoystick ? 'block' : 'none';
-        document.getElementById('control-toggle').innerText = useJoystick ? 'Use Tilt/Arrows' : 'Use Joystick';
+        const controlToggle = document.getElementById('control-toggle');
+        if (controlToggle) {
+            controlToggle.innerText = useJoystick ? 'Use Tilt/Arrows' : 'Use Joystick';
+        }
         if (!useJoystick) {
             tilt.x = 0;
             tilt.y = 0;
@@ -163,21 +166,35 @@
     }
 
     function startGame() {
+        console.log("Starting game...");
         const startScreen = document.getElementById('start-screen');
         if (startScreen) {
             startScreen.style.display = 'none';
         }
-        document.getElementById('restart-button').style.display = 'block';
-        document.getElementById('control-toggle').style.display = 'block';
+        const restartButton = document.getElementById('restart-button');
+        const controlToggle = document.getElementById('control-toggle');
+        if (restartButton) {
+            restartButton.style.display = 'block';
+        }
+        if (controlToggle) {
+            controlToggle.style.display = 'block';
+        }
         init();
     }
 
     function restartGame() {
+        console.log("Restarting game...");
         isResetting = false;
         score = 0;
         level = 1;
-        document.getElementById('score-display').innerText = `Score: ${score}`;
-        document.getElementById('level-display').innerText = `Level: ${level}`;
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        if (scoreDisplay) {
+            scoreDisplay.innerText = `Score: ${score}`;
+        }
+        if (levelDisplay) {
+            levelDisplay.innerText = `Level: ${level}`;
+        }
         world = new CANNON.World();
         world.gravity.set(0, -9.82, 0);
         while (scene.children.length > 0) {
@@ -187,6 +204,7 @@
     }
 
     function init() {
+        console.log("Initializing game...");
         const startButton = document.getElementById('start-button');
         if (startButton) {
             startButton.addEventListener('click', startGame);
@@ -293,8 +311,12 @@
     }
 
     function nextLevel() {
+        console.log("Advancing to next level...");
         level++;
-        document.getElementById('level-display').innerText = `Level: ${level}`;
+        const levelDisplay = document.getElementById('level-display');
+        if (levelDisplay) {
+            levelDisplay.innerText = `Level: ${level}`;
+        }
         liquidBody.position.set(0, 1, 0);
         liquidBody.velocity.set(0, 0, 0);
         floor.scale.set(level, 1, level);
@@ -338,7 +360,9 @@
 
     function toggleHelp() {
         const helpModal = document.getElementById('help-modal');
-        helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
+        if (helpModal) {
+            helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
+        }
     }
 
     function animate() {
@@ -391,7 +415,10 @@
                 scene.remove(collectible);
                 collectibles.splice(index, 1);
                 score += 10;
-                document.getElementById('score-display').innerText = `Score: ${score}`;
+                const scoreDisplay = document.getElementById('score-display');
+                if (scoreDisplay) {
+                    scoreDisplay.innerText = `Score: ${score}`;
+                }
             }
         });
 
@@ -404,7 +431,7 @@
 
     init();
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.0</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.2</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
@@ -412,6 +439,7 @@
     <button id="start-button">Start Game</button>
 </div>
 <button id="restart-button" onclick="restartGame()">Restart</button>
+<button id="control-toggle">Use Joystick</button>
 <button id="help-button" onclick="toggleHelp()">❓</button>
 <div id="help-modal">
     <div id="help-content">
