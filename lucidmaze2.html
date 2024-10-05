@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Maze Game - Version 2.4</title>
+    <title>Liquid Maze Game - Version 2.5</title>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -205,14 +205,6 @@
 
     function init() {
         console.log("Initializing game...");
-        const startButton = document.getElementById('start-button');
-        if (startButton) {
-            console.log("Start button found, setting up event listener...");
-            startButton.removeEventListener('click', startGame);
-            startButton.addEventListener('click', startGame);
-        } else {
-            console.log("Start button not found.");
-        }
         
         console.log("Creating physics world...");
         world = new CANNON.World();
@@ -464,9 +456,23 @@
         renderer.render(scene, camera);
     }
 
-    init();
+    // Remove the init() call here
+    // init();
+
+    // Add this event listener to run init function after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM已完全加载并解析");
+        const startButton = document.getElementById('start-button');
+        if (startButton) {
+            console.log("找到开始按钮,设置事件监听器...");
+            startButton.addEventListener('click', startGame);
+        } else {
+            console.log("未找到开始按钮。");
+        }
+        init();
+    });
 </script>
-<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.4</div>
+<div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 2.5</div>
 <div id="score-display">Score: 0</div>
 <div id="level-display">Level: 1</div>
 <div id="start-screen">
