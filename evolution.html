@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>快乐的吞噬小宝宝</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #e0f7fa;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 16px;
+            color: #000;
+        }
+        #taskPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 16px;
+            color: #000;
+        }
+        #gameOver {
+            position: absolute;
+            top: 40%;
+            width: 100%;
+            text-align: center;
+            font-size: 48px;
+            color: red;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    <div id="ui"></div>
+    <div id="taskPanel"></div>
+    <div id="gameOver">游戏结束！</div>
+    <script>
+        // 获取画布和上下文
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 定义全局变量
+        let players = [];
+        let plasmas = [];
+        let items = [];
+        let tasks = [];
+        let achievements = [];
+        let keys = {};
+        let gameRunning = true;
+        let evolutionStages = [
+            { stage: '单细胞', size: 10, speed: 3 },
+            { stage: '多细胞', size: 15, speed: 2.8 },
+            { stage: '小型生物', size: 20, speed: 2.5 },
+            { stage: '鱼类', size: 25, speed: 2.2 },
+            { stage: '两栖动物', size: 30, speed: 2 },
+            { stage: '爬行动物', size: 35, speed: 1.8 },
+            { stage: '哺乳动物', size: 40, speed: 1.5 },
+            { stage: '灵长类', size: 45, speed: 1.2 },
+            { stage: '原始人类', size: 50, speed: 1 },
+            { stage: '现代人类', size: 55, speed: 0.8 }
+        ];
+
+        // 定义玩家类
+        class Player {
+            constructor(x, y, isAI = false) {
+                this.x = x;
+                this.y = y;
+                this.size = 10;
+                this.speed = 3;
+                this.health = 100;
+                this.exp = 0;
+                this.mutationPoints = 0;
+                this.level = 1;
+                this.isAI = isAI;
+                this.evolutionStage = 0;
+                this.target = null;
+                this.skills = [];
+                this.path = [];
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.isAI ? '#66bb6a' : '#42a5f5';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            move() {
+                if (this.isAI) {
+                    this.aiMove();
+                } else {
+                    this.playerMove();
+                }
+            }
+
+            playerMove() {
+                if (keys['w'] || keys['ArrowUp']) this.y -= this.speed;
+                if (keys['s'] || keys['ArrowDown']) this.y += this.speed;
+                if (keys['a'] || keys['ArrowLeft']) this.x -= this.speed;
+                if (keys['d'] || keys['ArrowRight']) this.x -= this.speed;
+                if (keys['e']) this.useSkill('加速');
+                this.boundaryCheck();
+            }
+
+            aiMove() {
+                if (!this.target || this.target.health <= 0) {
+                    this.findTarget();
+                }
+                if (this.target) {
+                    // 使用A*算法寻路
+                    if (this.path.length === 0) {
+                        this.path = findPath({ x: this.x, y: this.y }, { x: this.target.x, y: this.target.y });
+                    }
+                    if (this.path.length > 0) {
+                        let nextNode = this.path.shift();
+                        let dx = nextNode.x - this.x;
+                        let dy = nextNode.y - this.y;
+                        let distance = Math.hypot(dx, dy);
+                        if (distance > 1) {
+                            this.x += (dx / distance) * this.speed;
+                            this.y += (dy / distance) * this.speed;
+                        }
+                    }
+                } else {
+                    // 随机移动
+                    this.x += (Math.random() - 0.5) * this.speed;
+                    this.y += (Math.random() - 0.5) * this.speed;
+                }
+                this.boundaryCheck();
+            }
+
+            findTarget() {
+                // 寻找最近的目标
+                let entities = plasmas.concat(players);
+                let minDistance = Infinity;
+                let closest = null;
+                entities.forEach(entity => {
+                    if (entity !== this && entity.health > 0) {
+                        let distance = Math.hypot(this.x - entity.x, this.y - entity.y);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closest = entity;
+                        }
+                    }
+                });
+                this.target = closest;
+                this.path = [];
+            }
+
+            boundaryCheck() {
+                if (this.x < this.size) this.x = this.size;
+                if (this.x > canvas.width - this.size) this.x = canvas.width - this.size;
+                if (this.y < this.size) this.y = this.size;
+                if (this.y > canvas.height - this.size) this.y = canvas.height - this.size;
+            }
+
+            eat(entity) {
+                this.exp += 20;
+                this.size += 1;
+                this.checkLevelUp();
+                checkAchievements('collectPlasma', 1);
+            }
+
+            attack(other) {
+                let damage = 5 + this.level;
+                other.health -= damage;
+                if (other.health <= 0) {
+                    this.exp += other.level * 50;
+                    this.checkLevelUp();
+                    checkAchievements('defeatEnemy', 1);
+                }
+            }
+
+            checkLevelUp() {
+                if (this.exp >= this.level * 100) {
+                    this.exp = 0;
+                    this.level++;
+                    this.mutationPoints++;
+                    this.evolve();
+                }
+            }
+
+            evolve() {
+                if (this.evolutionStage < evolutionStages.length - 1) {
+                    this.evolutionStage++;
+                    let stageInfo = evolutionStages[this.evolutionStage];
+                    this.size = stageInfo.size;
+                    this.speed = stageInfo.speed;
+                    this.unlockSkill();
+                    checkAchievements('evolve', this.evolutionStage);
+                } else {
+                    // 进化成人类，游戏胜利
+                    if (!this.isAI) {
+                        gameOver('恭喜你进化成人类，赢得了游戏！');
+                    } else {
+                        gameOver('AI玩家进化成人类，AI胜利！');
+                    }
+                }
+            }
+
+            unlockSkill() {
+                switch (this.evolutionStage) {
+                    case 2:
+                        this.skills.push('加速');
+                        break;
+                    case 4:
+                        this.skills.push('跳跃');
+                        break;
+                    case 6:
+                        this.skills.push('防御');
+                        break;
+                    case 8:
+                        this.skills.push('特殊攻击');
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            useSkill(skillName) {
+                if (this.skills.includes(skillName)) {
+                    switch (skillName) {
+                        case '加速':
+                            this.speed *= 1.5;
+                            setTimeout(() => { this.speed /= 1.5; }, 2000);
+                            break;
+                        case '跳跃':
+                            // 实现跳跃效果
+                            break;
+                        case '防御':
+                            // 提升防御力
+                            break;
+                        case '特殊攻击':
+                            // 造成大量伤害
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+
+        // 定义等离子类
+        class Plasma {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 8;
+                this.health = 50;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef5350';
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        // 定义物品类
+        class Item {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.size = 10;
+                this.type = type; // 'speed', 'health', 'exp', 'attack', 'defense'
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.rect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+                ctx.fillStyle = this.type === 'speed' ? '#ab47bc' :
+                                this.type === 'health' ? '#66bb6a' :
+                                this.type === 'exp' ? '#ffee58' :
+                                this.type === 'attack' ? '#ff7043' : '#29b6f6';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            applyEffect(player) {
+                switch (this.type) {
+                    case 'speed':
+                        player.speed += 0.5;
+                        break;
+                    case 'health':
+                        player.health += 20;
+                        if (player.health > 100) player.health = 100;
+                        break;
+                    case 'exp':
+                        player.exp += 50;
+                        player.checkLevelUp();
+                        break;
+                    case 'attack':
+                        // 提升攻击力
+                        break;
+                    case 'defense':
+                        // 提升防御力
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        // 初始化玩家和AI
+        let player = new Player(canvas.width / 2, canvas.height / 2);
+        players.push(player);
+
+        for (let i = 0; i < 10; i++) {
+            let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
+            players.push(aiPlayer);
+        }
+
+        // 初始化等离子
+        for (let i = 0; i < 50; i++) {
+            let plasma = new Plasma(Math.random() * canvas.width, Math.random() * canvas.height);
+            plasmas.push(plasma);
+        }
+
+        // 初始化物品
+        function spawnItems() {
+            let itemTypes = ['speed', 'health', 'exp', 'attack', 'defense'];
+            for (let i = 0; i < 20; i++) {
+                let itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                let item = new Item(Math.random() * canvas.width, Math.random() * canvas.height, itemType);
+                items.push(item);
+            }
+        }
+        spawnItems();
+
+        // 初始化任务和成就
+        function initTasks() {
+            tasks = [
+                { id: 1, description: '收集10个等离子', type: 'collectPlasma', goal: 10, progress: 0, reward: 100 },
+                { id: 2, description: '击败5个敌人', type: 'defeatEnemy', goal: 5, progress: 0, reward: 200 },
+                { id: 3, description: '进化到鱼类阶段', type: 'evolve', goal: 3, progress: 0, reward: 300 }
+            ];
+        }
+
+        function initAchievements() {
+            achievements = [
+                { id: 1, description: '首次进化', achieved: false },
+                { id: 2, description: '击败10个敌人', achieved: false },
+                { id: 3, description: '收集50个等离子', achieved: false }
+            ];
+        }
+        initTasks();
+        initAchievements();
+
+        // 游戏主循环
+        function gameLoop() {
+            if (!gameRunning) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制等离子
+            plasmas.forEach(plasma => {
+                plasma.draw();
+            });
+
+            // 绘制物品
+            items.forEach(item => {
+                item.draw();
+            });
+
+            // 更新和绘制玩家
+            players.forEach(p => {
+                p.move();
+                p.draw();
+
+                // 吃等离子
+                plasmas.forEach((plasma, index) => {
+                    if (distance(p.x, p.y, plasma.x, plasma.y) < p.size + plasma.size) {
+                        p.eat(plasma);
+                        plasmas.splice(index, 1);
+                        plasmas.push(new Plasma(Math.random() * canvas.width, Math.random() * canvas.height));
+                    }
+                });
+
+                // 收集物品
+                items.forEach((item, index) => {
+                    if (distance(p.x, p.y, item.x, item.y) < p.size + item.size) {
+                        item.applyEffect(p);
+                        items.splice(index, 1);
+                    }
+                });
+
+                // 攻击其他玩家
+                players.forEach(other => {
+                    if (other !== p && distance(p.x, p.y, other.x, other.y) < p.size + other.size) {
+                        if (p.size > other.size) {
+                            p.attack(other);
+                        }
+                    }
+                });
+
+                // 检查玩家是否死亡
+                if (p.health <= 0) {
+                    players.splice(players.indexOf(p), 1);
+                    if (p.isAI) {
+                        let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
+                        players.push(aiPlayer);
+                    } else {
+                        gameOver('你被击败了，游戏结束！');
+                    }
+                }
+            });
+
+            // 更新UI
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function distance(x1, y1, x2, y2) {
+            return Math.hypot(x2 - x1, y2 - y1);
+        }
+
+        function gameOver(message) {
+            gameRunning = false;
+            document.getElementById('gameOver').innerText = message;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        function updateUI() {
+            let ui = document.getElementById('ui');
+            ui.innerHTML = `
+                <p>等级：${player.level}</p>
+                <p>经验：${player.exp}/${player.level * 100}</p>
+                <p>健康：${player.health}/100</p>
+                <p>进化阶段：${evolutionStages[player.evolutionStage].stage}</p>
+                <p>变异点数：${player.mutationPoints}</p>
+                <p>技能：${player.skills.join(', ')}</p>
+            `;
+            updateTaskPanel();
+        }
+
+        function updateTaskPanel() {
+            let taskPanel = document.getElementById('taskPanel');
+            let taskContent = '<h3>任务列表</h3>';
+            tasks.forEach(task => {
+                taskContent += `<p>${task.description} (${task.progress}/${task.goal})</p>`;
+            });
+            taskContent += '<h3>成就列表</h3>';
+            achievements.forEach(achieve => {
+                taskContent += `<p>${achieve.description} ${achieve.achieved ? '✅' : '❌'}</p>`;
+            });
+            taskPanel.innerHTML = taskContent;
+        }
+
+        // 任务和成就检查
+        function checkAchievements(type, value) {
+            tasks.forEach(task => {
+                if (task.type === type && task.progress < task.goal) {
+                    task.progress += value;
+                    if (task.progress >= task.goal) {
+                        player.exp += task.reward;
+                        player.checkLevelUp();
+                        alert(`完成任务：${task.description}，奖励：${task.reward}经验`);
+                    }
+                }
+            });
+
+            achievements.forEach(achieve => {
+                if (!achieve.achieved) {
+                    switch (achieve.id) {
+                        case 1:
+                            if (type === 'evolve' && value >= 1) {
+                                achieve.achieved = true;
+                                alert(`解锁成就：${achieve.description}`);
+                            }
+                            break;
+                        case 2:
+                            if (type === 'defeatEnemy' && tasks.find(t => t.type === 'defeatEnemy').progress >= 10) {
+                                achieve.achieved = true;
+                                alert(`解锁成就：${achieve.description}`);
+                            }
+                            break;
+                        case 3:
+                            if (type === 'collectPlasma' && tasks.find(t => t.type === 'collectPlasma').progress >= 50) {
+                                achieve.achieved = true;
+                                alert(`解锁成就：${achieve.description}`);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            });
+        }
+
+        // A*算法实现
+        function findPath(start, end) {
+            let openList = [];
+            let closedList = [];
+            let gridSize = 20;
+            let cols = Math.floor(canvas.width / gridSize);
+            let rows = Math.floor(canvas.height / gridSize);
+            let grid = new Array(cols);
+
+            for (let i = 0; i < cols; i++) {
+                grid[i] = new Array(rows);
+                for (let j = 0; j < rows; j++) {
+                    grid[i][j] = {
+                        x: i * gridSize + gridSize / 2,
+                        y: j * gridSize + gridSize / 2,
+                        f: 0,
+                        g: 0,
+                        h: 0,
+                        walkable: true,
+                        parent: null
+                    };
+                }
+            }
+
+            // 设置不可行走区域
+            players.forEach(p => {
+                let col = Math.floor(p.x / gridSize);
+                let row = Math.floor(p.y / gridSize);
+                if (col >= 0 && col < cols && row >= 0 && row < rows) {
+                    grid[col][row].walkable = false;
+                }
+            });
+
+            let startNode = grid[Math.floor(start.x / gridSize)][Math.floor(start.y / gridSize)];
+            let endNode = grid[Math.floor(end.x / gridSize)][Math.floor(end.y / gridSize)];
+
+            openList.push(startNode);
+
+            while (openList.length > 0) {
+                let currentNode = openList.reduce((prev, curr) => prev.f < curr.f ? prev : curr);
+                if (currentNode === endNode) {
+                    let path = [];
+                    let curr = currentNode;
+                    while (curr !== startNode) {
+                        path.unshift({ x: curr.x, y: curr.y });
+                        curr = curr.parent;
+                    }
+                    return path;
+                }
+
+                openList.splice(openList.indexOf(currentNode), 1);
+                closedList.push(currentNode);
+
+                let neighbors = getNeighbors(currentNode, grid, cols, rows);
+                neighbors.forEach(neighbor => {
+                    if (closedList.includes(neighbor) || !neighbor.walkable) {
+                        return;
+                    }
+                    let tentativeG = currentNode.g + distance(currentNode.x, currentNode.y, neighbor.x, neighbor.y);
+                    if (!openList.includes(neighbor) || tentativeG < neighbor.g) {
+                        neighbor.g = tentativeG;
+                        neighbor.h = distance(neighbor.x, neighbor.y, endNode.x, endNode.y);
+                        neighbor.f = neighbor.g + neighbor.h;
+                        neighbor.parent = currentNode;
+                        if (!openList.includes(neighbor)) {
+                            openList.push(neighbor);
+                        }
+                    }
+                });
+            }
+            return [];
+        }
+
+        function getNeighbors(node, grid, cols, rows) {
+            let neighbors = [];
+            let x = node.x;
+            let y = node.y;
+            let col = Math.floor(x / 20);
+            let row = Math.floor(y / 20);
+
+            if (col > 0) neighbors.push(grid[col - 1][row]);
+            if (col < cols - 1) neighbors.push(grid[col + 1][row]);
+            if (row > 0) neighbors.push(grid[col][row - 1]);
+            if (row < rows - 1) neighbors.push(grid[col][row + 1]);
+            return neighbors;
+        }
+
+        // 事件监听
+        window.addEventListener('keydown', function(e) {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        window.addEventListener('keyup', function(e) {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // 开始游戏
+        gameLoop();
+    </script>
+</body>
+</html>
