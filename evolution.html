@@ -21,6 +21,7 @@
             left: 10px;
             font-size: 16px;
             color: #000;
+            z-index: 10;
         }
         #taskPanel {
             position: absolute;
@@ -28,6 +29,7 @@
             right: 10px;
             font-size: 16px;
             color: #000;
+            z-index: 10;
         }
         #gameOver {
             position: absolute;
@@ -37,6 +39,7 @@
             font-size: 48px;
             color: red;
             display: none;
+            z-index: 10;
         }
         /* 摇杆样式 */
         #joystickContainer {
@@ -48,6 +51,7 @@
             background: rgba(0, 0, 0, 0.1);
             border-radius: 75px;
             touch-action: none;
+            z-index: 10;
         }
 
         #joystick {
@@ -74,6 +78,11 @@
             line-height: 80px;
             font-size: 24px;
             user-select: none;
+            z-index: 10;
+        }
+
+        button {
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -117,6 +126,8 @@
         ];
         const maxPlasmaCount = 100;
         const maxSmallAI = 20;
+        const gameWidth = 4000;  // 定义游戏区域的宽度
+        const gameHeight = 4000; // 定义游戏区域的高度
 
         // 辅助函数
         function getDistance(obj1, obj2) {
@@ -154,6 +165,8 @@
                 this.moveX = 0;
                 this.moveY = 0;
                 this.updateSpeed();
+                this.isInvincible = false; // 无敌状态
+                this.invincibleTime = 0; // 无敌剩余时间
             }
 
             updateSpeed() {
@@ -164,6 +177,11 @@
             }
 
             draw() {
+                // 无敌状态下闪烁效果
+                if (this.isInvincible) {
+                    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 100);
+                }
+
                 // 添加外圈使玩家更明显
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size + 2, 0, Math.PI * 2);
@@ -176,6 +194,8 @@
                 ctx.fillStyle = this.isAI ? '#66bb6a' : '#42a5f5';
                 ctx.fill();
                 ctx.closePath();
+
+                ctx.globalAlpha = 1.0;
             }
 
             move() {
@@ -283,9 +303,9 @@
 
             boundaryCheck() {
                 if (this.x < this.size) this.x = this.size;
-                if (this.x > canvas.width - this.size) this.x = canvas.width - this.size;
+                if (this.x > gameWidth - this.size) this.x = gameWidth - this.size;
                 if (this.y < this.size) this.y = this.size;
-                if (this.y > canvas.height - this.size) this.y = canvas.height - this.size;
+                if (this.y > gameHeight - this.size) this.y = gameHeight - this.size;
             }
 
             eat(entity) {
@@ -297,6 +317,8 @@
             }
 
             attack(other) {
+                if (other.isInvincible) return; // 对方无敌，攻击无效
+
                 let damage = 5 + this.level;
                 other.health -= damage;
                 if (other.health <= 0) {
@@ -337,17 +359,9 @@
             unlockSkill() {
                 switch (this.evolutionStage) {
                     case 2:
-                        this.skills.push('加速');
+                        if (!this.skills.includes('加速')) this.skills.push('加速');
                         break;
-                    case 4:
-                        this.skills.push('跳跃');
-                        break;
-                    case 6:
-                        this.skills.push('防御');
-                        break;
-                    case 8:
-                        this.skills.push('特殊攻击');
-                        break;
+                    // 其他技能按需添加
                     default:
                         break;
                 }
@@ -363,13 +377,15 @@
                                 setTimeout(() => {
                                     this.speed /= 1.5;
                                     this.isAccelerating = false;
-                                }, 2000);
+                                }, 5000); // 加速持续5秒
                             }
                             break;
                         // 其他技能实现略
                         default:
                             break;
                     }
+                } else {
+                    console.log('技能未解锁');
                 }
             }
         }
@@ -433,13 +449,13 @@
         }
 
         // 初始化玩家和AI
-        let player = new Player(canvas.width / 2, canvas.height / 2);
+        let player = new Player(gameWidth / 2, gameHeight / 2);
         players.push(player);
 
         // 初始化AI玩家
         function initAIPlayers() {
             for (let i = 0; i < 5; i++) {
-                let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
+                let aiPlayer = new Player(Math.random() * gameWidth, Math.random() * gameHeight, true);
                 aiPlayer.size = 20; // 初始AI的大小
                 aiPlayer.updateSpeed();
                 players.push(aiPlayer);
@@ -450,7 +466,7 @@
         // 初始化等离子
         function initPlasmas() {
             for (let i = 0; i < maxPlasmaCount; i++) {
-                let plasma = new Plasma(Math.random() * canvas.width, Math.random() * canvas.height);
+                let plasma = new Plasma(Math.random() * gameWidth, Math.random() * gameHeight);
                 plasmas.push(plasma);
             }
         }
@@ -461,7 +477,7 @@
             let itemTypes = ['speed', 'health', 'exp', 'attack', 'defense'];
             for (let i = 0; i < 20; i++) {
                 let itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-                let item = new Item(Math.random() * canvas.width, Math.random() * canvas.height, itemType);
+                let item = new Item(Math.random() * gameWidth, Math.random() * gameHeight, itemType);
                 items.push(item);
             }
         }
@@ -479,7 +495,9 @@
             ui.innerHTML = `
                 等级: ${player.level}，经验: ${player.exp}/${player.level * 100}，生命值: ${player.health}<br>
                 大小: ${player.size.toFixed(1)}，速度: ${player.speed.toFixed(1)}<br>
-                进化阶段: ${evolutionStages[player.evolutionStage].stage}
+                进化阶段: ${evolutionStages[player.evolutionStage].stage}<br>
+                已解锁技能: ${player.skills.join(', ')}<br>
+                ${player.isInvincible ? `无敌状态，剩余时间: ${player.invincibleTime}s` : ''}
             `;
         }
 
@@ -489,12 +507,64 @@
             const gameOverDiv = document.getElementById('gameOver');
             gameOverDiv.innerText = message;
             gameOverDiv.style.display = 'block';
+
+            // 添加重新开始按钮
+            const restartBtn = document.createElement('button');
+            restartBtn.innerText = '重新开始';
+            restartBtn.style.fontSize = '24px';
+            restartBtn.onclick = () => {
+                window.location.reload();
+            };
+            gameOverDiv.appendChild(restartBtn);
+        }
+
+        // 处理玩家死亡并重生
+        function handlePlayerDeath() {
+            // 重置玩家属性
+            player.health = 100;
+            player.x = gameWidth / 2;
+            player.y = gameHeight / 2;
+            player.size = 10;
+            player.level = 1;
+            player.exp = 0;
+            player.evolutionStage = 0;
+            player.skills = [];
+            player.updateSpeed();
+
+            // 设置无敌状态
+            player.isInvincible = true;
+            player.invincibleTime = 30; // 30秒
+
+            // 每秒减少无敌时间
+            player.invincibleInterval = setInterval(() => {
+                player.invincibleTime--;
+                if (player.invincibleTime <= 0) {
+                    player.isInvincible = false;
+                    clearInterval(player.invincibleInterval);
+                }
+            }, 1000);
         }
 
         // 游戏主循环
         function gameLoop() {
             if (!gameRunning) return;
+
+            // 清空画布并重置变换
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 根据玩家的位置和视野，设置缩放和平移
+            const scale = Math.max(1, 100 / player.size); // 视野随着玩家大小变化
+            const translateX = -player.x + canvas.width / 2 / scale;
+            const translateY = -player.y + canvas.height / 2 / scale;
+
+            ctx.scale(scale, scale);
+            ctx.translate(translateX, translateY);
+
+            // 绘制游戏区域边界
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 5;
+            ctx.strokeRect(0, 0, gameWidth, gameHeight);
 
             // 检查并刷新食物
             if (plasmas.length < maxPlasmaCount) {
@@ -552,7 +622,7 @@
                 // 检查玩家是否死亡
                 if (p.health <= 0) {
                     if (!p.isAI) {
-                        gameOver('你已经死亡，游戏结束！');
+                        handlePlayerDeath();
                     } else {
                         // 移除死亡的AI玩家
                         players.splice(players.indexOf(p), 1);
@@ -568,14 +638,14 @@
 
         function spawnPlasma(count) {
             for (let i = 0; i < count; i++) {
-                let plasma = new Plasma(Math.random() * canvas.width, Math.random() * canvas.height);
+                let plasma = new Plasma(Math.random() * gameWidth, Math.random() * gameHeight);
                 plasmas.push(plasma);
             }
         }
 
         function spawnSmallAI(count) {
             for (let i = 0; i < count; i++) {
-                let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
+                let aiPlayer = new Player(Math.random() * gameWidth, Math.random() * gameHeight, true);
                 aiPlayer.size = 10; // 小AI的大小
                 aiPlayer.updateSpeed(); // 更新速度
                 players.push(aiPlayer);
