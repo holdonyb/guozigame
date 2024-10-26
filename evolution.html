@@ -81,6 +81,44 @@
             z-index: 10;
         }
 
+        #leaderboard {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 16px;
+            color: #000;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 5px;
+            border-radius: 5px;
+            max-width: 200px;
+        }
+
+        #notificationContainer {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+        }
+
+        .notification {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-size: 24px;
+            animation: fadeInOut 3s forwards;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
         button {
             margin-top: 20px;
         }
@@ -91,6 +129,8 @@
     <div id="ui"></div>
     <div id="taskPanel"></div>
     <div id="gameOver"></div>
+    <div id="leaderboard"></div>
+    <div id="notificationContainer"></div>
 
     <!-- 摇杆控制 -->
     <div id="joystickContainer">
@@ -113,21 +153,54 @@
         let gameRunning = false;
         let joystickActive = false; // 用于标记摇杆是否激活
         let evolutionStages = [
-            { stage: '单细胞', size: 10 },
-            { stage: '多细胞', size: 15 },
-            { stage: '小型生物', size: 20 },
-            { stage: '鱼类', size: 25 },
-            { stage: '两栖动物', size: 30 },
-            { stage: '爬行动物', size: 35 },
-            { stage: '哺乳动物', size: 40 },
-            { stage: '灵长类', size: 45 },
-            { stage: '原始人类', size: 50 },
-            { stage: '现代人类', size: 55 }
+            { stage: '单细胞', size: 10, color: '#F44336', abbrev: '单' },
+            { stage: '多细胞', size: 15, color: '#E91E63', abbrev: '多' },
+            { stage: '小型生物', size: 20, color: '#9C27B0', abbrev: '小' },
+            { stage: '鱼类', size: 25, color: '#673AB7', abbrev: '鱼' },
+            { stage: '两栖动物', size: 30, color: '#3F51B5', abbrev: '两' },
+            { stage: '爬行动物', size: 35, color: '#2196F3', abbrev: '爬' },
+            { stage: '哺乳动物', size: 40, color: '#03A9F4', abbrev: '哺' },
+            { stage: '灵长类', size: 45, color: '#00BCD4', abbrev: '灵' },
+            { stage: '原始人类', size: 50, color: '#009688', abbrev: '原' },
+            { stage: '现代人类', size: 55, color: '#4CAF50', abbrev: '人' }
         ];
         const maxPlasmaCount = 100;
         const maxSmallAI = 20;
         const gameWidth = 4000;  // 定义游戏区域的宽度
         const gameHeight = 4000; // 定义游戏区域的高度
+
+        // 显示通知的函数
+        function showNotification(message, color) {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerText = message;
+            if (color) {
+                notification.style.backgroundColor = color;
+            }
+            container.appendChild(notification);
+            // 3秒后移除通知
+            setTimeout(() => {
+                container.removeChild(notification);
+            }, 3000);
+        }
+
+        // 更新排行榜
+        function updateLeaderboard() {
+            // 复制玩家数组并按分数排序
+            let sortedPlayers = players.slice().sort((a, b) => b.score - a.score);
+            // 获取前十名玩家
+            let topPlayers = sortedPlayers.slice(0, 10);
+
+            let leaderboardDiv = document.getElementById('leaderboard');
+            leaderboardDiv.innerHTML = '<b>排行榜</b><br>';
+
+            topPlayers.forEach((p, index) => {
+                let playerName = p.isAI ? `AI ${index + 1}` : '你';
+                let progress = ((p.evolutionStage + 1) / evolutionStages.length * 100).toFixed(1);
+                leaderboardDiv.innerHTML += `${index + 1}. ${playerName} - ${p.score}分，进化 ${progress}%<br>`;
+            });
+        }
 
         // 辅助函数
         function getDistance(obj1, obj2) {
@@ -168,6 +241,8 @@
                 this.updateSpeed();
                 this.isInvincible = false; // 无敌状态
                 this.invincibleTime = 0; // 无敌剩余时间
+                this.isNausea = false; // 是否处于反胃状态
+                this.score = 0; // 总分
                 
                 // 新增：定期排出等离子
                 this.dischargeInterval = setInterval(() => {
@@ -183,23 +258,38 @@
             }
 
             draw() {
+                let stageInfo = evolutionStages[this.evolutionStage];
+                let stageColor = stageInfo.color;
+                let stageAbbrev = stageInfo.abbrev;
+
                 // 无敌状态下闪烁效果
                 if (this.isInvincible) {
                     ctx.globalAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 100);
                 }
 
-                // 添加外圈使玩家更明显
+                // 绘制外圈
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size + 2, 0, Math.PI * 2);
-                ctx.fillStyle = this.isAI ? '#006400' : '#000'; // AI外圈为深绿，玩家为黑色
+                ctx.fillStyle = '#000'; // 外圈颜色
                 ctx.fill();
                 ctx.closePath();
 
+                // 绘制内圈，使用进化阶段的颜色
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.isAI ? '#66bb6a' : '#42a5f5';
+                ctx.fillStyle = stageColor;
+                if (this.isNausea) {
+                    ctx.fillStyle = '#8B008B'; // 反胃状态显示为深洋红色
+                }
                 ctx.fill();
                 ctx.closePath();
+
+                // 在球体上显示进化阶段的缩写
+                ctx.fillStyle = '#fff';
+                ctx.font = `${this.size / 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(stageAbbrev, this.x, this.y);
 
                 ctx.globalAlpha = 1.0;
             }
@@ -316,6 +406,7 @@
 
             eat(entity) {
                 this.exp += 20;
+                this.score += 20; // 吃等离子增加分数
                 // 修改：吃掉等离子只增加70%的体型
                 this.size += 0.7;
                 // 生成30%的等离子
@@ -331,14 +422,21 @@
                 let damage = 5 + this.level;
                 other.health -= damage;
                 if (other.health <= 0) {
-                    // 吞噬机制修改
-                    // 计算消化和排出的部分
-                    let totalGain = other.size * 0.7; // 消化70%
-                    this.size += totalGain;
+                    // 吞噬机制修正
+                    // 计算被吞噬者的总质量
+                    let otherSize = other.size;
+                    // 增加自身体型的部分（例如：消化70%）
+                    let digestAmount = otherSize * 0.7;
+                    this.size += digestAmount;
                     this.updateSpeed();
-                    // 生成等离子
-                    let plasmaAmount = other.size * 0.3; // 排出30%
-                    spawnPlasmaAtPosition(plasmaAmount, other.x, other.y);
+                    // 生成等离子（排出部分，例如30%）
+                    let dischargeAmount = otherSize * 0.3;
+                    spawnPlasmaAtPosition(dischargeAmount, other.x, other.y);
+                    // 增加分数
+                    this.score += other.level * 50;
+                    // 移除被吞噬的玩家
+                    players.splice(players.indexOf(other), 1);
+                    // 检查升级
                     this.checkLevelUp();
                     checkAchievements('defeatEnemy', 1);
                 }
@@ -349,12 +447,52 @@
                 let dischargeAmount = this.size * 0.1; // 排出10%的体型
                 this.size -= dischargeAmount;
                 this.updateSpeed();
-                // 生成等离子
-                spawnPlasmaAtPosition(dischargeAmount, this.x, this.y);
+                // 使用新的喷射方法
+                this.ejectPlasma(dischargeAmount);
                 // 检查是否死亡
                 if (this.size <= 5) {
                     this.health = 0;
                 }
+            }
+
+            ejectPlasma(amount) {
+                let direction;
+                if (this.moveX !== 0 || this.moveY !== 0) {
+                    // 如果玩家在移动，使用移动的反方向
+                    direction = Math.atan2(-this.moveY, -this.moveX);
+                } else {
+                    // 如果玩家静止，使用随机方向
+                    direction = Math.random() * Math.PI * 2;
+                }
+                spawnPlasmaWithDirection(amount, this.x, this.y, this.size, direction);
+            }
+
+            applyNausea() {
+                if (this.isNausea) return; // 已经处于反胃状态
+                if (this.size < 30) return; // 体型较小的玩家不受影响
+
+                this.isNausea = true;
+                this.nauseaDuration = 10; // 反胃持续10秒
+
+                // 反胃效果：每秒损失一定比例的体型，生成等离子
+                this.nauseaInterval = setInterval(() => {
+                    let dischargeAmount = this.size * 0.1; // 每秒损失10%
+                    this.size -= dischargeAmount;
+                    this.updateSpeed();
+                    this.ejectPlasma(dischargeAmount); // 使用新的喷射方法
+                    this.nauseaDuration--;
+
+                    // 检查是否死亡
+                    if (this.size <= 5) {
+                        this.health = 0;
+                        clearInterval(this.nauseaInterval);
+                    }
+
+                    if (this.nauseaDuration <= 0) {
+                        clearInterval(this.nauseaInterval);
+                        this.isNausea = false;
+                    }
+                }, 1000);
             }
 
             useSkill(skillName) {
@@ -399,6 +537,7 @@
                     this.exp -= this.level * 100;
                     this.level++;
                     this.mutationPoints++;
+                    this.score += this.level * 100; // 升级增加分数
                     this.evolve();
                     this.updateSpeed();
                 }
@@ -412,6 +551,12 @@
                     this.unlockSkill();
                     this.updateSpeed(); // 更新速度
                     checkAchievements('evolve', this.evolutionStage);
+                    // 显示进化通知
+                    if (!this.isAI) {
+                        let stagesLeft = evolutionStages.length - 1 - this.evolutionStage;
+                        let message = `恭喜！你已进化为${stageInfo.stage}！\n距离进化成人类还剩${stagesLeft}个阶段。`;
+                        showNotification(message, stageInfo.color);
+                    }
                 } else {
                     // 进化成人类，游戏胜利
                     if (!this.isAI) {
@@ -423,12 +568,19 @@
             }
 
             unlockSkill() {
+                let newSkill = '';
                 switch (this.evolutionStage) {
                     case 2:
-                        if (!this.skills.includes('加速')) this.skills.push('加速');
+                        if (!this.skills.includes('加速')) {
+                            this.skills.push('加速');
+                            newSkill = '加速';
+                        }
                         break;
                     default:
                         break;
+                }
+                if (newSkill && !this.isAI) {
+                    showNotification(`你已解锁新技能：${newSkill}！`);
                 }
             }
         }
@@ -440,6 +592,8 @@
                 this.y = y;
                 this.size = 8;
                 this.health = 50;
+                this.vx = 0;
+                this.vy = 0;
             }
 
             draw() {
@@ -449,6 +603,14 @@
                 ctx.fill();
                 ctx.closePath();
             }
+
+            move() {
+                this.x += this.vx;
+                this.y += this.vy;
+                // 逐渐减小速度，模拟阻力
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+            }
         }
 
         // 定义物品类
@@ -457,18 +619,34 @@
                 this.x = x;
                 this.y = y;
                 this.size = 10;
-                this.type = type; // 'speed', 'health', 'exp', 'attack', 'defense'
+                this.type = type; // 'speed', 'health', 'exp', 'attack', 'defense', 'toxic'
             }
 
             draw() {
                 ctx.beginPath();
                 ctx.rect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-                ctx.fillStyle = this.type === 'speed' ? '#ab47bc' :
-                                this.type === 'health' ? '#66bb6a' :
-                                this.type === 'exp' ? '#ffee58' :
-                                this.type === 'attack' ? '#ff7043' : '#29b6f6';
+                ctx.fillStyle = this.getColor();
                 ctx.fill();
                 ctx.closePath();
+            }
+
+            getColor() {
+                switch (this.type) {
+                    case 'speed':
+                        return '#ab47bc';
+                    case 'health':
+                        return '#66bb6a';
+                    case 'exp':
+                        return '#ffee58';
+                    case 'attack':
+                        return '#ff7043';
+                    case 'defense':
+                        return '#29b6f6';
+                    case 'toxic':
+                        return '#8B008B'; // 深洋红色
+                    default:
+                        return '#ccc';
+                }
             }
 
             applyEffect(player) {
@@ -483,6 +661,9 @@
                     case 'exp':
                         player.exp += 50;
                         player.checkLevelUp();
+                        break;
+                    case 'toxic':
+                        player.applyNausea();
                         break;
                     default:
                         break;
@@ -516,9 +697,23 @@
 
         // 初始化物品
         function spawnItems() {
-            let itemTypes = ['speed', 'health', 'exp', 'attack', 'defense'];
+            let itemTypes = ['speed', 'health', 'exp', 'attack', 'defense', 'toxic'];
             for (let i = 0; i < 20; i++) {
-                let itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                let randomNum = Math.random();
+                let itemType;
+                if (randomNum < 0.2) {
+                    itemType = 'speed';
+                } else if (randomNum < 0.4) {
+                    itemType = 'health';
+                } else if (randomNum < 0.6) {
+                    itemType = 'exp';
+                } else if (randomNum < 0.8) {
+                    itemType = 'attack';
+                } else if (randomNum < 0.95) {
+                    itemType = 'defense';
+                } else {
+                    itemType = 'toxic'; // 反胃细胞出现的概率为5%
+                }
                 let item = new Item(Math.random() * gameWidth, Math.random() * gameHeight, itemType);
                 items.push(item);
             }
@@ -545,7 +740,9 @@
                 大小: ${player.size.toFixed(1)}，速度: ${player.speed.toFixed(1)}<br>
                 进化阶段: ${evolutionStages[player.evolutionStage].stage}<br>
                 已解锁技能: ${skillInfo}<br>
+                分数: ${player.score}<br>
                 ${player.isInvincible ? `无敌状态，剩余时间: ${player.invincibleTime}s` : ''}
+                ${player.isNausea ? `<br>状态：反胃中，剩余时间：${player.nauseaDuration}s` : ''}
             `;
         }
 
@@ -601,6 +798,7 @@
             player.exp = 0;
             player.evolutionStage = 0;
             player.skills = [];
+            player.score = 0; // 重置分数
             player.updateSpeed();
 
             // 设置无敌状态
@@ -625,6 +823,29 @@
                 let offsetX = Math.random() * 50 - 25;
                 let offsetY = Math.random() * 50 - 25;
                 let plasma = new Plasma(x + offsetX, y + offsetY);
+                plasmas.push(plasma);
+            }
+        }
+
+        // 新的带方向的等离子体生成函数
+        function spawnPlasmaWithDirection(amount, x, y, playerSize, direction) {
+            let numPlasmas = Math.round(amount / 5); // 每个等离子代表5的量
+            let baseSpeed = 2; // 基础喷射速度
+            let spreadAngle = Math.PI / 6; // 喷射角度范围（30度）
+
+            for (let i = 0; i < numPlasmas; i++) {
+                // 在指定方向的基础上添加一些随机偏移
+                let plasmaDirection = direction + (Math.random() - 0.5) * spreadAngle;
+                let speed = baseSpeed + Math.random() * 2; // 添加一些随机速度变化
+
+                // 确保等离子体生成在玩家体外
+                let distanceFromCenter = playerSize + 5 + Math.random() * 10;
+                let plasmaX = x + Math.cos(plasmaDirection) * distanceFromCenter;
+                let plasmaY = y + Math.sin(plasmaDirection) * distanceFromCenter;
+
+                let plasma = new Plasma(plasmaX, plasmaY);
+                plasma.vx = Math.cos(plasmaDirection) * speed;
+                plasma.vy = Math.sin(plasmaDirection) * speed;
                 plasmas.push(plasma);
             }
         }
@@ -662,8 +883,13 @@
             }
 
             // 绘制等离子
-            plasmas.forEach(plasma => {
+            plasmas.forEach((plasma, index) => {
+                plasma.move();
                 plasma.draw();
+                // 检查是否超出游戏边界
+                if (plasma.x < 0 || plasma.x > gameWidth || plasma.y < 0 || plasma.y > gameHeight) {
+                    plasmas.splice(index, 1);
+                }
             });
 
             // 绘制物品
@@ -714,8 +940,9 @@
                 }
             });
 
-            // 更新UI
+            // 更新UI和排行榜
             updateUI();
+            updateLeaderboard();
 
             requestAnimationFrame(gameLoop);
         }
@@ -793,7 +1020,6 @@
                     break;
             }
         });
-
         // 初始化摇杆控制
         function setupJoystick() {
             const joystickContainer = document.getElementById('joystickContainer');
@@ -846,6 +1072,8 @@
         // 开始游戏
         window.onload = function() {
             gameRunning = true;
+            // 初始化游戏
+            updateLeaderboard(); // 初始化排行榜
             gameLoop();
         };
     </script>
