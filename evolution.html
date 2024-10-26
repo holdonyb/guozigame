@@ -38,26 +38,30 @@
             color: red;
             display: none;
         }
-        /* 新增的触摸控制按钮样式 */
-        #controls {
+        /* 摇杆样式 */
+        #joystickContainer {
             position: absolute;
-            bottom: 20px;
+            bottom: 50px;
+            left: 50px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 75px;
+            touch-action: none;
+        }
+
+        #joystick {
+            position: absolute;
             left: 50%;
-            transform: translateX(-50%);
-            width: 300px;
-            display: flex;
-            justify-content: space-between;
+            top: 50%;
+            width: 80px;
+            height: 80px;
+            margin-left: -40px;
+            margin-top: -40px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 40px;
         }
-        .control-button {
-            width: 60px;
-            height: 60px;
-            background-color: rgba(255, 255, 255, 0.7);
-            border-radius: 30px;
-            text-align: center;
-            line-height: 60px;
-            font-size: 24px;
-            user-select: none;
-        }
+
         #skillButton {
             position: absolute;
             bottom: 100px;
@@ -79,12 +83,9 @@
     <div id="taskPanel"></div>
     <div id="gameOver">游戏结束！</div>
 
-    <!-- 新增的触摸控制按钮 -->
-    <div id="controls">
-        <div id="leftBtn" class="control-button">←</div>
-        <div id="upBtn" class="control-button">↑</div>
-        <div id="downBtn" class="control-button">↓</div>
-        <div id="rightBtn" class="control-button">→</div>
+    <!-- 摇杆控制 -->
+    <div id="joystickContainer">
+        <div id="joystick"></div>
     </div>
     <div id="skillButton">技能</div>
 
@@ -114,6 +115,23 @@
             { stage: '现代人类', size: 55, speed: 0.8 }
         ];
 
+        // 辅助函数
+        function getDistance(obj1, obj2) {
+            let dx = obj1.x - obj2.x;
+            let dy = obj1.y - obj2.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function getAveragePosition(objects) {
+            let x = 0;
+            let y = 0;
+            for (let obj of objects) {
+                x += obj.x;
+                y += obj.y;
+            }
+            return { x: x / objects.length, y: y / objects.length };
+        }
+
         // 定义玩家类
         class Player {
             constructor(x, y, isAI = false) {
@@ -130,6 +148,8 @@
                 this.target = null;
                 this.skills = [];
                 this.path = [];
+                this.moveX = 0;
+                this.moveY = 0;
             }
 
             draw() {
@@ -156,41 +176,88 @@
             }
 
             playerMove() {
-                if (keys['up']) this.y -= this.speed;
-                if (keys['down']) this.y += this.speed;
-                if (keys['left']) this.x -= this.speed;
-                if (keys['right']) this.x += this.speed;
+                // 用于键盘控制
+                if (keys['up']) this.moveY = -1;
+                if (keys['down']) this.moveY = 1;
+                if (keys['left']) this.moveX = -1;
+                if (keys['right']) this.moveX = 1;
+                if (!keys['up'] && !keys['down']) this.moveY = 0;
+                if (!keys['left'] && !keys['right']) this.moveX = 0;
+
+                // 归一化移动方向
+                let magnitude = Math.sqrt(this.moveX * this.moveX + this.moveY * this.moveY);
+                if (magnitude > 0) {
+                    this.x += (this.moveX / magnitude) * this.speed;
+                    this.y += (this.moveY / magnitude) * this.speed;
+                }
                 this.boundaryCheck();
             }
 
             aiMove() {
-                // 简单的追踪玩家
-                if (player && player.health > 0) {
-                    let dx = player.x - this.x;
-                    let dy = player.y - this.y;
+                // 检查周围有没有威胁（比自己大的玩家）
+                let threats = players.filter(other => other !== this && other.size > this.size && getDistance(this, other) < 200);
+                if (threats.length > 0) {
+                    // 远离威胁
+                    let averageThreatPos = getAveragePosition(threats);
+                    let dx = this.x - averageThreatPos.x;
+                    let dy = this.y - averageThreatPos.y;
                     let dist = Math.sqrt(dx * dx + dy * dy);
-                    this.x += (dx / dist) * this.speed * 0.5; // 速度减半，避免过于困难
-                    this.y += (dy / dist) * this.speed * 0.5;
-                    this.boundaryCheck();
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
                 } else {
-                    // 没有玩家时，随机移动
-                    let direction = Math.floor(Math.random() * 4);
-                    switch (direction) {
-                        case 0:
-                            this.y -= this.speed;
-                            break;
-                        case 1:
-                            this.y += this.speed;
-                            break;
-                        case 2:
-                            this.x -= this.speed;
-                            break;
-                        case 3:
-                            this.x += this.speed;
-                            break;
+                    // 没有威胁，寻找最近的食物
+                    let foods = plasmas.concat(items);
+                    let nearestFood = null;
+                    let minDist = Infinity;
+                    for (let food of foods) {
+                        let dist = getDistance(this, food);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearestFood = food;
+                        }
                     }
-                    this.boundaryCheck();
+                    if (nearestFood) {
+                        // 移动到食物位置
+                        let dx = nearestFood.x - this.x;
+                        let dy = nearestFood.y - this.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        this.x += (dx / dist) * this.speed;
+                        this.y += (dy / dist) * this.speed;
+                    } else {
+                        // 没有食物，随机移动
+                        let direction = Math.floor(Math.random() * 4);
+                        switch (direction) {
+                            case 0:
+                                this.y -= this.speed;
+                                break;
+                            case 1:
+                                this.y += this.speed;
+                                break;
+                            case 2:
+                                this.x -= this.speed;
+                                break;
+                            case 3:
+                                this.x += this.speed;
+                                break;
+                        }
+                    }
                 }
+                // 进化到5级以上才会尝试攻击
+                if (this.level >=5) {
+                    // 检测周围是否有比自己小的玩家
+                    let targets = players.filter(other => other !== this && other.size < this.size && getDistance(this, other) < 200);
+                    if (targets.length > 0) {
+                        // 向目标移动
+                        let target = targets[0]; // 选择第一个目标
+                        let dx = target.x - this.x;
+                        let dy = target.y - this.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        this.x += (dx / dist) * this.speed;
+                        this.y += (dy / dist) * this.speed;
+                    }
+                }
+                // 边界检查
+                this.boundaryCheck();
             }
 
             boundaryCheck() {
@@ -379,8 +446,7 @@
             const ui = document.getElementById('ui');
             ui.innerHTML = `
                 等级: ${player.level}，经验: ${player.exp}/${player.level * 100}，生命值: ${player.health}<br>
-                按键状态：上=${keys['up'] ? '按下' : '松开'}，下=${keys['down'] ? '按下' : '松开'}，
-                左=${keys['left'] ? '按下' : '松开'}，右=${keys['right'] ? '按下' : '松开'}
+                进化阶段: ${evolutionStages[player.evolutionStage].stage}
             `;
         }
 
@@ -466,7 +532,6 @@
 
         // 事件监听
         window.addEventListener('keydown', function(e) {
-            // e.preventDefault(); // 注释掉以防止影响浏览器默认行为
             switch (e.key.toLowerCase()) {
                 case 'w':
                 case 'arrowup':
@@ -515,29 +580,55 @@
             }
         });
 
-        // 触摸控制按钮事件处理
-        function setupTouchControls() {
-            const leftBtn = document.getElementById('leftBtn');
-            const rightBtn = document.getElementById('rightBtn');
-            const upBtn = document.getElementById('upBtn');
-            const downBtn = document.getElementById('downBtn');
-            const skillBtn = document.getElementById('skillButton');
+        // 初始化摇杆控制
+        function setupJoystick() {
+            const joystickContainer = document.getElementById('joystickContainer');
+            const joystick = document.getElementById('joystick');
+            let joystickActive = false;
+            let startX, startY;
+            let joystickX, joystickY;
 
-            leftBtn.addEventListener('touchstart', () => { keys['left'] = true; });
-            leftBtn.addEventListener('touchend', () => { keys['left'] = false; });
-            rightBtn.addEventListener('touchstart', () => { keys['right'] = true; });
-            rightBtn.addEventListener('touchend', () => { keys['right'] = false; });
-            upBtn.addEventListener('touchstart', () => { keys['up'] = true; });
-            upBtn.addEventListener('touchend', () => { keys['up'] = false; });
-            downBtn.addEventListener('touchstart', () => { keys['down'] = true; });
-            downBtn.addEventListener('touchend', () => { keys['down'] = false; });
+            joystickContainer.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                joystickActive = true;
+                const touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+            });
 
-            skillBtn.addEventListener('touchstart', () => {
-                player.useSkill('加速');
+            joystickContainer.addEventListener('touchmove', function(e) {
+                if (!joystickActive) return;
+                e.preventDefault();
+                const touch = e.touches[0];
+                let deltaX = touch.clientX - startX;
+                let deltaY = touch.clientY - startY;
+                const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), 50);
+                const angle = Math.atan2(deltaY, deltaX);
+                joystickX = Math.cos(angle) * distance;
+                joystickY = Math.sin(angle) * distance;
+                joystick.style.transform = `translate(${joystickX}px, ${joystickY}px)`;
+                // 更新玩家的移动方向
+                player.moveX = joystickX / 50;
+                player.moveY = joystickY / 50;
+            });
+
+            joystickContainer.addEventListener('touchend', function(e) {
+                joystickActive = false;
+                joystickX = 0;
+                joystickY = 0;
+                joystick.style.transform = `translate(0px, 0px)`;
+                player.moveX = 0;
+                player.moveY = 0;
             });
         }
 
-        setupTouchControls();
+        setupJoystick();
+
+        // 技能按钮触摸事件
+        const skillBtn = document.getElementById('skillButton');
+        skillBtn.addEventListener('touchstart', () => {
+            player.useSkill('加速');
+        });
 
         // 开始游戏
         gameLoop();
