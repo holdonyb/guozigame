@@ -243,6 +243,8 @@
                 this.invincibleTime = 0; // 无敌剩余时间
                 this.isNausea = false; // 是否处于反胃状态
                 this.score = 0; // 总分
+                this.lastDischargeTime = Date.now();
+                this.plasmaSize = 0.5; // 每个等离子对应的 size 减少量
                 
                 // 新增：定期排出等离子
                 this.dischargeInterval = setInterval(() => {
@@ -429,9 +431,24 @@
                     let digestAmount = otherSize * 0.7;
                     this.size += digestAmount;
                     this.updateSpeed();
-                    // 生成等离子（排出部分，例如30%）
-                    let dischargeAmount = otherSize * 0.3;
-                    spawnPlasmaAtPosition(dischargeAmount, other.x, other.y);
+
+                    // 消化效果：快速连续排出等离子
+                    let remainingDischarge = otherSize * 0.3;
+                    const digestInterval = setInterval(() => {
+                        if (remainingDischarge <= 0) {
+                            clearInterval(digestInterval);
+                            return;
+                        }
+
+                        let dischargeAmount = Math.min(remainingDischarge, this.size * 0.05);
+                        for (let i = 0; i < 5; i++) { // 每次消化效果排出5个等离子
+                            this.ejectPlasma(dischargeAmount / 5);
+                        }
+                        this.size -= dischargeAmount;
+                        remainingDischarge -= dischargeAmount;
+                        this.updateSpeed();
+                    }, 200); // 每0.2秒排出一次，持续到排完为止
+
                     // 增加分数
                     this.score += other.level * 50;
                     // 移除被吞噬的玩家
@@ -444,14 +461,24 @@
 
             // 新增：定期排出等离子的方法
             dischargePlasma() {
-                let dischargeAmount = this.size * 0.1; // 排出10%的体型
-                this.size -= dischargeAmount;
-                this.updateSpeed();
-                // 使用新的喷射方法
-                this.ejectPlasma(dischargeAmount);
-                // 检查是否死亡
-                if (this.size <= 5) {
-                    this.health = 0;
+                const now = Date.now();
+                const dischargeInterval = Math.max(5000, 30000 - this.size * 100); // 根据大小调整间隔，最小5秒
+                if (now - this.lastDischargeTime >= dischargeInterval) {
+                    let dischargeAmount = this.size * 0.05; // 排出5%的体型
+                    let plasmasToDischarge = Math.floor(dischargeAmount / this.plasmaSize);
+                    
+                    for (let i = 0; i < plasmasToDischarge; i++) {
+                        this.ejectPlasma(this.plasmaSize);
+                    }
+
+                    this.size -= plasmasToDischarge * this.plasmaSize;
+                    this.updateSpeed();
+                    this.lastDischargeTime = now;
+
+                    // 检查是否死亡
+                    if (this.size <= 5) {
+                        this.health = 0;
+                    }
                 }
             }
 
@@ -464,6 +491,8 @@
                     // 如果玩家静止，使用随机方向
                     direction = Math.random() * Math.PI * 2;
                 }
+                // 添加随机扰动
+                direction += (Math.random() - 0.5) * Math.PI / 6; // 添加最多±15度的随机扰动
                 spawnPlasmaWithDirection(amount, this.x, this.y, this.size, direction);
             }
 
@@ -474,23 +503,26 @@
                 this.isNausea = true;
                 this.nauseaDuration = 10; // 反胃持续10秒
 
-                // 反胃效果：每秒损失一定比例的体型，生成等离子
-                this.nauseaInterval = setInterval(() => {
-                    let dischargeAmount = this.size * 0.1; // 每秒损失10%
+                // 反胃效果：快速连续排出等离子
+                const nauseaInterval = setInterval(() => {
+                    if (this.nauseaDuration <= 0 || this.size <= 5) {
+                        clearInterval(nauseaInterval);
+                        this.isNausea = false;
+                        return;
+                    }
+
+                    let dischargeAmount = this.size * 0.05; // 每次排出5%
+                    for (let i = 0; i < 5; i++) { // 每次反胃效果排出5个等离子
+                        this.ejectPlasma(dischargeAmount / 5);
+                    }
                     this.size -= dischargeAmount;
                     this.updateSpeed();
-                    this.ejectPlasma(dischargeAmount); // 使用新的喷射方法
                     this.nauseaDuration--;
 
                     // 检查是否死亡
                     if (this.size <= 5) {
                         this.health = 0;
-                        clearInterval(this.nauseaInterval);
-                    }
-
-                    if (this.nauseaDuration <= 0) {
-                        clearInterval(this.nauseaInterval);
-                        this.isNausea = false;
+                        clearInterval(nauseaInterval);
                     }
                 }, 1000);
             }
@@ -768,6 +800,19 @@
             // 暂停游戏
             gameRunning = false;
 
+            // 从players数组中移除玩家
+            const playerIndex = players.indexOf(player);
+            if (playerIndex > -1) {
+                players.splice(playerIndex, 1);
+            }
+
+            // 清除玩家的定时器
+            clearInterval(player.dischargeInterval);
+            clearInterval(player.invincibleInterval);
+            if (player.nauseaInterval) {
+                clearInterval(player.nauseaInterval);
+            }
+
             // 显示死亡提示
             const gameOverDiv = document.getElementById('gameOver');
             gameOverDiv.innerText = '你已经死亡，是否重生？';
@@ -813,6 +858,17 @@
                     clearInterval(player.invincibleInterval);
                 }
             }, 1000);
+
+            // 重新初始化 dischargeInterval
+            clearInterval(player.dischargeInterval);
+            player.dischargeInterval = setInterval(() => {
+                player.dischargePlasma();
+            }, 30000); // 每30秒排出一次等离子
+
+            // 确保玩家重新加入游戏
+            if (!players.includes(player)) {
+                players.push(player);
+            }
         }
 
         // 新增：在指定位置生成等离子的函数
@@ -901,6 +957,7 @@
             players.forEach(p => {
                 p.move();
                 p.draw();
+                p.dischargePlasma(); // 在每一帧检查是否需要排出等离子
 
                 // 吃等离子
                 plasmas.forEach((plasma, index) => {
@@ -930,7 +987,7 @@
                 });
 
                 // 检查玩家是否死亡
-                if (p.health <= 0 || p.size <= 5) {
+                if (p.health <= 0) {
                     if (!p.isAI) {
                         handlePlayerDeath();
                     } else {
