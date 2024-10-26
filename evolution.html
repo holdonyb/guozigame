@@ -90,7 +90,7 @@
     <canvas id="gameCanvas" width="1280" height="720"></canvas>
     <div id="ui"></div>
     <div id="taskPanel"></div>
-    <div id="gameOver">游戏结束！</div>
+    <div id="gameOver"></div>
 
     <!-- 摇杆控制 -->
     <div id="joystickContainer">
@@ -110,7 +110,7 @@
         let tasks = [];
         let achievements = [];
         let keys = {};
-        let gameRunning = true;
+        let gameRunning = false;
         let joystickActive = false; // 用于标记摇杆是否激活
         let evolutionStages = [
             { stage: '单细胞', size: 10 },
@@ -152,7 +152,7 @@
                 this.x = x;
                 this.y = y;
                 this.size = 10;
-                this.speed = 3;
+                this.speed = 1.5; // 降低初始速度
                 this.health = 100;
                 this.exp = 0;
                 this.mutationPoints = 0;
@@ -161,19 +161,25 @@
                 this.evolutionStage = 0;
                 this.target = null;
                 this.skills = [];
+                this.skillCooldowns = {}; // 新增：技能冷却时间
                 this.path = [];
                 this.moveX = 0;
                 this.moveY = 0;
                 this.updateSpeed();
                 this.isInvincible = false; // 无敌状态
                 this.invincibleTime = 0; // 无敌剩余时间
+                
+                // 新增：定期排出等离子
+                this.dischargeInterval = setInterval(() => {
+                    this.dischargePlasma();
+                }, 30000); // 每30秒排出一次等离子
             }
 
             updateSpeed() {
-                // 基础速度，例如5，与体型成反比
-                this.speed = 5 / (this.size / 10);
+                // 基础速度降低为2.5，与体型成反比
+                this.speed = 2.5 / (this.size / 10);
                 // 确保速度有下限，防止过慢
-                if (this.speed < 1) this.speed = 1;
+                if (this.speed < 0.5) this.speed = 0.5;
             }
 
             draw() {
@@ -310,7 +316,10 @@
 
             eat(entity) {
                 this.exp += 20;
-                this.size += 1;
+                // 修改：吃掉等离子只增加70%的体型
+                this.size += 0.7;
+                // 生成30%的等离子
+                spawnPlasmaAtPosition(0.3, this.x, this.y);
                 this.updateSpeed();
                 this.checkLevelUp();
                 checkAchievements('collectPlasma', 1);
@@ -322,9 +331,66 @@
                 let damage = 5 + this.level;
                 other.health -= damage;
                 if (other.health <= 0) {
-                    this.exp += other.level * 50;
+                    // 吞噬机制修改
+                    // 计算消化和排出的部分
+                    let totalGain = other.size * 0.7; // 消化70%
+                    this.size += totalGain;
+                    this.updateSpeed();
+                    // 生成等离子
+                    let plasmaAmount = other.size * 0.3; // 排出30%
+                    spawnPlasmaAtPosition(plasmaAmount, other.x, other.y);
                     this.checkLevelUp();
                     checkAchievements('defeatEnemy', 1);
+                }
+            }
+
+            // 新增：定期排出等离子的方法
+            dischargePlasma() {
+                let dischargeAmount = this.size * 0.1; // 排出10%的体型
+                this.size -= dischargeAmount;
+                this.updateSpeed();
+                // 生成等离子
+                spawnPlasmaAtPosition(dischargeAmount, this.x, this.y);
+                // 检查是否死亡
+                if (this.size <= 5) {
+                    this.health = 0;
+                }
+            }
+
+            useSkill(skillName) {
+                if (this.skills.includes(skillName)) {
+                    // 检查技能是否在冷却中
+                    if (this.skillCooldowns[skillName] && this.skillCooldowns[skillName] > 0) {
+                        console.log(`技能${skillName}正在冷却中，剩余时间：${this.skillCooldowns[skillName]}s`);
+                        return;
+                    }
+
+                    switch (skillName) {
+                        case '加速':
+                            if (!this.isAccelerating) {
+                                this.isAccelerating = true;
+                                this.speed *= 1.5;
+                                setTimeout(() => {
+                                    this.speed /= 1.5;
+                                    this.isAccelerating = false;
+                                }, 5000); // 加速持续5秒
+                                // 设置冷却时间，例如10秒
+                                this.skillCooldowns[skillName] = 10;
+                                // 每秒减少冷却时间
+                                let cooldownInterval = setInterval(() => {
+                                    this.skillCooldowns[skillName]--;
+                                    if (this.skillCooldowns[skillName] <= 0) {
+                                        clearInterval(cooldownInterval);
+                                        delete this.skillCooldowns[skillName];
+                                    }
+                                }, 1000);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    console.log('技能未解锁');
                 }
             }
 
@@ -361,31 +427,8 @@
                     case 2:
                         if (!this.skills.includes('加速')) this.skills.push('加速');
                         break;
-                    // 其他技能按需添加
                     default:
                         break;
-                }
-            }
-
-            useSkill(skillName) {
-                if (this.skills.includes(skillName)) {
-                    switch (skillName) {
-                        case '加速':
-                            if (!this.isAccelerating) {
-                                this.isAccelerating = true;
-                                this.speed *= 1.5;
-                                setTimeout(() => {
-                                    this.speed /= 1.5;
-                                    this.isAccelerating = false;
-                                }, 5000); // 加速持续5秒
-                            }
-                            break;
-                        // 其他技能实现略
-                        default:
-                            break;
-                    }
-                } else {
-                    console.log('技能未解锁');
                 }
             }
         }
@@ -441,7 +484,6 @@
                         player.exp += 50;
                         player.checkLevelUp();
                         break;
-                    // 其他物品效果略
                     default:
                         break;
                 }
@@ -492,11 +534,17 @@
         // 更新UI（简单实现）
         function updateUI() {
             const ui = document.getElementById('ui');
+            // 显示技能冷却时间
+            let skillInfo = player.skills.map(skillName => {
+                let cooldown = player.skillCooldowns[skillName] ? `（冷却中：${player.skillCooldowns[skillName]}s）` : '';
+                return `${skillName}${cooldown}`;
+            }).join('，');
+
             ui.innerHTML = `
                 等级: ${player.level}，经验: ${player.exp}/${player.level * 100}，生命值: ${player.health}<br>
                 大小: ${player.size.toFixed(1)}，速度: ${player.speed.toFixed(1)}<br>
                 进化阶段: ${evolutionStages[player.evolutionStage].stage}<br>
-                已解锁技能: ${player.skills.join(', ')}<br>
+                已解锁技能: ${skillInfo}<br>
                 ${player.isInvincible ? `无敌状态，剩余时间: ${player.invincibleTime}s` : ''}
             `;
         }
@@ -518,12 +566,36 @@
             gameOverDiv.appendChild(restartBtn);
         }
 
-        // 处理玩家死亡并重生
+        // 处理玩家死亡并显示重生选项
         function handlePlayerDeath() {
+            // 暂停游戏
+            gameRunning = false;
+
+            // 显示死亡提示
+            const gameOverDiv = document.getElementById('gameOver');
+            gameOverDiv.innerText = '你已经死亡，是否重生？';
+            gameOverDiv.style.display = 'block';
+
+            // 添加重生按钮
+            const respawnBtn = document.createElement('button');
+            respawnBtn.innerText = '重生';
+            respawnBtn.style.fontSize = '24px';
+            respawnBtn.onclick = () => {
+                respawnPlayer();
+                gameOverDiv.style.display = 'none';
+                gameOverDiv.innerHTML = ''; // 清空内容
+                gameRunning = true;
+                gameLoop();
+            };
+            gameOverDiv.appendChild(respawnBtn);
+        }
+
+        // 重生玩家
+        function respawnPlayer() {
             // 重置玩家属性
             player.health = 100;
-            player.x = gameWidth / 2;
-            player.y = gameHeight / 2;
+            player.x = Math.random() * gameWidth;
+            player.y = Math.random() * gameHeight;
             player.size = 10;
             player.level = 1;
             player.exp = 0;
@@ -545,6 +617,18 @@
             }, 1000);
         }
 
+        // 新增：在指定位置生成等离子的函数
+        function spawnPlasmaAtPosition(amount, x, y) {
+            let numPlasmas = Math.round(amount / 5); // 每个等离子代表5的量
+            for (let i = 0; i < numPlasmas; i++) {
+                // 在指定位置周围随机生成等离子
+                let offsetX = Math.random() * 50 - 25;
+                let offsetY = Math.random() * 50 - 25;
+                let plasma = new Plasma(x + offsetX, y + offsetY);
+                plasmas.push(plasma);
+            }
+        }
+
         // 游戏主循环
         function gameLoop() {
             if (!gameRunning) return;
@@ -553,17 +637,17 @@
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 根据玩家的位置和视野，设置缩放和平移
-            const scale = Math.max(1, 100 / player.size); // 视野随着玩家大小变化
-            const translateX = -player.x + canvas.width / 2 / scale;
-            const translateY = -player.y + canvas.height / 2 / scale;
+            // 调整缩放比例计算方式
+            const scale = Math.max(0.5, 1 - (player.size - 10) / 200);
+            const translateX = -player.x * scale + canvas.width / 2;
+            const translateY = -player.y * scale + canvas.height / 2;
 
             ctx.scale(scale, scale);
-            ctx.translate(translateX, translateY);
+            ctx.translate(translateX / scale, translateY / scale);
 
             // 绘制游戏区域边界
             ctx.strokeStyle = '#000';
-            ctx.lineWidth = 5;
+            ctx.lineWidth = 5 / scale; // 线宽也需要根据缩放调整
             ctx.strokeRect(0, 0, gameWidth, gameHeight);
 
             // 检查并刷新食物
@@ -620,7 +704,7 @@
                 });
 
                 // 检查玩家是否死亡
-                if (p.health <= 0) {
+                if (p.health <= 0 || p.size <= 5) {
                     if (!p.isAI) {
                         handlePlayerDeath();
                     } else {
@@ -760,7 +844,10 @@
         });
 
         // 开始游戏
-        gameLoop();
+        window.onload = function() {
+            gameRunning = true;
+            gameLoop();
+        };
     </script>
 </body>
 </html>
