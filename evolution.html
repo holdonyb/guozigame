@@ -102,18 +102,21 @@
         let achievements = [];
         let keys = {};
         let gameRunning = true;
+        let joystickActive = false; // 用于标记摇杆是否激活
         let evolutionStages = [
-            { stage: '单细胞', size: 10, speed: 3 },
-            { stage: '多细胞', size: 15, speed: 2.8 },
-            { stage: '小型生物', size: 20, speed: 2.5 },
-            { stage: '鱼类', size: 25, speed: 2.2 },
-            { stage: '两栖动物', size: 30, speed: 2 },
-            { stage: '爬行动物', size: 35, speed: 1.8 },
-            { stage: '哺乳动物', size: 40, speed: 1.5 },
-            { stage: '灵长类', size: 45, speed: 1.2 },
-            { stage: '原始人类', size: 50, speed: 1 },
-            { stage: '现代人类', size: 55, speed: 0.8 }
+            { stage: '单细胞', size: 10 },
+            { stage: '多细胞', size: 15 },
+            { stage: '小型生物', size: 20 },
+            { stage: '鱼类', size: 25 },
+            { stage: '两栖动物', size: 30 },
+            { stage: '爬行动物', size: 35 },
+            { stage: '哺乳动物', size: 40 },
+            { stage: '灵长类', size: 45 },
+            { stage: '原始人类', size: 50 },
+            { stage: '现代人类', size: 55 }
         ];
+        const maxPlasmaCount = 100;
+        const maxSmallAI = 20;
 
         // 辅助函数
         function getDistance(obj1, obj2) {
@@ -150,6 +153,14 @@
                 this.path = [];
                 this.moveX = 0;
                 this.moveY = 0;
+                this.updateSpeed();
+            }
+
+            updateSpeed() {
+                // 基础速度，例如5，与体型成反比
+                this.speed = 5 / (this.size / 10);
+                // 确保速度有下限，防止过慢
+                if (this.speed < 1) this.speed = 1;
             }
 
             draw() {
@@ -181,19 +192,22 @@
                 if (keys['down']) this.moveY = 1;
                 if (keys['left']) this.moveX = -1;
                 if (keys['right']) this.moveX = 1;
-                if (!keys['up'] && !keys['down']) this.moveY = 0;
-                if (!keys['left'] && !keys['right']) this.moveX = 0;
+                if (!keys['up'] && !keys['down'] && !joystickActive) this.moveY = 0;
+                if (!keys['left'] && !keys['right'] && !joystickActive) this.moveX = 0;
 
-                // 归一化移动方向
+                // 使用摇杆或键盘的moveX和moveY来移动玩家
                 let magnitude = Math.sqrt(this.moveX * this.moveX + this.moveY * this.moveY);
                 if (magnitude > 0) {
                     this.x += (this.moveX / magnitude) * this.speed;
                     this.y += (this.moveY / magnitude) * this.speed;
                 }
+
                 this.boundaryCheck();
             }
 
             aiMove() {
+                const visionRange = 300;
+
                 // 检查周围有没有威胁（比自己大的玩家）
                 let threats = players.filter(other => other !== this && other.size > this.size && getDistance(this, other) < 200);
                 if (threats.length > 0) {
@@ -205,57 +219,64 @@
                     this.x += (dx / dist) * this.speed;
                     this.y += (dy / dist) * this.speed;
                 } else {
-                    // 没有威胁，寻找最近的食物
-                    let foods = plasmas.concat(items);
-                    let nearestFood = null;
-                    let minDist = Infinity;
-                    for (let food of foods) {
-                        let dist = getDistance(this, food);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            nearestFood = food;
+                    let target = null;
+
+                    // 小AI（size <= 15）只寻找食物，避开大玩家
+                    if (this.size <= 15) {
+                        // 寻找最近的食物
+                        let foods = plasmas.concat(items);
+                        let nearestFood = null;
+                        let minDist = visionRange;
+                        for (let food of foods) {
+                            let dist = getDistance(this, food);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                nearestFood = food;
+                            }
                         }
-                    }
-                    if (nearestFood) {
-                        // 移动到食物位置
-                        let dx = nearestFood.x - this.x;
-                        let dy = nearestFood.y - this.y;
-                        let dist = Math.sqrt(dx * dx + dy * dy);
-                        this.x += (dx / dist) * this.speed;
-                        this.y += (dy / dist) * this.speed;
+                        target = nearestFood;
                     } else {
-                        // 没有食物，随机移动
-                        let direction = Math.floor(Math.random() * 4);
-                        switch (direction) {
-                            case 0:
-                                this.y -= this.speed;
-                                break;
-                            case 1:
-                                this.y += this.speed;
-                                break;
-                            case 2:
-                                this.x -= this.speed;
-                                break;
-                            case 3:
-                                this.x += this.speed;
-                                break;
+                        // 大AI尝试寻找可以吞噬的其他玩家
+                        if (this.level >=5) {
+                            let targets = players.filter(other => other !== this && other.size < this.size && getDistance(this, other) < visionRange);
+                            if (targets.length > 0) {
+                                target = targets[0];
+                            }
+                        }
+
+                        // 如果没有目标，寻找最近的食物
+                        if (!target) {
+                            let foods = plasmas.concat(items);
+                            let nearestFood = null;
+                            let minDist = visionRange;
+                            for (let food of foods) {
+                                let dist = getDistance(this, food);
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    nearestFood = food;
+                                }
+                            }
+                            target = nearestFood;
                         }
                     }
-                }
-                // 进化到5级以上才会尝试攻击
-                if (this.level >=5) {
-                    // 检测周围是否有比自己小的玩家
-                    let targets = players.filter(other => other !== this && other.size < this.size && getDistance(this, other) < 200);
-                    if (targets.length > 0) {
-                        // 向目标移动
-                        let target = targets[0]; // 选择第一个目标
+
+                    if (target) {
+                        // 移动到目标位置，加入随机性
                         let dx = target.x - this.x;
                         let dy = target.y - this.y;
                         let dist = Math.sqrt(dx * dx + dy * dy);
-                        this.x += (dx / dist) * this.speed;
-                        this.y += (dy / dist) * this.speed;
+                        // 添加随机偏差
+                        let randomness = (Math.random() - 0.5) * 0.2; // -0.1 到 0.1
+                        this.x += ((dx / dist) + randomness) * this.speed;
+                        this.y += ((dy / dist) + randomness) * this.speed;
+                    } else {
+                        // 无目标，随机移动
+                        let angle = Math.random() * Math.PI * 2;
+                        this.x += Math.cos(angle) * this.speed;
+                        this.y += Math.sin(angle) * this.speed;
                     }
                 }
+
                 // 边界检查
                 this.boundaryCheck();
             }
@@ -270,6 +291,7 @@
             eat(entity) {
                 this.exp += 20;
                 this.size += 1;
+                this.updateSpeed();
                 this.checkLevelUp();
                 checkAchievements('collectPlasma', 1);
             }
@@ -290,6 +312,7 @@
                     this.level++;
                     this.mutationPoints++;
                     this.evolve();
+                    this.updateSpeed();
                 }
             }
 
@@ -298,8 +321,8 @@
                     this.evolutionStage++;
                     let stageInfo = evolutionStages[this.evolutionStage];
                     this.size = stageInfo.size;
-                    this.speed = stageInfo.speed;
                     this.unlockSkill();
+                    this.updateSpeed(); // 更新速度
                     checkAchievements('evolve', this.evolutionStage);
                 } else {
                     // 进化成人类，游戏胜利
@@ -413,16 +436,25 @@
         let player = new Player(canvas.width / 2, canvas.height / 2);
         players.push(player);
 
-        for (let i = 0; i < 10; i++) {
-            let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
-            players.push(aiPlayer);
+        // 初始化AI玩家
+        function initAIPlayers() {
+            for (let i = 0; i < 5; i++) {
+                let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
+                aiPlayer.size = 20; // 初始AI的大小
+                aiPlayer.updateSpeed();
+                players.push(aiPlayer);
+            }
         }
+        initAIPlayers();
 
         // 初始化等离子
-        for (let i = 0; i < 50; i++) {
-            let plasma = new Plasma(Math.random() * canvas.width, Math.random() * canvas.height);
-            plasmas.push(plasma);
+        function initPlasmas() {
+            for (let i = 0; i < maxPlasmaCount; i++) {
+                let plasma = new Plasma(Math.random() * canvas.width, Math.random() * canvas.height);
+                plasmas.push(plasma);
+            }
         }
+        initPlasmas();
 
         // 初始化物品
         function spawnItems() {
@@ -446,6 +478,7 @@
             const ui = document.getElementById('ui');
             ui.innerHTML = `
                 等级: ${player.level}，经验: ${player.exp}/${player.level * 100}，生命值: ${player.health}<br>
+                大小: ${player.size.toFixed(1)}，速度: ${player.speed.toFixed(1)}<br>
                 进化阶段: ${evolutionStages[player.evolutionStage].stage}
             `;
         }
@@ -462,6 +495,17 @@
         function gameLoop() {
             if (!gameRunning) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 检查并刷新食物
+            if (plasmas.length < maxPlasmaCount) {
+                spawnPlasma(maxPlasmaCount - plasmas.length);
+            }
+
+            // 检查并生成小AI
+            let smallAICount = players.filter(p => p.isAI && p.size <= 15).length;
+            if (smallAICount < maxSmallAI) {
+                spawnSmallAI(maxSmallAI - smallAICount);
+            }
 
             // 绘制等离子
             plasmas.forEach(plasma => {
@@ -520,6 +564,22 @@
             updateUI();
 
             requestAnimationFrame(gameLoop);
+        }
+
+        function spawnPlasma(count) {
+            for (let i = 0; i < count; i++) {
+                let plasma = new Plasma(Math.random() * canvas.width, Math.random() * canvas.height);
+                plasmas.push(plasma);
+            }
+        }
+
+        function spawnSmallAI(count) {
+            for (let i = 0; i < count; i++) {
+                let aiPlayer = new Player(Math.random() * canvas.width, Math.random() * canvas.height, true);
+                aiPlayer.size = 10; // 小AI的大小
+                aiPlayer.updateSpeed(); // 更新速度
+                players.push(aiPlayer);
+            }
         }
 
         // 碰撞检测函数
@@ -584,9 +644,8 @@
         function setupJoystick() {
             const joystickContainer = document.getElementById('joystickContainer');
             const joystick = document.getElementById('joystick');
-            let joystickActive = false;
             let startX, startY;
-            let joystickX, joystickY;
+            let joystickX = 0, joystickY = 0;
 
             joystickContainer.addEventListener('touchstart', function(e) {
                 e.preventDefault();
