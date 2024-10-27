@@ -121,6 +121,20 @@
 
         button {
             margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        #toggleViewBtn {
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            z-index: 10;
         }
     </style>
 </head>
@@ -131,6 +145,7 @@
     <div id="gameOver"></div>
     <div id="leaderboard"></div>
     <div id="notificationContainer"></div>
+    <button id="toggleViewBtn">切换视野</button>
 
     <!-- 摇杆控制 -->
     <div id="joystickContainer">
@@ -151,7 +166,8 @@
         let achievements = [];
         let keys = {};
         let gameRunning = false;
-        let joystickActive = false; // 用于标记摇杆是否激活
+        let joystickActive = false;
+        let globalView = false; // 是否为全局视野模式
         let evolutionStages = [
             { stage: '单细胞', size: 10, color: '#F44336', abbrev: '单' },
             { stage: '多细胞', size: 15, color: '#E91E63', abbrev: '多' },
@@ -166,8 +182,8 @@
         ];
         const maxPlasmaCount = 100;
         const maxSmallAI = 20;
-        const gameWidth = 4000;  // 定义游戏区域的宽度
-        const gameHeight = 4000; // 定义游戏区域的高度
+        const gameWidth = 4000;
+        const gameHeight = 4000;
 
         // 显示通知的函数
         function showNotification(message, color) {
@@ -225,7 +241,7 @@
                 this.x = x;
                 this.y = y;
                 this.size = 10;
-                this.speed = 1.5; // 降低初始速度
+                this.speed = 1.5;
                 this.health = 100;
                 this.exp = 0;
                 this.mutationPoints = 0;
@@ -234,19 +250,20 @@
                 this.evolutionStage = 0;
                 this.target = null;
                 this.skills = [];
-                this.skillCooldowns = {}; // 新增：技能冷却时间
+                this.skillCooldowns = {};
                 this.path = [];
                 this.moveX = 0;
                 this.moveY = 0;
                 this.updateSpeed();
-                this.isInvincible = false; // 无敌状态
-                this.invincibleTime = 0; // 无敌剩余时间
-                this.isNausea = false; // 是否处于反胃状态
-                this.score = 0; // 总分
+                this.isInvincible = false;
+                this.invincibleTime = 0;
+                this.isNausea = false;
+                this.score = 0;
                 this.lastDischargeTime = Date.now();
-                this.plasmaSize = 0.5; // 每个等离子对应的 size 减少量
+                this.plasmaSize = 0.5;
+                this.isDead = false;
                 
-                // 新增：定期排出等离子
+                // 定期排出等离子
                 this.dischargeInterval = setInterval(() => {
                     this.dischargePlasma();
                 }, 30000); // 每30秒排出一次等离子
@@ -297,6 +314,8 @@
             }
 
             move() {
+                if (this.isDead) return; // 如果玩家已死亡，不执行移动
+                
                 if (this.isAI) {
                     this.aiMove();
                 } else {
@@ -407,6 +426,8 @@
             }
 
             eat(entity) {
+                if (this.isDead) return; // 如果玩家已死亡，不执行吃的动作
+                
                 this.exp += 20;
                 this.score += 20; // 吃等离子增加分数
                 // 修改：吃掉等离子只增加70%的体型
@@ -419,20 +440,24 @@
             }
 
             attack(other) {
-                if (other.isInvincible) return; // 对方无敌，攻击无效
+                if (this.isDead || other.isDead) {
+                    console.log('Attack attempted on dead player or by dead player');
+                    return;
+                }
+                if (other.isInvincible) return;
 
                 let damage = 5 + this.level;
                 other.health -= damage;
-                if (other.health <= 0) {
+                if (other.health <= 0 && !other.isDead) {
+                    other.isDead = true;
+                    console.log(`Player died: ${other.isAI ? 'AI' : 'Human'}`);
+
                     // 吞噬机制修正
-                    // 计算被吞噬者的总质量
                     let otherSize = other.size;
-                    // 增加自身体型的部分（例如：消化70%）
                     let digestAmount = otherSize * 0.7;
                     this.size += digestAmount;
                     this.updateSpeed();
 
-                    // 消化效果：快速连续排出等离子
                     let remainingDischarge = otherSize * 0.3;
                     const digestInterval = setInterval(() => {
                         if (remainingDischarge <= 0) {
@@ -441,19 +466,22 @@
                         }
 
                         let dischargeAmount = Math.min(remainingDischarge, this.size * 0.05);
-                        for (let i = 0; i < 5; i++) { // 每次消化效果排出5个等离子
+                        for (let i = 0; i < 5; i++) {
                             this.ejectPlasma(dischargeAmount / 5);
                         }
                         this.size -= dischargeAmount;
                         remainingDischarge -= dischargeAmount;
                         this.updateSpeed();
-                    }, 200); // 每0.2秒排出一次，持续到排完为止
+                    }, 200);
 
-                    // 增加分数
                     this.score += other.level * 50;
-                    // 移除被吞噬的玩家
-                    players.splice(players.indexOf(other), 1);
-                    // 检查升级
+
+                    if (other.isAI) {
+                        players.splice(players.indexOf(other), 1);
+                    } else {
+                        // 调用 handlePlayerDeath() 来处理人类玩家的死亡
+                        handlePlayerDeath();
+                    }
                     this.checkLevelUp();
                     checkAchievements('defeatEnemy', 1);
                 }
@@ -461,6 +489,8 @@
 
             // 新增：定期排出等离子的方法
             dischargePlasma() {
+                if (this.isDead) return; // 如果玩家已死亡，不执行排出等离子
+                
                 const now = Date.now();
                 const dischargeInterval = Math.max(5000, 30000 - this.size * 100); // 根据大小调整间隔，最小5秒
                 if (now - this.lastDischargeTime >= dischargeInterval) {
@@ -478,11 +508,17 @@
                     // 检查是否死亡
                     if (this.size <= 5) {
                         this.health = 0;
+                        this.isDead = true;
+                        if (!this.isAI) {
+                            handlePlayerDeath();
+                        }
                     }
                 }
             }
 
             ejectPlasma(amount) {
+                if (this.isDead) return; // 如果玩家已死亡，不执行排出等离子
+                
                 let direction;
                 if (this.moveX !== 0 || this.moveY !== 0) {
                     // 如果玩家在移动，使用移动的反方向
@@ -497,6 +533,7 @@
             }
 
             applyNausea() {
+                if (this.isDead) return; // 如果玩家已死亡，不执行反胃效果
                 if (this.isNausea) return; // 已经处于反胃状态
                 if (this.size < 30) return; // 体型较小的玩家不受影响
 
@@ -505,7 +542,7 @@
 
                 // 反胃效果：快速连续排出等离子
                 const nauseaInterval = setInterval(() => {
-                    if (this.nauseaDuration <= 0 || this.size <= 5) {
+                    if (this.nauseaDuration <= 0 || this.size <= 5 || this.isDead) {
                         clearInterval(nauseaInterval);
                         this.isNausea = false;
                         return;
@@ -522,6 +559,10 @@
                     // 检查是否死亡
                     if (this.size <= 5) {
                         this.health = 0;
+                        this.isDead = true;
+                        if (!this.isAI) {
+                            handlePlayerDeath();
+                        }
                         clearInterval(nauseaInterval);
                     }
                 }, 1000);
@@ -755,7 +796,7 @@
         // 初始化任务和成就（此处简单实现）
         function checkAchievements(task, value) {
             // 简单地输出一下，用于避免错误
-            console.log(`Achievement checked: ${task}, value: ${value}`);
+            // console.log(`Achievement checked: ${task}, value: ${value}`);
         }
 
         // 更新UI（简单实现）
@@ -782,11 +823,13 @@
         function gameOver(message) {
             gameRunning = false;
             const gameOverDiv = document.getElementById('gameOver');
+            gameOverDiv.innerHTML = ''; // 清空内容
             gameOverDiv.innerText = message;
             gameOverDiv.style.display = 'block';
 
             // 添加重新开始按钮
             const restartBtn = document.createElement('button');
+            restartBtn.id = 'restartBtn';
             restartBtn.innerText = '重新开始';
             restartBtn.style.fontSize = '24px';
             restartBtn.onclick = () => {
@@ -797,43 +840,55 @@
 
         // 处理玩家死亡并显示重生选项
         function handlePlayerDeath() {
-            // 暂停游戏
-            gameRunning = false;
-
-            // 从players数组中移除玩家
-            const playerIndex = players.indexOf(player);
-            if (playerIndex > -1) {
-                players.splice(playerIndex, 1);
+            console.log('Entering handlePlayerDeath function');
+            if (!gameRunning) {
+                console.log('Game not running, exiting handlePlayerDeath');
+                return;
             }
 
-            // 清除玩家的定时器
+            gameRunning = false;
+            player.isDead = true;
+            console.log('Player marked as dead, game paused');
+
+            // 清理定时器
             clearInterval(player.dischargeInterval);
             clearInterval(player.invincibleInterval);
             if (player.nauseaInterval) {
                 clearInterval(player.nauseaInterval);
             }
+            console.log('Player intervals cleared');
 
             // 显示死亡提示
             const gameOverDiv = document.getElementById('gameOver');
-            gameOverDiv.innerText = '你已经死亡，是否重生？';
+            gameOverDiv.innerHTML = '';
             gameOverDiv.style.display = 'block';
+            console.log('Game over div displayed');
+
+            const message = document.createElement('div');
+            message.innerText = '你已经死亡，是否重生？';
+            gameOverDiv.appendChild(message);
 
             // 添加重生按钮
             const respawnBtn = document.createElement('button');
             respawnBtn.innerText = '重生';
             respawnBtn.style.fontSize = '24px';
             respawnBtn.onclick = () => {
+                console.log('Respawn button clicked');
                 respawnPlayer();
                 gameOverDiv.style.display = 'none';
-                gameOverDiv.innerHTML = ''; // 清空内容
+                gameOverDiv.innerHTML = '';
                 gameRunning = true;
+                console.log('Game restarted');
                 gameLoop();
             };
             gameOverDiv.appendChild(respawnBtn);
+            console.log('Respawn button added to game over div');
         }
+
 
         // 重生玩家
         function respawnPlayer() {
+            console.log('Entering respawnPlayer function');
             // 重置玩家属性
             player.health = 100;
             player.x = Math.random() * gameWidth;
@@ -843,31 +898,44 @@
             player.exp = 0;
             player.evolutionStage = 0;
             player.skills = [];
-            player.score = 0; // 重置分数
+            player.score = 0;
+            player.isDead = false;
             player.updateSpeed();
+            console.log('Player attributes reset');
+
+            // 清理旧的定时器
+            clearInterval(player.dischargeInterval);
+            clearInterval(player.invincibleInterval);
+            if (player.nauseaInterval) {
+                clearInterval(player.nauseaInterval);
+            }
+            console.log('Old intervals cleared');
 
             // 设置无敌状态
             player.isInvincible = true;
-            player.invincibleTime = 30; // 30秒
+            player.invincibleTime = 30;
+            console.log('Player set to invincible state');
 
-            // 每秒减少无敌时间
+            // 重新启动定时器
             player.invincibleInterval = setInterval(() => {
                 player.invincibleTime--;
                 if (player.invincibleTime <= 0) {
                     player.isInvincible = false;
                     clearInterval(player.invincibleInterval);
+                    console.log('Player invincibility ended');
                 }
             }, 1000);
 
             // 重新初始化 dischargeInterval
-            clearInterval(player.dischargeInterval);
             player.dischargeInterval = setInterval(() => {
                 player.dischargePlasma();
-            }, 30000); // 每30秒排出一次等离子
+            }, 30000);
+            console.log('New intervals set');
 
-            // 确保玩家重新加入游戏
+            // 确保玩家在 players 数组中
             if (!players.includes(player)) {
                 players.push(player);
+                console.log('Player added back to players array');
             }
         }
 
@@ -910,98 +978,120 @@
         function gameLoop() {
             if (!gameRunning) return;
 
-            // 清空画布并重置变换
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            try {
+                // 清空画布并重置变换
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 调整缩放比例计算方式
-            const scale = Math.max(0.5, 1 - (player.size - 10) / 200);
-            const translateX = -player.x * scale + canvas.width / 2;
-            const translateY = -player.y * scale + canvas.height / 2;
-
-            ctx.scale(scale, scale);
-            ctx.translate(translateX / scale, translateY / scale);
-
-            // 绘制游戏区域边界
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 5 / scale; // 线宽也需要根据缩放调整
-            ctx.strokeRect(0, 0, gameWidth, gameHeight);
-
-            // 检查并刷新食物
-            if (plasmas.length < maxPlasmaCount) {
-                spawnPlasma(maxPlasmaCount - plasmas.length);
-            }
-
-            // 检查并生成小AI
-            let smallAICount = players.filter(p => p.isAI && p.size <= 15).length;
-            if (smallAICount < maxSmallAI) {
-                spawnSmallAI(maxSmallAI - smallAICount);
-            }
-
-            // 绘制等离子
-            plasmas.forEach((plasma, index) => {
-                plasma.move();
-                plasma.draw();
-                // 检查是否超出游戏边界
-                if (plasma.x < 0 || plasma.x > gameWidth || plasma.y < 0 || plasma.y > gameHeight) {
-                    plasmas.splice(index, 1);
+                let scale;
+                if (globalView) {
+                    // 全局视野模式，不缩放，显示整个游戏区域
+                    const scaleX = canvas.width / gameWidth;
+                    const scaleY = canvas.height / gameHeight;
+                    scale = Math.min(scaleX, scaleY);
+                    ctx.scale(scale, scale);
+                    ctx.translate(0, 0);
+                } else {
+                    scale = Math.max(0.5, 1 - (player.size - 10) / 200);
+                    const translateX = -player.x * scale + canvas.width / 2;
+                    const translateY = -player.y * scale + canvas.height / 2;
+                    ctx.scale(scale, scale);
+                    ctx.translate(translateX / scale, translateY / scale);
                 }
-            });
 
-            // 绘制物品
-            items.forEach(item => {
-                item.draw();
-            });
+                // Draw game area boundary
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 5 / scale;
+                ctx.strokeRect(0, 0, gameWidth, gameHeight);
 
-            // 更新和绘制玩家
-            players.forEach(p => {
-                p.move();
-                p.draw();
-                p.dischargePlasma(); // 在每一帧检查是否需要排出等离子
+                // 检查并刷新食物
+                if (plasmas.length < maxPlasmaCount) {
+                    spawnPlasma(maxPlasmaCount - plasmas.length);
+                }
 
-                // 吃等离子
+                // 检查并生成小AI
+                let smallAICount = players.filter(p => p.isAI && p.size <= 15).length;
+                if (smallAICount < maxSmallAI) {
+                    spawnSmallAI(maxSmallAI - smallAICount);
+                }
+
+                // 绘制等离子
                 plasmas.forEach((plasma, index) => {
-                    if (isColliding(p, plasma)) {
-                        p.eat(plasma);
+                    plasma.move();
+                    plasma.draw();
+                    // 检查是否超出游戏边界
+                    if (plasma.x < 0 || plasma.x > gameWidth || plasma.y < 0 || plasma.y > gameHeight) {
                         plasmas.splice(index, 1);
                     }
                 });
 
-                // 收集物品
-                items.forEach((item, index) => {
-                    if (isColliding(p, item)) {
-                        item.applyEffect(p);
-                        items.splice(index, 1);
-                    }
+                // 绘制物品
+                items.forEach(item => {
+                    item.draw();
                 });
 
-                // 攻击其他玩家
-                players.forEach(other => {
-                    if (other !== p && isColliding(p, other)) {
-                        if (p.size > other.size) {
-                            p.attack(other);
-                        } else if (p.size < other.size) {
-                            other.attack(p);
+                // 更新和绘制玩家
+                players.forEach(p => {
+                    if (p.isDead) {
+                        console.log(`Skipping dead player: ${p.isAI ? 'AI' : 'Human'}`);
+                        return;
+                    }
+
+                    p.move();
+                    p.draw();
+                    p.dischargePlasma();
+
+                    // 吃等离子
+                    plasmas.forEach((plasma, index) => {
+                        if (isColliding(p, plasma)) {
+                            p.eat(plasma);
+                            plasmas.splice(index, 1);
+                        }
+                    });
+
+                    // 收集物品
+                    items.forEach((item, index) => {
+                        if (isColliding(p, item)) {
+                            item.applyEffect(p);
+                            items.splice(index, 1);
+                        }
+                    });
+
+                    // 攻击其他玩家
+                    players.forEach(other => {
+                        if (other !== p && isColliding(p, other)) {
+                            if (p.size > other.size) {
+                                p.attack(other);
+                            } else if (p.size < other.size) {
+                                other.attack(p);
+                            }
+                        }
+                    });
+
+                    // 检查玩家是否死亡
+                    if (p.health <= 0 && !p.isDead) {
+                        p.isDead = true;
+                        console.log(`Player health reached 0: ${p.isAI ? 'AI' : 'Human'}`);
+                        if (!p.isAI) {
+                            console.log('Calling handlePlayerDeath for human player');
+                            handlePlayerDeath();
+                        } else {
+                            // 移除死亡的AI玩家
+                            players.splice(players.indexOf(p), 1);
                         }
                     }
                 });
 
-                // 检查玩家是否死亡
-                if (p.health <= 0) {
-                    if (!p.isAI) {
-                        handlePlayerDeath();
-                    } else {
-                        // 移除死亡的AI玩家
-                        players.splice(players.indexOf(p), 1);
-                    }
-                }
-            });
+                // 更新UI和排行榜
+                updateUI();
+                updateLeaderboard();
 
-            // 更新UI和排行榜
-            updateUI();
-            updateLeaderboard();
-
-            requestAnimationFrame(gameLoop);
+                requestAnimationFrame(gameLoop);
+            } catch (error) {
+                console.error('游戏循环中发生错误：', error);
+                alert('游戏发生错误，请查看控制台以获取更多信息。');
+                gameRunning = false;
+            }
         }
 
         function spawnPlasma(count) {
@@ -1050,6 +1140,9 @@
                 case 'e':
                     player.useSkill('加速');
                     break;
+                case 'v': // 添加切换视野的快捷键
+                    globalView = !globalView;
+                    break;
                 default:
                     break;
             }
@@ -1077,6 +1170,7 @@
                     break;
             }
         });
+
         // 初始化摇杆控制
         function setupJoystick() {
             const joystickContainer = document.getElementById('joystickContainer');
@@ -1124,6 +1218,12 @@
         const skillBtn = document.getElementById('skillButton');
         skillBtn.addEventListener('touchstart', () => {
             player.useSkill('加速');
+        });
+
+        // 添加全局视野按钮事件监听
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        toggleViewBtn.addEventListener('click', () => {
+            globalView = !globalView;
         });
 
         // 开始游戏
