@@ -4,52 +4,80 @@
     <meta charset="UTF-8">
     <title>快乐的吞噬小宝宝</title>
     <style>
+        /* 优化后的样式 */
         body, html {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #e0f7fa;
+            background-color: #f0f0f0;
+            font-family: 'Roboto', sans-serif;
         }
+
+        /* 背景 */
+        body {
+            background-image: url('https://your-image-url.com/background.jpg'); /* 替换为实际的背景图片URL */
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* 游戏画布 */
         #gameCanvas {
             display: block;
             margin: 0 auto;
-            background-color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.8);
+            touch-action: none; /* 防止在移动设备上双指缩放 */
         }
+
+        /* 游戏信息面板 */
         #ui {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 20px;
+            left: 20px;
             font-size: 16px;
-            color: #000;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
             z-index: 10;
+            max-width: 300px;
         }
+
+        /* 任务面板 */
         #taskPanel {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 20px;
+            right: 20px;
             font-size: 16px;
-            color: #000;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
             z-index: 10;
+            max-width: 300px;
         }
+
+        /* 游戏结束提示 */
         #gameOver {
             position: absolute;
             top: 40%;
             width: 100%;
             text-align: center;
             font-size: 48px;
-            color: red;
+            color: #e74c3c;
             display: none;
-            z-index: 10;
+            z-index: 20;
+            text-shadow: 2px 2px #000;
         }
+
         /* 摇杆样式 */
         #joystickContainer {
             position: absolute;
-            bottom: 50px;
+            bottom: 80px;
             left: 50px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 75px;
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 60px;
             touch-action: none;
             z-index: 10;
         }
@@ -58,58 +86,70 @@
             position: absolute;
             left: 50%;
             top: 50%;
-            width: 80px;
-            height: 80px;
-            margin-left: -40px;
-            margin-top: -40px;
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 40px;
+            width: 60px;
+            height: 60px;
+            margin-left: -30px;
+            margin-top: -30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 30px;
         }
 
-        #skillButton {
+        /* 技能按钮 */
+        .skillButton {
             position: absolute;
             bottom: 100px;
-            right: 20px;
-            width: 80px;
-            height: 80px;
-            background-color: rgba(255, 255, 255, 0.7);
-            border-radius: 40px;
+            right: 100px;
+            width: 60px;
+            height: 60px;
+            background-color: #e67e22;
+            border-radius: 30px;
             text-align: center;
-            line-height: 80px;
-            font-size: 24px;
+            line-height: 60px;
+            font-size: 16px;
+            color: #fff;
             user-select: none;
             z-index: 10;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            margin: 10px;
         }
 
+        .skillButton:hover {
+            background-color: #d35400;
+        }
+
+        /* 排行榜 */
         #leaderboard {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 200px;
+            right: 20px;
             font-size: 16px;
-            color: #000;
+            color: #333;
             z-index: 10;
-            background-color: rgba(255, 255, 255, 0.7);
-            padding: 5px;
-            border-radius: 5px;
-            max-width: 200px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 220px;
         }
 
+        /* 通知容器 */
         #notificationContainer {
             position: absolute;
-            top: 50px;
+            top: 100px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 20;
         }
 
         .notification {
-            background-color: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 10px 20px;
+            background-color: rgba(52, 73, 94, 0.9);
+            color: #ecf0f1;
+            padding: 15px 30px;
             margin-top: 10px;
-            border-radius: 5px;
+            border-radius: 8px;
             font-size: 24px;
             animation: fadeInOut 3s forwards;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
 
         @keyframes fadeInOut {
@@ -119,27 +159,118 @@
             100% { opacity: 0; transform: translateY(-20px); }
         }
 
+        /* 按钮样式 */
         button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 18px;
+            padding: 8px 16px;
+            font-size: 16px;
             cursor: pointer;
-            background-color: #4CAF50;
+            background-color: #3498db;
             color: white;
             border: none;
             border-radius: 5px;
+            margin: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        button:hover {
+            background-color: #2980b9;
         }
 
         #toggleViewBtn {
             position: absolute;
-            bottom: 50px;
-            right: 50px;
+            bottom: 20px;
+            right: 20px;
             z-index: 10;
         }
+
+        /* 玩法说明按钮 */
+        #instructionsBtn {
+            position: absolute;
+            top: 20px;
+            left: 350px; /* 调整位置，避免与UI重叠 */
+            z-index: 10;
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #instructionsBtn:hover {
+            background-color: #27ae60;
+        }
+
+        /* 玩法说明弹窗 */
+        #instructionsModal {
+            display: none;
+            position: fixed;
+            z-index: 30;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .modal-content {
+            background-color: #ecf0f1;
+            margin: 10% auto;
+            padding: 20px;
+            border: none;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .close {
+            color: #aaa;
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #333;
+            text-decoration: none;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .modal-content p, .modal-content ul {
+            color: #34495e;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .modal-content ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+
+        /* 游戏结束按钮 */
+        #gameOver button {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
     </style>
+    <!-- 引入谷歌字体 -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
 </head>
 <body>
-    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div id="ui"></div>
     <div id="taskPanel"></div>
     <div id="gameOver"></div>
@@ -151,12 +282,62 @@
     <div id="joystickContainer">
         <div id="joystick"></div>
     </div>
-    <div id="skillButton">技能</div>
+    <!-- 技能按钮容器 -->
+    <div id="skillButtonsContainer">
+        <!-- 技能按钮将在JavaScript中动态添加 -->
+    </div>
+
+    <button id="instructionsBtn">玩法说明</button>
+
+    <div id="instructionsModal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>玩法说明</h2>
+            <p>欢迎来到"快乐的吞噬小宝宝"游戏！</p>
+            <ul>
+                <li>你是一个小细胞，目标是通过吞噬其他细胞和等离子体来成长和进化。</li>
+                <li>使用方向键（W、A、S、D）或触屏设备上的虚拟摇杆来移动。</li>
+                <li>吞噬比你小的细胞和等离子体来增加体型和经验值。</li>
+                <li>注意躲避比你大的细胞，它们可能会吞噬你！</li>
+                <li>随着成长，你会经历不同的进化阶段，从单细胞一直到人类。</li>
+                <li>收集各种道具来获得特殊效果：
+                    <ul>
+                        <li><span style="color: #ab47bc;">紫色</span>：加速道具，暂时提升速度</li>
+                        <li><span style="color: #66bb6a;">绿色</span>：恢复生命值</li>
+                        <li><span style="color: #ffee58;">黄色</span>：获得额外经验</li>
+                        <li><span style="color: #ff7043;">橙色</span>：增加攻击力</li>
+                        <li><span style="color: #29b6f6;">蓝色</span>：增加防御力</li>
+                        <li><span style="color: #8B008B;">深洋红色</span>：有毒，会导致反胃效果</li>
+                    </ul>
+                </li>
+                <li>技能列表：
+                    <ul>
+                        <li>加速（快捷键：F）：暂时提高移动速度。</li>
+                        <li>护盾（快捷键：G）：获得短暂的无敌状态。</li>
+                        <li>毒液（快捷键：H）：对周围敌人造成反胃效果。</li>
+                        <li>分裂（快捷键：J）：分裂成两个较小的自身。</li>
+                    </ul>
+                </li>
+                <li>你可以点击屏幕右下角的技能按钮来使用对应的技能。</li>
+                <li>按 'V' 键或点击"切换视野"按钮来切换全局视图和跟随视图。</li>
+                <li>努力成为排行榜上的第一名，并最终进化成人类！</li>
+            </ul>
+            <p>祝你游戏愉快！</p>
+        </div>
+    </div>
 
     <script>
         // 获取画布和上下文
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // 使游戏画布响应式
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // 初始调用
 
         // 定义全局变量
         let players = [];
@@ -573,6 +754,7 @@
                     // 检查技能是否在冷却中
                     if (this.skillCooldowns[skillName] && this.skillCooldowns[skillName] > 0) {
                         console.log(`技能${skillName}正在冷却中，剩余时间：${this.skillCooldowns[skillName]}s`);
+                        showNotification(`技能${skillName}正在冷却中，剩余时间：${this.skillCooldowns[skillName]}s`);
                         return;
                     }
 
@@ -597,12 +779,86 @@
                                 }, 1000);
                             }
                             break;
+                        case '护盾':
+                            if (!this.isShielded) {
+                                this.isShielded = true;
+                                this.isInvincible = true;
+                                setTimeout(() => {
+                                    this.isInvincible = false;
+                                    this.isShielded = false;
+                                }, 5000); // 护盾持续5秒
+                                // 设置冷却时间，例如20秒
+                                this.skillCooldowns[skillName] = 20;
+                                let cooldownInterval = setInterval(() => {
+                                    this.skillCooldowns[skillName]--;
+                                    if (this.skillCooldowns[skillName] <= 0) {
+                                        clearInterval(cooldownInterval);
+                                        delete this.skillCooldowns[skillName];
+                                    }
+                                }, 1000);
+                            }
+                            break;
+                        case '毒液':
+                            // 对周围敌人造成伤害
+                            this.useVenomSkill();
+                            // 设置冷却时间，例如30秒
+                            this.skillCooldowns[skillName] = 30;
+                            let cooldownInterval = setInterval(() => {
+                                this.skillCooldowns[skillName]--;
+                                if (this.skillCooldowns[skillName] <= 0) {
+                                    clearInterval(cooldownInterval);
+                                    delete this.skillCooldowns[skillName];
+                                }
+                            }, 1000);
+                            break;
+                        case '分裂':
+                            this.useSplitSkill();
+                            // 设置冷却时间，例如40秒
+                            this.skillCooldowns[skillName] = 40;
+                            let cooldownIntervalSplit = setInterval(() => {
+                                this.skillCooldowns[skillName]--;
+                                if (this.skillCooldowns[skillName] <= 0) {
+                                    clearInterval(cooldownIntervalSplit);
+                                    delete this.skillCooldowns[skillName];
+                                }
+                            }, 1000);
+                            break;
+                        // 可以继续添加更多技能
                         default:
                             break;
                     }
                 } else {
                     console.log('技能未解锁');
                 }
+            }
+
+            useVenomSkill() {
+                let venomRange = 100;
+                players.forEach(other => {
+                    if (other !== this && getDistance(this, other) < venomRange) {
+                        other.applyNausea();
+                    }
+                });
+                showNotification('毒液技能已使用！');
+            }
+
+            useSplitSkill() {
+                // 分裂出一个新的小玩家
+                let newSize = this.size / 2;
+                if (newSize < 10) {
+                    showNotification('体型太小，无法分裂！');
+                    return;
+                }
+                this.size = newSize;
+                this.updateSpeed();
+
+                let splitPlayer = new Player(this.x + this.size * 2, this.y + this.size * 2, false);
+                splitPlayer.size = newSize;
+                splitPlayer.level = this.level;
+                splitPlayer.evolutionStage = this.evolutionStage;
+                splitPlayer.updateSpeed();
+                players.push(splitPlayer);
+                showNotification('分裂技能已使用！');
             }
 
             checkLevelUp() {
@@ -649,11 +905,31 @@
                             newSkill = '加速';
                         }
                         break;
+                    case 4:
+                        if (!this.skills.includes('护盾')) {
+                            this.skills.push('护盾');
+                            newSkill = '护盾';
+                        }
+                        break;
+                    case 6:
+                        if (!this.skills.includes('毒液')) {
+                            this.skills.push('毒液');
+                            newSkill = '毒液';
+                        }
+                        break;
+                    case 8:
+                        if (!this.skills.includes('分裂')) {
+                            this.skills.push('分裂');
+                            newSkill = '分裂';
+                        }
+                        break;
+                    // 可以继续为更多的进化阶段添加技能
                     default:
                         break;
                 }
                 if (newSkill && !this.isAI) {
                     showNotification(`你已解锁新技能：${newSkill}！`);
+                    updateSkillButtons();
                 }
             }
         }
@@ -726,6 +1002,9 @@
                 switch (this.type) {
                     case 'speed':
                         player.speed += 0.5;
+                        setTimeout(() => {
+                            player.speed -= 0.5;
+                        }, 5000); // 加速持续5秒
                         break;
                     case 'health':
                         player.health += 20;
@@ -772,26 +1051,38 @@
         function spawnItems() {
             let itemTypes = ['speed', 'health', 'exp', 'attack', 'defense', 'toxic'];
             for (let i = 0; i < 20; i++) {
-                let randomNum = Math.random();
-                let itemType;
-                if (randomNum < 0.2) {
-                    itemType = 'speed';
-                } else if (randomNum < 0.4) {
-                    itemType = 'health';
-                } else if (randomNum < 0.6) {
-                    itemType = 'exp';
-                } else if (randomNum < 0.8) {
-                    itemType = 'attack';
-                } else if (randomNum < 0.95) {
-                    itemType = 'defense';
-                } else {
-                    itemType = 'toxic'; // 反胃细胞出现的概率为5%
-                }
-                let item = new Item(Math.random() * gameWidth, Math.random() * gameHeight, itemType);
-                items.push(item);
+                spawnRandomItem();
             }
         }
+
+        function spawnRandomItem() {
+            let randomNum = Math.random();
+            let itemType;
+            if (randomNum < 0.2) {
+                itemType = 'speed';
+            } else if (randomNum < 0.4) {
+                itemType = 'health';
+            } else if (randomNum < 0.6) {
+                itemType = 'exp';
+            } else if (randomNum < 0.8) {
+                itemType = 'attack';
+            } else if (randomNum < 0.95) {
+                itemType = 'defense';
+            } else {
+                itemType = 'toxic'; // 反胃细胞出现的概率为5%
+            }
+            let item = new Item(Math.random() * gameWidth, Math.random() * gameHeight, itemType);
+            items.push(item);
+        }
+
         spawnItems();
+
+        // 每隔一段时间生成新的道具
+        setInterval(() => {
+            if (items.length < 20) {
+                spawnRandomItem();
+            }
+        }, 5000); // 每5秒检查一次
 
         // 初始化任务和成就（此处简单实现）
         function checkAchievements(task, value) {
@@ -885,7 +1176,6 @@
             console.log('Respawn button added to game over div');
         }
 
-
         // 重生玩家
         function respawnPlayer() {
             console.log('Entering respawnPlayer function');
@@ -937,6 +1227,9 @@
                 players.push(player);
                 console.log('Player added back to players array');
             }
+
+            // 更新技能按钮
+            updateSkillButtons();
         }
 
         // 新增：在指定位置生成等离子的函数
@@ -1026,8 +1319,13 @@
                 });
 
                 // 绘制物品
-                items.forEach(item => {
+                items.forEach((item, index) => {
                     item.draw();
+                    // 如果物品超出游戏边界，移除并生成新的物品
+                    if (item.x < 0 || item.x > gameWidth || item.y < 0 || item.y > gameHeight) {
+                        items.splice(index, 1);
+                        spawnRandomItem();
+                    }
                 });
 
                 // 更新和绘制玩家
@@ -1054,6 +1352,8 @@
                         if (isColliding(p, item)) {
                             item.applyEffect(p);
                             items.splice(index, 1);
+                            // 拾取后生成新的道具
+                            spawnRandomItem();
                         }
                     });
 
@@ -1137,8 +1437,17 @@
                 case 'arrowright':
                     keys['right'] = true;
                     break;
-                case 'e':
+                case 'f':
                     player.useSkill('加速');
+                    break;
+                case 'g':
+                    player.useSkill('护盾');
+                    break;
+                case 'h':
+                    player.useSkill('毒液');
+                    break;
+                case 'j':
+                    player.useSkill('分裂');
                     break;
                 case 'v': // 添加切换视野的快捷键
                     globalView = !globalView;
@@ -1215,10 +1524,34 @@
         setupJoystick();
 
         // 技能按钮触摸事件
-        const skillBtn = document.getElementById('skillButton');
-        skillBtn.addEventListener('touchstart', () => {
-            player.useSkill('加速');
-        });
+        const skillButtonsContainer = document.getElementById('skillButtonsContainer');
+
+        function updateSkillButtons() {
+            // 清空现有的技能按钮
+            skillButtonsContainer.innerHTML = '';
+            // 根据已解锁的技能创建按钮
+            player.skills.forEach((skillName, index) => {
+                const skillBtn = document.createElement('div');
+                skillBtn.className = 'skillButton';
+                skillBtn.innerText = skillName;
+                skillBtn.onclick = () => {
+                    player.useSkill(skillName);
+                };
+                skillBtn.addEventListener('touchstart', () => {
+                    player.useSkill(skillName);
+                });
+                skillButtonsContainer.appendChild(skillBtn);
+            });
+            // 调整按钮位置
+            adjustSkillButtonsPosition();
+        }
+
+        function adjustSkillButtonsPosition() {
+            const buttons = document.querySelectorAll('.skillButton');
+            buttons.forEach((btn, index) => {
+                btn.style.right = (20 + index * 70) + 'px';
+            });
+        }
 
         // 添加全局视野按钮事件监听
         const toggleViewBtn = document.getElementById('toggleViewBtn');
@@ -1226,11 +1559,31 @@
             globalView = !globalView;
         });
 
+        // 添加玩法说明按钮功能
+        const instructionsBtn = document.getElementById('instructionsBtn');
+        const instructionsModal = document.getElementById('instructionsModal');
+        const closeBtn = document.getElementsByClassName('close')[0];
+
+        instructionsBtn.onclick = function() {
+            instructionsModal.style.display = "block";
+        }
+
+        closeBtn.onclick = function() {
+            instructionsModal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == instructionsModal) {
+                instructionsModal.style.display = "none";
+            }
+        }
+
         // 开始游戏
         window.onload = function() {
             gameRunning = true;
             // 初始化游戏
             updateLeaderboard(); // 初始化排行榜
+            updateSkillButtons(); // 初始化技能按钮
             gameLoop();
         };
     </script>
