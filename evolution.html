@@ -176,11 +176,43 @@
             background-color: #2980b9;
         }
 
+        /* Responsive Button Styles */
         #toggleViewBtn {
-            position: absolute;
+            /* position: absolute;
             bottom: 20px;
             right: 20px;
-            z-index: 10;
+            z-index: 10; */
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        #zoomInBtn, #zoomOutBtn {
+            /* position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10; */
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #8e44ad;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        #zoomInBtn {
+            right: 100px; /* Adjusted to prevent overlap */
+        }
+
+        #zoomOutBtn {
+            right: 180px; /* Adjusted to prevent overlap */
         }
 
         /* 玩法说明按钮 */
@@ -265,6 +297,119 @@
             margin-top: 20px;
         }
 
+        /* Name Input Modal Styles */
+        #nameInputModal {
+            display: none;
+            position: fixed;
+            z-index: 40;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        #nameInputModal .modal-content {
+            background-color: #ecf0f1;
+            margin: 15% auto;
+            padding: 20px;
+            border: none;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 8px;
+            position: relative;
+            text-align: center;
+        }
+
+        #nameInputModal input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+
+        #nameInputModal button {
+            padding: 10px 20px;
+            font-size: 18px;
+        }
+
+        /* Container for buttons */
+        #buttonContainer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column; /* Stack vertically */
+            align-items: flex-end;  /* Align to the right */
+            gap: 10px;              /* Space between rows */
+            z-index: 10;
+        }
+
+        /* Bottom button row */
+        #bottomButtonRow {
+            display: flex;
+            flex-direction: row; /* Align horizontally */
+            gap: 10px;           /* Space between buttons */
+        }
+
+        /* Button styles */
+        .controlButton {
+            width: 60px;
+            height: 60px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        /* Button colors */
+        #zoomOutBtn, #zoomInBtn {
+            background-color: #8e44ad;
+        }
+
+        #toggleViewBtn {
+            background-color: #3498db;
+        }
+
+        #pauseBtn {
+            background-color: #e67e22;
+        }
+
+        #restartWorldBtn {
+            background-color: #e74c3c;
+        }
+
+        /* Button hover effect */
+        .controlButton:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            #buttonContainer {
+                align-items: center; /* Center align on small screens */
+            }
+            
+            #bottomButtonRow {
+                flex-wrap: wrap; /* Allow wrapping */
+                justify-content: center; /* Center align buttons */
+            }
+            
+            .controlButton {
+                width: 50px;
+                height: 50px;
+                font-size: 12px;
+            }
+        }
+
     </style>
     <!-- 引入谷歌字体 -->
     <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
@@ -276,7 +421,15 @@
     <div id="gameOver"></div>
     <div id="leaderboard"></div>
     <div id="notificationContainer"></div>
-    <button id="toggleViewBtn">切换视野</button>
+    <div id="buttonContainer">
+        <button id="restartWorldBtn" class="controlButton" title="重启世界">重启</button>
+        <button id="pauseBtn" class="controlButton" title="暂停">暂停</button>
+        <div id="bottomButtonRow">
+            <button id="zoomOutBtn" class="controlButton" title="缩小">-</button>
+            <button id="zoomInBtn" class="controlButton" title="放大">+</button>
+            <button id="toggleViewBtn" class="controlButton" title="切换视野">切换视野</button>
+        </div>
+    </div>
 
     <!-- 摇杆控制 -->
     <div id="joystickContainer">
@@ -295,9 +448,9 @@
             <h2>玩法说明</h2>
             <p>欢迎来到"快乐的吞噬小宝宝"游戏！</p>
             <ul>
-                <li>你是一个小细胞，目标是通过吞噬其他细胞和等离子体来成长和进化。</li>
+                <li>你是一个小细胞，目标是通过吞噬其他细胞和有机物来成长和进化。</li>
                 <li>使用方向键（W、A、S、D）或触屏设备上的虚拟摇杆来移动。</li>
-                <li>吞噬比你小的细胞和等离子体来增加体型和经验值。</li>
+                <li>吞噬比你小的细胞和有机物来增加体型和经验值。</li>
                 <li>注意躲避比你大的细胞，它们可能会吞噬你！</li>
                 <li>随着成长，你会经历不同的进化阶段，从单细胞一直到人类。</li>
                 <li>收集各种道具来获得特殊效果：
@@ -320,9 +473,19 @@
                 </li>
                 <li>你可以点击屏幕右下角的技能按钮来使用对应的技能。</li>
                 <li>按 'V' 键或点击"切换视野"按钮来切换全局视图和跟随视图。</li>
+                <li>在放大视角下，可以使用“放大”和“缩小”按钮来调整视野范围。</li>
                 <li>努力成为排行榜上的第一名，并最终进化成人类！</li>
             </ul>
             <p>祝你游戏愉快！</p>
+        </div>
+    </div>
+
+    <!-- 名字输入弹窗 -->
+    <div id="nameInputModal">
+        <div class="modal-content">
+            <h2>请输入你的名字</h2>
+            <input type="text" id="playerNameInput" placeholder="你的名字">
+            <button id="startGameBtn">开始游戏</button>
         </div>
     </div>
 
@@ -341,7 +504,7 @@
 
         // 定义全局变量
         let players = [];
-        let plasmas = [];
+        let organicMatters = [];
         let items = [];
         let tasks = [];
         let achievements = [];
@@ -349,6 +512,8 @@
         let gameRunning = false;
         let joystickActive = false;
         let globalView = false; // 是否为全局视野模式
+        let playerZoomLevel = 1.0; // 玩家缩放级别
+        let aiPlayerCount = 0; // AI玩家计数器
         let evolutionStages = [
             { stage: '单细胞', size: 10, color: '#F44336', abbrev: '单' },
             { stage: '多细胞', size: 15, color: '#E91E63', abbrev: '多' },
@@ -361,7 +526,7 @@
             { stage: '原始人类', size: 50, color: '#009688', abbrev: '原' },
             { stage: '现代人类', size: 55, color: '#4CAF50', abbrev: '人' }
         ];
-        const maxPlasmaCount = 100;
+        const maxOrganicMatterCount = 100;
         const maxSmallAI = 20;
         const gameWidth = 4000;
         const gameHeight = 4000;
@@ -393,7 +558,7 @@
             leaderboardDiv.innerHTML = '<b>排行榜</b><br>';
 
             topPlayers.forEach((p, index) => {
-                let playerName = p.isAI ? `AI ${index + 1}` : '你';
+                let playerName = p.name || '你';
                 let progress = ((p.evolutionStage + 1) / evolutionStages.length * 100).toFixed(1);
                 leaderboardDiv.innerHTML += `${index + 1}. ${playerName} - ${p.score}分，进化 ${progress}%<br>`;
             });
@@ -441,13 +606,15 @@
                 this.isNausea = false;
                 this.score = 0;
                 this.lastDischargeTime = Date.now();
-                this.plasmaSize = 0.5;
+                this.organicMatterSize = 0.5;
                 this.isDead = false;
+                this.id = isAI ? ++aiPlayerCount : null;
+                this.name = isAI ? `AI ${this.id}` : '玩家';
                 
-                // 定期排出等离子
+                // 定期排出有机物
                 this.dischargeInterval = setInterval(() => {
-                    this.dischargePlasma();
-                }, 30000); // 每30秒排出一次等离子
+                    this.dischargeOrganicMatter();
+                }, 30000); // 每30秒排出一次有机物
             }
 
             updateSpeed() {
@@ -490,6 +657,13 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(stageAbbrev, this.x, this.y);
+
+                // 显示玩家名称
+                if (this.name) {
+                    ctx.fillStyle = '#000';
+                    ctx.font = `${this.size / 3}px Arial`;
+                    ctx.fillText(this.name, this.x, this.y - this.size - 10);
+                }
 
                 ctx.globalAlpha = 1.0;
             }
@@ -542,7 +716,7 @@
                     // 小AI（size <= 15）只寻找食物，避开大玩家
                     if (this.size <= 15) {
                         // 寻找最近的食物
-                        let foods = plasmas.concat(items);
+                        let foods = organicMatters.concat(items);
                         let nearestFood = null;
                         let minDist = visionRange;
                         for (let food of foods) {
@@ -564,7 +738,7 @@
 
                         // 如果没有目标，寻找最近的食物
                         if (!target) {
-                            let foods = plasmas.concat(items);
+                            let foods = organicMatters.concat(items);
                             let nearestFood = null;
                             let minDist = visionRange;
                             for (let food of foods) {
@@ -610,14 +784,14 @@
                 if (this.isDead) return; // 如果玩家已死亡，不执行吃的动作
                 
                 this.exp += 20;
-                this.score += 20; // 吃等离子增加分数
-                // 修改：吃掉等离子只增加70%的体型
+                this.score += 20; // 吃有机物增加分数
+                // 修改：吃掉有机物只增加70%的体型
                 this.size += 0.7;
-                // 生成30%的等离子
-                spawnPlasmaAtPosition(0.3, this.x, this.y);
+                // 生成30%的有机物
+                spawnOrganicMatterAtPosition(0.3, this.x, this.y);
                 this.updateSpeed();
                 this.checkLevelUp();
-                checkAchievements('collectPlasma', 1);
+                checkAchievements('collectOrganicMatter', 1);
             }
 
             attack(other) {
@@ -648,7 +822,7 @@
 
                         let dischargeAmount = Math.min(remainingDischarge, this.size * 0.05);
                         for (let i = 0; i < 5; i++) {
-                            this.ejectPlasma(dischargeAmount / 5);
+                            this.ejectOrganicMatter(dischargeAmount / 5);
                         }
                         this.size -= dischargeAmount;
                         remainingDischarge -= dischargeAmount;
@@ -668,21 +842,21 @@
                 }
             }
 
-            // 新增：定期排出等离子的方法
-            dischargePlasma() {
-                if (this.isDead) return; // 如果玩家已死亡，不执行排出等离子
+            // 新增：定期排出有机物的方法
+            dischargeOrganicMatter() {
+                if (this.isDead) return; // 如果玩家已死亡，不执行排出有机物
                 
                 const now = Date.now();
                 const dischargeInterval = Math.max(5000, 30000 - this.size * 100); // 根据大小调整间隔，最小5秒
                 if (now - this.lastDischargeTime >= dischargeInterval) {
                     let dischargeAmount = this.size * 0.05; // 排出5%的体型
-                    let plasmasToDischarge = Math.floor(dischargeAmount / this.plasmaSize);
+                    let mattersToDischarge = Math.floor(dischargeAmount / this.organicMatterSize);
                     
-                    for (let i = 0; i < plasmasToDischarge; i++) {
-                        this.ejectPlasma(this.plasmaSize);
+                    for (let i = 0; i < mattersToDischarge; i++) {
+                        this.ejectOrganicMatter(this.organicMatterSize);
                     }
 
-                    this.size -= plasmasToDischarge * this.plasmaSize;
+                    this.size -= mattersToDischarge * this.organicMatterSize;
                     this.updateSpeed();
                     this.lastDischargeTime = now;
 
@@ -697,8 +871,8 @@
                 }
             }
 
-            ejectPlasma(amount) {
-                if (this.isDead) return; // 如果玩家已死亡，不执行排出等离子
+            ejectOrganicMatter(amount) {
+                if (this.isDead) return; // 如果玩家已死亡，不执行排出有机物
                 
                 let direction;
                 if (this.moveX !== 0 || this.moveY !== 0) {
@@ -710,7 +884,7 @@
                 }
                 // 添加随机扰动
                 direction += (Math.random() - 0.5) * Math.PI / 6; // 添加最多±15度的随机扰动
-                spawnPlasmaWithDirection(amount, this.x, this.y, this.size, direction);
+                spawnOrganicMatterWithDirection(amount, this.x, this.y, this.size, direction);
             }
 
             applyNausea() {
@@ -721,7 +895,7 @@
                 this.isNausea = true;
                 this.nauseaDuration = 10; // 反胃持续10秒
 
-                // 反胃效果：快速连续排出等离子
+                // 反胃效果：快速连续排出有机物
                 const nauseaInterval = setInterval(() => {
                     if (this.nauseaDuration <= 0 || this.size <= 5 || this.isDead) {
                         clearInterval(nauseaInterval);
@@ -729,9 +903,9 @@
                         return;
                     }
 
-                    let dischargeAmount = this.size * 0.05; // 每次排出5%
-                    for (let i = 0; i < 5; i++) { // 每次反胃效果排出5个等离子
-                        this.ejectPlasma(dischargeAmount / 5);
+                    let dischargeAmount = this.size * 0.1; // 每次排出10%
+                    for (let i = 0; i < 10; i++) { // 每次反胃效果排出10个有机物
+                        this.ejectOrganicMatter(dischargeAmount / 10);
                     }
                     this.size -= dischargeAmount;
                     this.updateSpeed();
@@ -799,7 +973,7 @@
                             }
                             break;
                         case '毒液':
-                            // 对周围敌人造成伤害
+                            // 对周围敌人造成反胃效果
                             this.useVenomSkill();
                             // 设置冷却时间，例如30秒
                             this.skillCooldowns[skillName] = 30;
@@ -857,8 +1031,9 @@
                 splitPlayer.level = this.level;
                 splitPlayer.evolutionStage = this.evolutionStage;
                 splitPlayer.updateSpeed();
+                splitPlayer.name = this.name + '的分身';
                 players.push(splitPlayer);
-                showNotification('分裂技能已使用！');
+                showNotification('分裂技已使用！');
             }
 
             checkLevelUp() {
@@ -934,8 +1109,8 @@
             }
         }
 
-        // 定义等离子类
-        class Plasma {
+        // 定义有机物类
+        class OrganicMatter {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
@@ -1038,14 +1213,14 @@
         }
         initAIPlayers();
 
-        // 初始化等离子
-        function initPlasmas() {
-            for (let i = 0; i < maxPlasmaCount; i++) {
-                let plasma = new Plasma(Math.random() * gameWidth, Math.random() * gameHeight);
-                plasmas.push(plasma);
+        // 初始化有机物
+        function initOrganicMatters() {
+            for (let i = 0; i < maxOrganicMatterCount; i++) {
+                let organicMatter = new OrganicMatter(Math.random() * gameWidth, Math.random() * gameHeight);
+                organicMatters.push(organicMatter);
             }
         }
-        initPlasmas();
+        initOrganicMatters();
 
         // 初始化物品
         function spawnItems() {
@@ -1100,6 +1275,7 @@
             }).join('，');
 
             ui.innerHTML = `
+                玩家：${player.name}<br>
                 等级: ${player.level}，经验: ${player.exp}/${player.level * 100}，生命值: ${player.health}<br>
                 大小: ${player.size.toFixed(1)}，速度: ${player.speed.toFixed(1)}<br>
                 进化阶段: ${evolutionStages[player.evolutionStage].stage}<br>
@@ -1165,12 +1341,9 @@
             respawnBtn.style.fontSize = '24px';
             respawnBtn.onclick = () => {
                 console.log('Respawn button clicked');
-                respawnPlayer();
                 gameOverDiv.style.display = 'none';
                 gameOverDiv.innerHTML = '';
-                gameRunning = true;
-                console.log('Game restarted');
-                gameLoop();
+                showNameInputModal(); // Show name input modal
             };
             gameOverDiv.appendChild(respawnBtn);
             console.log('Respawn button added to game over div');
@@ -1192,6 +1365,9 @@
             player.isDead = false;
             player.updateSpeed();
             console.log('Player attributes reset');
+
+            // No need to re-enter name
+            // player.name = prompt("请输入你的名字：", player.name);
 
             // 清理旧的定时器
             clearInterval(player.dischargeInterval);
@@ -1218,7 +1394,7 @@
 
             // 重新初始化 dischargeInterval
             player.dischargeInterval = setInterval(() => {
-                player.dischargePlasma();
+                player.dischargeOrganicMatter();
             }, 30000);
             console.log('New intervals set');
 
@@ -1232,38 +1408,38 @@
             updateSkillButtons();
         }
 
-        // 新增：在指定位置生成等离子的函数
-        function spawnPlasmaAtPosition(amount, x, y) {
-            let numPlasmas = Math.round(amount / 5); // 每个等离子代表5的量
-            for (let i = 0; i < numPlasmas; i++) {
-                // 在指定位置周围随机生成等离子
+        // 新增：在指定位置生成有机物的函数
+        function spawnOrganicMatterAtPosition(amount, x, y) {
+            let numMatters = Math.round(amount / 5); // 每个有机物代表5的量
+            for (let i = 0; i < numMatters; i++) {
+                // 在指定位置周围随机生成有机物
                 let offsetX = Math.random() * 50 - 25;
                 let offsetY = Math.random() * 50 - 25;
-                let plasma = new Plasma(x + offsetX, y + offsetY);
-                plasmas.push(plasma);
+                let organicMatter = new OrganicMatter(x + offsetX, y + offsetY);
+                organicMatters.push(organicMatter);
             }
         }
 
-        // 新的带方向的等离子体生成函数
-        function spawnPlasmaWithDirection(amount, x, y, playerSize, direction) {
-            let numPlasmas = Math.round(amount / 5); // 每个等离子代表5的量
-            let baseSpeed = 2; // 基础喷射速度
+        // 新的带方向的有机物生成函数
+        function spawnOrganicMatterWithDirection(amount, x, y, playerSize, direction) {
+            let numMatters = Math.round(amount / 5); // 每个有机物代表5的量
+            let baseSpeed = 5; // 基础喷射速度
             let spreadAngle = Math.PI / 6; // 喷射角度范围（30度）
 
-            for (let i = 0; i < numPlasmas; i++) {
+            for (let i = 0; i < numMatters; i++) {
                 // 在指定方向的基础上添加一些随机偏移
-                let plasmaDirection = direction + (Math.random() - 0.5) * spreadAngle;
+                let matterDirection = direction + (Math.random() - 0.5) * spreadAngle;
                 let speed = baseSpeed + Math.random() * 2; // 添加一些随机速度变化
 
-                // 确保等离子体生成在玩家体外
-                let distanceFromCenter = playerSize + 5 + Math.random() * 10;
-                let plasmaX = x + Math.cos(plasmaDirection) * distanceFromCenter;
-                let plasmaY = y + Math.sin(plasmaDirection) * distanceFromCenter;
+                // 确保有机物生成在玩家体外
+                let distanceFromCenter = playerSize + 20 + Math.random() * 10;
+                let matterX = x + Math.cos(matterDirection) * distanceFromCenter;
+                let matterY = y + Math.sin(matterDirection) * distanceFromCenter;
 
-                let plasma = new Plasma(plasmaX, plasmaY);
-                plasma.vx = Math.cos(plasmaDirection) * speed;
-                plasma.vy = Math.sin(plasmaDirection) * speed;
-                plasmas.push(plasma);
+                let organicMatter = new OrganicMatter(matterX, matterY);
+                organicMatter.vx = Math.cos(matterDirection) * speed;
+                organicMatter.vy = Math.sin(matterDirection) * speed;
+                organicMatters.push(organicMatter);
             }
         }
 
@@ -1285,7 +1461,7 @@
                     ctx.scale(scale, scale);
                     ctx.translate(0, 0);
                 } else {
-                    scale = Math.max(0.5, 1 - (player.size - 10) / 200);
+                    scale = Math.max(0.1, (1 - (player.size - 10) / 200) * playerZoomLevel);
                     const translateX = -player.x * scale + canvas.width / 2;
                     const translateY = -player.y * scale + canvas.height / 2;
                     ctx.scale(scale, scale);
@@ -1298,8 +1474,8 @@
                 ctx.strokeRect(0, 0, gameWidth, gameHeight);
 
                 // 检查并刷新食物
-                if (plasmas.length < maxPlasmaCount) {
-                    spawnPlasma(maxPlasmaCount - plasmas.length);
+                if (organicMatters.length < maxOrganicMatterCount) {
+                    spawnOrganicMatter(maxOrganicMatterCount - organicMatters.length);
                 }
 
                 // 检查并生成小AI
@@ -1308,13 +1484,13 @@
                     spawnSmallAI(maxSmallAI - smallAICount);
                 }
 
-                // 绘制等离子
-                plasmas.forEach((plasma, index) => {
-                    plasma.move();
-                    plasma.draw();
+                // 绘制有机物
+                organicMatters.forEach((organicMatter, index) => {
+                    organicMatter.move();
+                    organicMatter.draw();
                     // 检查是否超出游戏边界
-                    if (plasma.x < 0 || plasma.x > gameWidth || plasma.y < 0 || plasma.y > gameHeight) {
-                        plasmas.splice(index, 1);
+                    if (organicMatter.x < 0 || organicMatter.x > gameWidth || organicMatter.y < 0 || organicMatter.y > gameHeight) {
+                        organicMatters.splice(index, 1);
                     }
                 });
 
@@ -1337,13 +1513,13 @@
 
                     p.move();
                     p.draw();
-                    p.dischargePlasma();
+                    p.dischargeOrganicMatter();
 
-                    // 吃等离子
-                    plasmas.forEach((plasma, index) => {
-                        if (isColliding(p, plasma)) {
-                            p.eat(plasma);
-                            plasmas.splice(index, 1);
+                    // 吃有机物
+                    organicMatters.forEach((organicMatter, index) => {
+                        if (isColliding(p, organicMatter)) {
+                            p.eat(organicMatter);
+                            organicMatters.splice(index, 1);
                         }
                     });
 
@@ -1394,10 +1570,10 @@
             }
         }
 
-        function spawnPlasma(count) {
+        function spawnOrganicMatter(count) {
             for (let i = 0; i < count; i++) {
-                let plasma = new Plasma(Math.random() * gameWidth, Math.random() * gameHeight);
-                plasmas.push(plasma);
+                let organicMatter = new OrganicMatter(Math.random() * gameWidth, Math.random() * gameHeight);
+                organicMatters.push(organicMatter);
             }
         }
 
@@ -1451,6 +1627,15 @@
                     break;
                 case 'v': // 添加切换视野的快捷键
                     globalView = !globalView;
+                    break;
+                case '+':
+                    adjustZoom(0.1); // 放大
+                    break;
+                case '-':
+                    adjustZoom(-0.1); // 缩小
+                    break;
+                case 'escape': // Pause the game with ESC
+                    togglePause();
                     break;
                 default:
                     break;
@@ -1543,20 +1728,40 @@
                 skillButtonsContainer.appendChild(skillBtn);
             });
             // 调整按钮位置
-            adjustSkillButtonsPosition();
+            // adjustSkillButtonsPosition();
         }
 
-        function adjustSkillButtonsPosition() {
-            const buttons = document.querySelectorAll('.skillButton');
-            buttons.forEach((btn, index) => {
-                btn.style.right = (20 + index * 70) + 'px';
-            });
-        }
+        // function adjustSkillButtonsPosition() {
+        //     const buttons = document.querySelectorAll('.skillButton');
+        //     buttons.forEach((btn, index) => {
+        //         btn.style.right = (20 + index * 70) + 'px';
+        //     });
+        // }
 
         // 添加全局视野按钮事件监听
         const toggleViewBtn = document.getElementById('toggleViewBtn');
         toggleViewBtn.addEventListener('click', () => {
             globalView = !globalView;
+        });
+
+        // 添加放大缩小按钮事件监听
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+
+        function adjustZoom(delta) {
+            playerZoomLevel += delta;
+            if (playerZoomLevel < 0.5) playerZoomLevel = 0.5;
+            if (playerZoomLevel > 2.0) playerZoomLevel = 2.0;
+        }
+
+        // 添加放大按钮事件监听
+        zoomInBtn.addEventListener('click', () => {
+            adjustZoom(0.1); // 放大视野
+        });
+
+        // 添加缩小按钮事件监听
+        zoomOutBtn.addEventListener('click', () => {
+            adjustZoom(-0.1); // 缩小视野
         });
 
         // 添加玩法说明按钮功能
@@ -1578,14 +1783,77 @@
             }
         }
 
+        // 名字输入弹窗
+        const nameInputModal = document.getElementById('nameInputModal');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const startGameBtn = document.getElementById('startGameBtn');
+
+        function showNameInputModal() {
+            nameInputModal.style.display = 'block';
+            playerNameInput.value = ''; // 清空输入框
+        }
+
+        startGameBtn.onclick = function() {
+            const name = playerNameInput.value.trim();
+            if (name) {
+                player.name = name;
+            } else {
+                player.name = '玩家';
+            }
+            nameInputModal.style.display = 'none';
+
+            if (player.isDead) {
+                respawnPlayer();
+                gameRunning = true;
+                gameLoop();
+            } else if (!gameRunning) {
+                gameRunning = true;
+                gameLoop();
+            }
+        }
+
+        let isPaused = false;
+
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                gameRunning = false;
+                showNotification('游戏已暂停');
+            } else {
+                gameRunning = true;
+                gameLoop();
+            }
+        }
+
+        function restartWorld() {
+            // Reset all game variables and states
+            players = [];
+            organicMatters = [];
+            items = [];
+            player = new Player(gameWidth / 2, gameHeight / 2);
+            players.push(player);
+            initAIPlayers();
+            initOrganicMatters();
+            spawnItems();
+            updateLeaderboard();
+            updateSkillButtons();
+            gameRunning = true;
+            gameLoop();
+            showNotification('世界已重启');
+        }
+
+        // Pause and Restart Button Event Listeners
+        document.getElementById('pauseBtn').addEventListener('click', togglePause);
+        document.getElementById('restartWorldBtn').addEventListener('click', restartWorld);
+
         // 开始游戏
         window.onload = function() {
-            gameRunning = true;
-            // 初始化游戏
+            // 显示名字输入弹窗
+            showNameInputModal();
             updateLeaderboard(); // 初始化排行榜
             updateSkillButtons(); // 初始化技能按钮
-            gameLoop();
         };
     </script>
 </body>
+
 </html>
