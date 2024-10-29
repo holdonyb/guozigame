@@ -80,551 +80,561 @@
 </head>
 <body>
 <script>
-// Wait for DOMContentLoaded and Ammo.js to be ready
+// Wait for DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
-    Ammo().then(function(Ammo) {
-        console.log("DOM and Ammo.js are ready!");
+    // Check if Ammo.js is loaded
+    if (typeof Ammo === 'undefined') {
+        console.error("Ammo.js not loaded.");
+        return;
+    } else {
+        console.log("Ammo.js loaded successfully.");
+    }
 
-        let scene, camera, renderer;
-        let softBodyHelpers;
-        let slimeMesh, slimeBody;
-        let goal, traps = [], collectibles = [];
-        let tilt = { x: 0, y: 0 };
-        let isResetting = false;
-        let floor, floorBody;
-        let physicsWorld;
-        let score = 0;
-        let level = 1;
-        const collectiblesCount = 5;
-        let useJoystick = false;
-        let joystick, joystickKnob;
-        let animationRunning = false;
-        let clock = new THREE.Clock();
-        let rigidBodies = [];
+    let scene, camera, renderer;
+    let softBodyHelpers;
+    let slimeMesh, slimeBody;
+    let goal, traps = [], collectibles = [];
+    let tilt = { x: 0, y: 0 };
+    let isResetting = false;
+    let floor, floorBody;
+    let physicsWorld;
+    let score = 0;
+    let level = 1;
+    const collectiblesCount = 5;
+    let useJoystick = false;
+    let joystick, joystickKnob;
+    let animationRunning = false;
+    let clock = new THREE.Clock();
+    let rigidBodies = [];
 
-        const startButton = document.getElementById('start-button');
-        if (startButton) {
-            console.log("Start button found, setting up event listener...");
-            startButton.addEventListener('click', startGame);
-        } else {
-            console.log("Start button not found.");
-        }
+    const startButton = document.getElementById('start-button');
+    if (startButton) {
+        console.log("Start button found, setting up event listener...");
+        startButton.addEventListener('click', startGame);
+    } else {
+        console.log("Start button not found.");
+    }
 
+    const controlToggle = document.getElementById('control-toggle');
+    if (controlToggle) {
+        console.log("Control toggle found, setting up event listener...");
+        controlToggle.addEventListener('click', toggleControl);
+    } else {
+        console.log("Control toggle not found.");
+    }
+
+    const helpButton = document.getElementById('help-button');
+    if (helpButton) {
+        console.log("Help button found, setting up event listener...");
+        helpButton.addEventListener('click', toggleHelp);
+    } else {
+        console.log("Help button not found.");
+    }
+
+    const restartButton = document.getElementById('restart-button');
+    if (restartButton) {
+        console.log("Restart button found, setting up event listener...");
+        restartButton.addEventListener('click', restartGame);
+    } else {
+        console.log("Restart button not found.");
+    }
+
+    init();
+
+    function createJoystickControl() {
+        joystick = document.createElement('div');
+        joystick.style.position = 'absolute';
+        joystick.style.right = '20px';
+        joystick.style.bottom = '20px';
+        joystick.style.width = '100px';
+        joystick.style.height = '100px';
+        joystick.style.borderRadius = '50%';
+        joystick.style.background = 'rgba(255, 255, 255, 0.5)';
+        joystick.style.display = 'none';
+        document.body.appendChild(joystick);
+
+        joystickKnob = document.createElement('div');
+        joystickKnob.style.width = '40px';
+        joystickKnob.style.height = '40px';
+        joystickKnob.style.borderRadius = '50%';
+        joystickKnob.style.background = 'rgba(255, 255, 255, 0.8)';
+        joystickKnob.style.position = 'absolute';
+        joystickKnob.style.left = '30px';
+        joystickKnob.style.top = '30px';
+        joystick.appendChild(joystickKnob);
+
+        joystick.addEventListener('mousedown', handleJoystickStart);
+        joystick.addEventListener('mousemove', handleJoystickMove);
+        joystick.addEventListener('mouseup', handleJoystickEnd);
+        joystick.addEventListener('mouseleave', handleJoystickEnd);
+        joystick.addEventListener('touchstart', handleJoystickStart, { passive: true });
+        joystick.addEventListener('touchmove', handleJoystickMove, { passive: true });
+        joystick.addEventListener('touchend', handleJoystickEnd, { passive: true });
+    }
+
+    function handleJoystickStart(event) {
+        event.preventDefault();
+        joystick.style.background = 'rgba(255, 255, 255, 0.7)';
+    }
+
+    function handleJoystickMove(event) {
+        event.preventDefault();
+        if (event.buttons !== 1 && event.type !== 'touchmove') return;
+        const rect = joystick.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const clientX = event.clientX || event.touches[0].clientX;
+        const clientY = event.clientY || event.touches[0].clientY;
+        const dx = (clientX - centerX) / (rect.width / 2);
+        const dy = (clientY - centerY) / (rect.height / 2);
+        const distance = Math.min(1, Math.sqrt(dx * dx + dy * dy));
+        const angle = Math.atan2(dy, dx);
+        const knobX = Math.cos(angle) * distance * 30;
+        const knobY = Math.sin(angle) * distance * 30;
+        joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+        tilt.x = Math.max(-1, Math.min(1, dy));
+        tilt.y = Math.max(-1, Math.min(1, dx));
+    }
+
+    function handleJoystickEnd(event) {
+        event.preventDefault();
+        joystick.style.background = 'rgba(255, 255, 255, 0.5)';
+        joystickKnob.style.transform = 'translate(0px, 0px)';
+        tilt.x = 0;
+        tilt.y = 0;
+    }
+
+    function toggleControl() {
+        useJoystick = !useJoystick;
+        joystick.style.display = useJoystick ? 'block' : 'none';
         const controlToggle = document.getElementById('control-toggle');
         if (controlToggle) {
-            console.log("Control toggle found, setting up event listener...");
-            controlToggle.addEventListener('click', toggleControl);
-        } else {
-            console.log("Control toggle not found.");
+            controlToggle.innerText = useJoystick ? 'Use Tilt/Arrows' : 'Use Joystick';
         }
-
-        const helpButton = document.getElementById('help-button');
-        if (helpButton) {
-            console.log("Help button found, setting up event listener...");
-            helpButton.addEventListener('click', toggleHelp);
-        } else {
-            console.log("Help button not found.");
-        }
-
-        const restartButton = document.getElementById('restart-button');
-        if (restartButton) {
-            console.log("Restart button found, setting up event listener...");
-            restartButton.addEventListener('click', restartGame);
-        } else {
-            console.log("Restart button not found.");
-        }
-
-        init();
-
-        function createJoystickControl() {
-            joystick = document.createElement('div');
-            joystick.style.position = 'absolute';
-            joystick.style.right = '20px';
-            joystick.style.bottom = '20px';
-            joystick.style.width = '100px';
-            joystick.style.height = '100px';
-            joystick.style.borderRadius = '50%';
-            joystick.style.background = 'rgba(255, 255, 255, 0.5)';
-            joystick.style.display = 'none';
-            document.body.appendChild(joystick);
-
-            joystickKnob = document.createElement('div');
-            joystickKnob.style.width = '40px';
-            joystickKnob.style.height = '40px';
-            joystickKnob.style.borderRadius = '50%';
-            joystickKnob.style.background = 'rgba(255, 255, 255, 0.8)';
-            joystickKnob.style.position = 'absolute';
-            joystickKnob.style.left = '30px';
-            joystickKnob.style.top = '30px';
-            joystick.appendChild(joystickKnob);
-
-            joystick.addEventListener('mousedown', handleJoystickStart);
-            joystick.addEventListener('mousemove', handleJoystickMove);
-            joystick.addEventListener('mouseup', handleJoystickEnd);
-            joystick.addEventListener('mouseleave', handleJoystickEnd);
-            joystick.addEventListener('touchstart', handleJoystickStart, { passive: true });
-            joystick.addEventListener('touchmove', handleJoystickMove, { passive: true });
-            joystick.addEventListener('touchend', handleJoystickEnd, { passive: true });
-        }
-
-        function handleJoystickStart(event) {
-            event.preventDefault();
-            joystick.style.background = 'rgba(255, 255, 255, 0.7)';
-        }
-
-        function handleJoystickMove(event) {
-            event.preventDefault();
-            if (event.buttons !== 1 && event.type !== 'touchmove') return;
-            const rect = joystick.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const clientX = event.clientX || event.touches[0].clientX;
-            const clientY = event.clientY || event.touches[0].clientY;
-            const dx = (clientX - centerX) / (rect.width / 2);
-            const dy = (clientY - centerY) / (rect.height / 2);
-            const distance = Math.min(1, Math.sqrt(dx * dx + dy * dy));
-            const angle = Math.atan2(dy, dx);
-            const knobX = Math.cos(angle) * distance * 30;
-            const knobY = Math.sin(angle) * distance * 30;
-            joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
-            tilt.x = Math.max(-1, Math.min(1, dy));
-            tilt.y = Math.max(-1, Math.min(1, dx));
-        }
-
-        function handleJoystickEnd(event) {
-            event.preventDefault();
-            joystick.style.background = 'rgba(255, 255, 255, 0.5)';
-            joystickKnob.style.transform = 'translate(0px, 0px)';
+        if (!useJoystick) {
             tilt.x = 0;
             tilt.y = 0;
         }
+    }
 
-        function toggleControl() {
-            useJoystick = !useJoystick;
-            joystick.style.display = useJoystick ? 'block' : 'none';
-            const controlToggle = document.getElementById('control-toggle');
-            if (controlToggle) {
-                controlToggle.innerText = useJoystick ? 'Use Tilt/Arrows' : 'Use Joystick';
-            }
-            if (!useJoystick) {
-                tilt.x = 0;
-                tilt.y = 0;
-            }
+    function startGame() {
+        console.log("Starting game...");
+        const startScreen = document.getElementById('start-screen');
+        if (startScreen) {
+            startScreen.style.display = 'none';
+        }
+        const restartButton = document.getElementById('restart-button');
+        const controlToggle = document.getElementById('control-toggle');
+        if (restartButton) {
+            restartButton.style.display = 'block';
+        }
+        if (controlToggle) {
+            controlToggle.style.display = 'block';
+        }
+        isResetting = false;
+        if (!animationRunning) {
+            animate();
+        }
+    }
+
+    function restartGame() {
+        console.log("Restarting game...");
+        isResetting = true;
+        score = 0;
+        level = 1;
+
+        // Update score and level displays
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        if (scoreDisplay) {
+            scoreDisplay.innerText = `Score: ${score}`;
+        }
+        if (levelDisplay) {
+            levelDisplay.innerText = `Level: ${level}`;
         }
 
-        function startGame() {
-            console.log("Starting game...");
-            const startScreen = document.getElementById('start-screen');
-            if (startScreen) {
-                startScreen.style.display = 'none';
-            }
-            const restartButton = document.getElementById('restart-button');
-            const controlToggle = document.getElementById('control-toggle');
-            if (restartButton) {
-                restartButton.style.display = 'block';
-            }
-            if (controlToggle) {
-                controlToggle.style.display = 'block';
-            }
-            isResetting = false;
-            if (!animationRunning) {
-                animate();
-            }
+        // Clear existing scene and world
+        traps.forEach(trap => scene.remove(trap));
+        traps = [];
+        collectibles.forEach(collectible => scene.remove(collectible));
+        collectibles = [];
+        if (floor) scene.remove(floor);
+        if (slimeMesh) scene.remove(slimeMesh);
+        if (goal) scene.remove(goal);
+        rigidBodies = [];
+        physicsWorld.clearForces();
+
+        // Re-initialize the game objects
+        initGameObjects();
+
+        // Reset camera position
+        updateCameraPosition();
+
+        isResetting = false;
+    }
+
+    function init() {
+        console.log("Initializing game...");
+
+        if (!renderer) {
+            console.log("Initializing renderer...");
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
         }
 
-        function restartGame() {
-            console.log("Restarting game...");
-            isResetting = true;
-            score = 0;
-            level = 1;
-
-            // Update score and level displays
-            const scoreDisplay = document.getElementById('score-display');
-            const levelDisplay = document.getElementById('level-display');
-            if (scoreDisplay) {
-                scoreDisplay.innerText = `Score: ${score}`;
-            }
-            if (levelDisplay) {
-                levelDisplay.innerText = `Level: ${level}`;
-            }
-
-            // Clear existing scene and world
-            traps.forEach(trap => scene.remove(trap));
-            traps = [];
-            collectibles.forEach(collectible => scene.remove(collectible));
-            collectibles = [];
-            if (floor) scene.remove(floor);
-            if (slimeMesh) scene.remove(slimeMesh);
-            if (goal) scene.remove(goal);
-            rigidBodies = [];
-            physicsWorld.clear();
-
-            // Re-initialize the game objects
-            initGameObjects();
-
-            // Reset camera position
-            updateCameraPosition();
-
-            isResetting = false;
+        if (!scene) {
+            console.log("Creating scene...");
+            scene = new THREE.Scene();
         }
 
-        function init() {
-            console.log("Initializing game...");
+        if (!camera) {
+            console.log("Creating camera...");
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        }
+        updateCameraPosition();
 
-            if (!renderer) {
-                console.log("Initializing renderer...");
-                renderer = new THREE.WebGLRenderer({ antialias: true });
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                document.body.appendChild(renderer.domElement);
-            }
+        console.log("Adding light to the scene...");
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 10, 10);
+        scene.add(light);
 
-            if (!scene) {
-                console.log("Creating scene...");
-                scene = new THREE.Scene();
-            }
+        console.log("Initializing physics...");
+        initPhysics();
 
-            if (!camera) {
-                console.log("Creating camera...");
-                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            }
-            updateCameraPosition();
+        initGameObjects();
 
-            console.log("Adding light to the scene...");
-            const light = new THREE.DirectionalLight(0xffffff, 1);
-            light.position.set(10, 10, 10);
-            scene.add(light);
+        console.log("Setting up event listeners...");
+        window.addEventListener('deviceorientation', handleOrientation);
+        document.addEventListener('keydown', handleKey);
+        createJoystickControl();
+    }
 
-            console.log("Initializing physics...");
-            initPhysics();
+    function initPhysics() {
+        const collisionConfiguration = new Ammo.btSoftBodyRigidBodyCollisionConfiguration();
+        const dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+        const broadphase = new Ammo.btDbvtBroadphase();
+        const solver = new Ammo.btSequentialImpulseConstraintSolver();
+        const softBodySolver = new Ammo.btDefaultSoftBodySolver();
 
-            initGameObjects();
+        physicsWorld = new Ammo.btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
+        physicsWorld.setGravity(new Ammo.btVector3(0, -9.82, 0));
+        physicsWorld.getWorldInfo().set_m_gravity(new Ammo.btVector3(0, -9.82, 0));
 
-            console.log("Setting up event listeners...");
-            window.addEventListener('deviceorientation', handleOrientation);
-            document.addEventListener('keydown', handleKey);
-            createJoystickControl();
+        softBodyHelpers = new Ammo.btSoftBodyHelpers();
+    }
+
+    function initGameObjects() {
+        console.log("Initializing game objects...");
+
+        // Create floor
+        console.log("Creating floor...");
+        const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.position.y = -0.5;
+        scene.add(floor);
+
+        console.log("Adding floor to physics world...");
+        const floorShape = new Ammo.btBoxShape(new Ammo.btVector3(10, 0.5, 10));
+        const floorTransform = new Ammo.btTransform();
+        floorTransform.setIdentity();
+        floorTransform.setOrigin(new Ammo.btVector3(0, -0.5, 0));
+        floorBody = createRigidBody(floor, floorShape, 0, floorTransform);
+        floorBody.setFriction(1);
+
+        // Create slime (soft body)
+        console.log("Creating slime...");
+        const slimeGeometry = new THREE.SphereGeometry(1.5, 20, 20);
+        const slimeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
+        slimeMesh = new THREE.Mesh(slimeGeometry, slimeMaterial);
+        scene.add(slimeMesh);
+
+        // Create soft body from mesh
+        const volumeTriMesh = createMeshFromGeometry(slimeGeometry);
+        const slimeSoftBody = softBodyHelpers.CreateFromTriMesh(
+            physicsWorld.getWorldInfo(),
+            volumeTriMesh.vertices,
+            volumeTriMesh.indices,
+            volumeTriMesh.indices.length / 3,
+            true
+        );
+
+        const sbConfig = slimeSoftBody.get_m_cfg();
+        sbConfig.set_viterations(40);
+        sbConfig.set_piterations(40);
+        sbConfig.set_collisions(0x11);
+        sbConfig.set_kDF(0.5);
+        sbConfig.set_kDP(0.01);
+        sbConfig.set_kPR(500);
+
+        slimeSoftBody.setTotalMass(5, false);
+        Ammo.castObject(slimeSoftBody, Ammo.btCollisionObject).getCollisionShape().setMargin(0.05);
+        physicsWorld.addSoftBody(slimeSoftBody, 1, -1);
+        slimeBody = slimeSoftBody;
+        slimeMesh.userData.physicsBody = slimeBody;
+
+        // Create goal
+        console.log("Creating goal object...");
+        const goalGeometry = new THREE.BoxGeometry(2, 0.5, 2);
+        const goalMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+        goal = new THREE.Mesh(goalGeometry, goalMaterial);
+        goal.position.set(8, 0.25, 8);
+        scene.add(goal);
+
+        // Add collectibles
+        console.log("Adding collectibles...");
+        for (let i = 0; i < collectiblesCount; i++) {
+            addCollectible();
         }
 
-        function initPhysics() {
-            const collisionConfiguration = new Ammo.btSoftBodyRigidBodyCollisionConfiguration();
-            const dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
-            const broadphase = new Ammo.btDbvtBroadphase();
-            const solver = new Ammo.btSequentialImpulseConstraintSolver();
-            const softBodySolver = new Ammo.btDefaultSoftBodySolver();
+        // Add traps
+        console.log("Adding traps...");
+        for (let i = 0; i < 3; i++) {
+            addTrap();
+        }
+    }
 
-            physicsWorld = new Ammo.btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
-            physicsWorld.setGravity(new Ammo.btVector3(0, -9.82, 0));
-            physicsWorld.getWorldInfo().set_m_gravity(new Ammo.btVector3(0, -9.82, 0));
+    function createMeshFromGeometry(geometry) {
+        const vertices = geometry.attributes.position.array;
+        const indices = geometry.index.array;
+        return {
+            vertices: vertices,
+            indices: indices
+        };
+    }
 
-            softBodyHelpers = new Ammo.btSoftBodyHelpers();
+    function createRigidBody(threeObject, physicsShape, mass, startTransform) {
+        let isDynamic = (mass !== 0);
+        let localInertia = new Ammo.btVector3(0, 0, 0);
+        if (isDynamic) {
+            physicsShape.calculateLocalInertia(mass, localInertia);
         }
 
-        function initGameObjects() {
-            console.log("Initializing game objects...");
+        let motionState = new Ammo.btDefaultMotionState(startTransform);
+        let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, physicsShape, localInertia);
+        let body = new Ammo.btRigidBody(rbInfo);
 
-            // Create floor
-            console.log("Creating floor...");
-            const floorGeometry = new THREE.BoxGeometry(20, 1, 20);
-            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
-            floor = new THREE.Mesh(floorGeometry, floorMaterial);
-            floor.position.y = -0.5;
-            scene.add(floor);
+        threeObject.userData.physicsBody = body;
 
-            console.log("Adding floor to physics world...");
-            const floorShape = new Ammo.btBoxShape(new Ammo.btVector3(10, 0.5, 10));
-            const floorTransform = new Ammo.btTransform();
-            floorTransform.setIdentity();
-            floorTransform.setOrigin(new Ammo.btVector3(0, -0.5, 0));
-            floorBody = createRigidBody(floor, floorShape, 0, floorTransform);
-            floorBody.setFriction(1);
-
-            // Create slime (soft body)
-            console.log("Creating slime...");
-            const slimeGeometry = new THREE.SphereGeometry(1.5, 20, 20);
-            const slimeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8 });
-            slimeMesh = new THREE.Mesh(slimeGeometry, slimeMaterial);
-            scene.add(slimeMesh);
-
-            // Create soft body from mesh
-            const volumeTriMesh = createMeshFromGeometry(slimeGeometry);
-            const slimeSoftBody = softBodyHelpers.CreateFromTriMesh(
-                physicsWorld.getWorldInfo(),
-                volumeTriMesh.vertices,
-                volumeTriMesh.indices,
-                volumeTriMesh.indices.length / 3,
-                true
-            );
-
-            const sbConfig = slimeSoftBody.get_m_cfg();
-            sbConfig.set_viterations(40);
-            sbConfig.set_piterations(40);
-            sbConfig.set_collisions(0x11);
-            sbConfig.set_kDF(0.5);
-            sbConfig.set_kDP(0.01);
-            sbConfig.set_kPR(500);
-
-            slimeSoftBody.setTotalMass(5, false);
-            Ammo.castObject(slimeSoftBody, Ammo.btCollisionObject).getCollisionShape().setMargin(0.05);
-            physicsWorld.addSoftBody(slimeSoftBody, 1, -1);
-            slimeBody = slimeSoftBody;
-            slimeMesh.userData.physicsBody = slimeBody;
-
-            // Create goal
-            console.log("Creating goal object...");
-            const goalGeometry = new THREE.BoxGeometry(2, 0.5, 2);
-            const goalMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-            goal = new THREE.Mesh(goalGeometry, goalMaterial);
-            goal.position.set(8, 0.25, 8);
-            scene.add(goal);
-
-            // Add collectibles
-            console.log("Adding collectibles...");
-            for (let i = 0; i < collectiblesCount; i++) {
-                addCollectible();
-            }
-
-            // Add traps
-            console.log("Adding traps...");
-            for (let i = 0; i < 3; i++) {
-                addTrap();
-            }
+        if (isDynamic) {
+            rigidBodies.push(threeObject);
+            body.setActivationState(4); // Disable deactivation
         }
 
-        function createMeshFromGeometry(geometry) {
-            const vertices = geometry.attributes.position.array;
-            const indices = geometry.index.array;
-            return {
-                vertices: vertices,
-                indices: indices
+        physicsWorld.addRigidBody(body);
+        return body;
+    }
+
+    function addTrap() {
+        const trapGeometry = new THREE.BoxGeometry(2, 0.5, 2);
+        const trapMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const trap = new THREE.Mesh(trapGeometry, trapMaterial);
+        let position;
+        do {
+            position = {
+                x: (Math.random() - 0.5) * 18,
+                y: 0.25,
+                z: (Math.random() - 0.5) * 18
             };
+        } while (Math.abs(position.x) < 3 && Math.abs(position.z) < 3);
+        trap.position.set(position.x, position.y, position.z);
+        traps.push(trap);
+        scene.add(trap);
+    }
+
+    function addCollectible() {
+        const collectibleGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+        const collectibleMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+        const collectible = new THREE.Mesh(collectibleGeometry, collectibleMaterial);
+        collectible.position.set((Math.random() - 0.5) * 18, 0.5, (Math.random() - 0.5) * 18);
+        collectibles.push(collectible);
+        scene.add(collectible);
+    }
+
+    function nextLevel() {
+        console.log("Advancing to next level...");
+        isResetting = true;
+        level++;
+        const levelDisplay = document.getElementById('level-display');
+        if (levelDisplay) {
+            levelDisplay.innerText = `Level: ${level}`;
         }
 
-        function createRigidBody(threeObject, physicsShape, mass, startTransform) {
-            let isDynamic = (mass !== 0);
-            let localInertia = new Ammo.btVector3(0, 0, 0);
-            if (isDynamic) {
-                physicsShape.calculateLocalInertia(mass, localInertia);
+        // Scale up the floor
+        floor.scale.set(level, 1, level);
+        // Remove old soft body and create new one
+        physicsWorld.removeSoftBody(slimeBody);
+        scene.remove(slimeMesh);
+        // Remove old traps and collectibles
+        traps.forEach(trap => scene.remove(trap));
+        traps = [];
+        collectibles.forEach(collectible => scene.remove(collectible));
+        collectibles = [];
+        if (goal) scene.remove(goal);
+        rigidBodies = [];
+        // Reinitialize game objects for the new level
+        initGameObjects();
+
+        updateCameraPosition();
+        isResetting = false;
+    }
+
+    function updateCameraPosition() {
+        const floorSize = 20 * level;
+        const cameraHeight = floorSize * 0.75;
+        const cameraDistance = floorSize * 0.5;
+        camera.position.set(0, cameraHeight, cameraDistance);
+        camera.lookAt(0, 0, 0);
+    }
+
+    function handleOrientation(event) {
+        if (!useJoystick) {
+            let beta = event.beta || 0;
+            let gamma = event.gamma || 0;
+
+            // Adjust for device orientation
+            if (window.orientation === 90) {
+                tilt.x = gamma / 90;
+                tilt.y = beta / 90;
+            } else if (window.orientation === -90) {
+                tilt.x = -gamma / 90;
+                tilt.y = -beta / 90;
+            } else {
+                tilt.x = beta / 90;
+                tilt.y = -gamma / 90;
             }
 
-            let motionState = new Ammo.btDefaultMotionState(startTransform);
-            let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, physicsShape, localInertia);
-            let body = new Ammo.btRigidBody(rbInfo);
+            // Increase sensitivity
+            tilt.x *= 1.5;
+            tilt.y *= 1.5;
 
-            threeObject.userData.physicsBody = body;
-
-            if (isDynamic) {
-                rigidBodies.push(threeObject);
-                body.setActivationState(4); // Disable deactivation
-            }
-
-            physicsWorld.addRigidBody(body);
-            return body;
+            // Clamp values
+            tilt.x = Math.max(-1, Math.min(1, tilt.x));
+            tilt.y = Math.max(-1, Math.min(1, tilt.y));
         }
+    }
 
-        function addTrap() {
-            const trapGeometry = new THREE.BoxGeometry(2, 0.5, 2);
-            const trapMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            const trap = new THREE.Mesh(trapGeometry, trapMaterial);
-            let position;
-            do {
-                position = {
-                    x: (Math.random() - 0.5) * 18,
-                    y: 0.25,
-                    z: (Math.random() - 0.5) * 18
-                };
-            } while (Math.abs(position.x) < 3 && Math.abs(position.z) < 3);
-            trap.position.set(position.x, position.y, position.z);
-            traps.push(trap);
-            scene.add(trap);
+    function handleKey(event) {
+        if (useJoystick) return;
+        if (event.key === 'ArrowUp') tilt.x = Math.max(tilt.x - 0.1, -1);
+        if (event.key === 'ArrowDown') tilt.x = Math.min(tilt.x + 0.1, 1);
+        if (event.key === 'ArrowLeft') tilt.y = Math.min(tilt.y + 0.1, 1);
+        if (event.key === 'ArrowRight') tilt.y = Math.max(tilt.y - 0.1, -1);
+    }
+
+    function toggleHelp() {
+        const helpModal = document.getElementById('help-modal');
+        if (helpModal) {
+            helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
         }
+    }
 
-        function addCollectible() {
-            const collectibleGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-            const collectibleMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-            const collectible = new THREE.Mesh(collectibleGeometry, collectibleMaterial);
-            collectible.position.set((Math.random() - 0.5) * 18, 0.5, (Math.random() - 0.5) * 18);
-            collectibles.push(collectible);
-            scene.add(collectible);
-        }
+    // Close help modal when clicking the close button
+    const closeButton = document.querySelector('.close');
+    if (closeButton) {
+        closeButton.addEventListener('click', toggleHelp);
+    }
 
-        function nextLevel() {
-            console.log("Advancing to next level...");
-            isResetting = true;
-            level++;
-            const levelDisplay = document.getElementById('level-display');
-            if (levelDisplay) {
-                levelDisplay.innerText = `Level: ${level}`;
-            }
+    function animate() {
+        animationRunning = true;
+        requestAnimationFrame(animate);
 
-            // Scale up the floor
-            floor.scale.set(level, 1, level);
-            // Remove old soft body and create new one
-            physicsWorld.removeSoftBody(slimeBody);
-            scene.remove(slimeMesh);
-            // Remove old traps and collectibles
-            traps.forEach(trap => scene.remove(trap));
-            traps = [];
-            collectibles.forEach(collectible => scene.remove(collectible));
-            collectibles = [];
-            if (goal) scene.remove(goal);
-            rigidBodies = [];
-            // Reinitialize game objects for the new level
-            initGameObjects();
-
-            updateCameraPosition();
-            isResetting = false;
-        }
-
-        function updateCameraPosition() {
-            const floorSize = 20 * level;
-            const cameraHeight = floorSize * 0.75;
-            const cameraDistance = floorSize * 0.5;
-            camera.position.set(0, cameraHeight, cameraDistance);
-            camera.lookAt(0, 0, 0);
-        }
-
-        function handleOrientation(event) {
-            if (!useJoystick) {
-                let beta = event.beta || 0;
-                let gamma = event.gamma || 0;
-
-                // Adjust for device orientation
-                if (window.orientation === 90) {
-                    tilt.x = gamma / 90;
-                    tilt.y = beta / 90;
-                } else if (window.orientation === -90) {
-                    tilt.x = -gamma / 90;
-                    tilt.y = -beta / 90;
-                } else {
-                    tilt.x = beta / 90;
-                    tilt.y = -gamma / 90;
-                }
-
-                // Increase sensitivity
-                tilt.x *= 1.5;
-                tilt.y *= 1.5;
-
-                // Clamp values
-                tilt.x = Math.max(-1, Math.min(1, tilt.x));
-                tilt.y = Math.max(-1, Math.min(1, tilt.y));
-            }
-        }
-
-        function handleKey(event) {
-            if (useJoystick) return;
-            if (event.key === 'ArrowUp') tilt.x = Math.max(tilt.x - 0.1, -1);
-            if (event.key === 'ArrowDown') tilt.x = Math.min(tilt.x + 0.1, 1);
-            if (event.key === 'ArrowLeft') tilt.y = Math.min(tilt.y + 0.1, 1);
-            if (event.key === 'ArrowRight') tilt.y = Math.max(tilt.y - 0.1, -1);
-        }
-
-        function toggleHelp() {
-            const helpModal = document.getElementById('help-modal');
-            if (helpModal) {
-                helpModal.style.display = helpModal.style.display === 'block' ? 'none' : 'block';
-            }
-        }
-
-        function animate() {
-            animationRunning = true;
-            requestAnimationFrame(animate);
-
-            if (isResetting) {
-                renderer.render(scene, camera);
-                return;
-            }
-
-            let deltaTime = clock.getDelta();
-            updatePhysics(deltaTime);
-
-            // Adjust camera to keep the slime in view
-            let slimePosition = new THREE.Vector3();
-            slimeMesh.getWorldPosition(slimePosition);
-            camera.position.set(slimePosition.x, 20, slimePosition.z + 20);
-            camera.lookAt(slimePosition);
-
+        if (isResetting) {
             renderer.render(scene, camera);
+            return;
         }
 
-        function updatePhysics(deltaTime) {
-            // Apply tilt to the floor
-            let transform = new Ammo.btTransform();
-            floorBody.getMotionState().getWorldTransform(transform);
-            let rotation = new Ammo.btQuaternion();
-            rotation.setEulerZYX(-tilt.y * 0.1, 0, -tilt.x * 0.1);
-            transform.setRotation(rotation);
-            floorBody.getMotionState().setWorldTransform(transform);
+        let deltaTime = clock.getDelta();
+        updatePhysics(deltaTime);
 
-            physicsWorld.stepSimulation(deltaTime, 10);
+        // Adjust camera to keep the slime in view
+        let slimePosition = new THREE.Vector3();
+        slimeMesh.getWorldPosition(slimePosition);
+        camera.position.set(slimePosition.x, 20, slimePosition.z + 20);
+        camera.lookAt(slimePosition);
 
-            // Update soft body (slime)
-            let softBody = slimeMesh.userData.physicsBody;
-            let mesh = slimeMesh;
-            let geometry = mesh.geometry;
-            let volumePositions = geometry.attributes.position.array;
-            let numVerts = volumePositions.length / 3;
-            let nodes = softBody.get_m_nodes();
-            for (let i = 0; i < numVerts; i++) {
-                let node = nodes.at(i);
-                let nodePos = node.get_m_x();
-                volumePositions[3 * i] = nodePos.x();
-                volumePositions[3 * i + 1] = nodePos.y();
-                volumePositions[3 * i + 2] = nodePos.z();
-            }
-            geometry.attributes.position.needsUpdate = true;
-            geometry.computeVertexNormals();
+        renderer.render(scene, camera);
+    }
 
-            // Check if slime fell off the platform
-            if (slimeMesh.position.y < -5) {
+    function updatePhysics(deltaTime) {
+        // Apply tilt to the floor
+        let transform = new Ammo.btTransform();
+        floorBody.getMotionState().getWorldTransform(transform);
+        let rotation = new Ammo.btQuaternion();
+        rotation.setEulerZYX(-tilt.y * 0.1, 0, -tilt.x * 0.1);
+        transform.setRotation(rotation);
+        floorBody.getMotionState().setWorldTransform(transform);
+
+        physicsWorld.stepSimulation(deltaTime, 10);
+
+        // Update soft body (slime)
+        let softBody = slimeMesh.userData.physicsBody;
+        let mesh = slimeMesh;
+        let geometry = mesh.geometry;
+        let volumePositions = geometry.attributes.position.array;
+        let numVerts = volumePositions.length / 3;
+        let nodes = softBody.get_m_nodes();
+        for (let i = 0; i < numVerts; i++) {
+            let node = nodes.at(i);
+            let nodePos = node.get_m_x();
+            volumePositions[3 * i] = nodePos.x();
+            volumePositions[3 * i + 1] = nodePos.y();
+            volumePositions[3 * i + 2] = nodePos.z();
+        }
+        geometry.attributes.position.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        // Check if slime fell off the platform
+        if (slimeMesh.position.y < -5) {
+            isResetting = true;
+            setTimeout(() => {
+                alert("You fell off the platform!");
+                restartGame();
+            }, 500);
+            return;
+        }
+
+        // Check if slime reached the goal
+        if (slimeMesh.position.distanceTo(goal.position) < 2) {
+            isResetting = true;
+            setTimeout(() => {
+                alert("You reached the goal!");
+                nextLevel();
+            }, 500);
+            return;
+        }
+
+        // Collision detection with traps
+        for (let trap of traps) {
+            if (slimeMesh.position.distanceTo(trap.position) < 2) {
                 isResetting = true;
                 setTimeout(() => {
-                    alert("You fell off the platform!");
+                    alert("You hit a trap!");
                     restartGame();
                 }, 500);
                 return;
             }
-
-            // Check if slime reached the goal
-            if (slimeMesh.position.distanceTo(goal.position) < 2) {
-                isResetting = true;
-                setTimeout(() => {
-                    alert("You reached the goal!");
-                    nextLevel();
-                }, 500);
-                return;
-            }
-
-            // Collision detection with traps
-            for (let trap of traps) {
-                if (slimeMesh.position.distanceTo(trap.position) < 2) {
-                    isResetting = true;
-                    setTimeout(() => {
-                        alert("You hit a trap!");
-                        restartGame();
-                    }, 500);
-                    return;
-                }
-            }
-
-            // Collision detection with collectibles
-            collectibles.forEach((collectible, index) => {
-                if (slimeMesh.position.distanceTo(collectible.position) < 1.5) {
-                    scene.remove(collectible);
-                    collectibles.splice(index, 1);
-                    score += 10;
-                    const scoreDisplay = document.getElementById('score-display');
-                    if (scoreDisplay) {
-                        scoreDisplay.innerText = `Score: ${score}`;
-                    }
-                }
-            });
         }
 
-        // Make functions globally accessible
-        window.restartGame = restartGame;
-        window.toggleHelp = toggleHelp;
+        // Collision detection with collectibles
+        collectibles.forEach((collectible, index) => {
+            if (slimeMesh.position.distanceTo(collectible.position) < 1.5) {
+                scene.remove(collectible);
+                collectibles.splice(index, 1);
+                score += 10;
+                const scoreDisplay = document.getElementById('score-display');
+                if (scoreDisplay) {
+                    scoreDisplay.innerText = `Score: ${score}`;
+                }
+            }
+        });
+    }
 
-    }); // Ammo().then()
+    // Make functions globally accessible
+    window.restartGame = restartGame;
+    window.toggleHelp = toggleHelp;
+
 }); // DOMContentLoaded
 </script>
 <div id="version-display" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 16px;">Version 3.3</div>
