@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        canvas {
+            border: 2px solid #333;
+            max-width: 100%;
+            background: #f0f0f0;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        button {
+            margin: 10px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>激光反射模拟器</h3>
+        <p>先点击设置起点，再点击设置方向</p>
+        <canvas id="canvas" width="400" height="400"></canvas>
+        <br>
+        <button onclick="clearCanvas()">清除</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const boxSize = 300;
+        const maxReflections = 100;
+        let startPoint = null;
+        let firstClick = true;
+
+        // 初始化画布
+        function initCanvas() {
+            const margin = (canvas.width - boxSize) / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#000';
+            ctx.strokeRect(margin, margin, boxSize, boxSize);
+        }
+
+        // 清除画布
+        function clearCanvas() {
+            initCanvas();
+            startPoint = null;
+            firstClick = true;
+        }
+
+        // 计算反射
+        function calculateReflection(start, direction, boxMargin) {
+            let points = [start];
+            let currentPoint = {...start};
+            let currentDirection = {...direction};
+            
+            for (let i = 0; i < maxReflections; i++) {
+                // 计算下一个交点
+                let nextPoint = getNextIntersection(currentPoint, currentDirection, boxMargin);
+                if (!nextPoint) break;
+                
+                points.push(nextPoint);
+                
+                // 计算反射方向
+                if (nextPoint.wall === 'vertical') {
+                    currentDirection.x *= -1;
+                } else {
+                    currentDirection.y *= -1;
+                }
+                
+                currentPoint = {x: nextPoint.x, y: nextPoint.y};
+            }
+            
+            return points;
+        }
+
+        // 获取下一个交点
+        function getNextIntersection(point, direction, margin) {
+            const rightBorder = margin + boxSize;
+            const bottomBorder = margin + boxSize;
+            
+            // 计算与垂直边界的交点
+            let tx1 = (margin - point.x) / direction.x;
+            let tx2 = (rightBorder - point.x) / direction.x;
+            
+            // 计算与水平边界的交点
+            let ty1 = (margin - point.y) / direction.y;
+            let ty2 = (bottomBorder - point.y) / direction.y;
+            
+            let intersections = [];
+            
+            if (tx1 > 0) intersections.push({t: tx1, x: margin, y: point.y + direction.y * tx1, wall: 'vertical'});
+            if (tx2 > 0) intersections.push({t: tx2, x: rightBorder, y: point.y + direction.y * tx2, wall: 'vertical'});
+            if (ty1 > 0) intersections.push({t: ty1, x: point.x + direction.x * ty1, y: margin, wall: 'horizontal'});
+            if (ty2 > 0) intersections.push({t: ty2, x: point.x + direction.x * ty2, y: bottomBorder, wall: 'horizontal'});
+            
+            // 找到最近的交点
+            let closest = intersections
+                .filter(i => i.x >= margin && i.x <= rightBorder && i.y >= margin && i.y <= bottomBorder)
+                .sort((a, b) => a.t - b.t)[0];
+                
+            return closest;
+        }
+
+        // 绘制激光路径
+        function drawLaser(points) {
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const margin = (canvas.width - boxSize) / 2;
+
+            if (firstClick) {
+                startPoint = {x, y};
+                // 绘制起点
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = 'blue';
+                ctx.fill();
+                firstClick = false;
+            } else {
+                // 计算方向向量
+                const dx = x - startPoint.x;
+                const dy = y - startPoint.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const direction = {
+                    x: dx / length,
+                    y: dy / length
+                };
+
+                // 计算并绘制反射路径
+                const points = calculateReflection(startPoint, direction, margin);
+                drawLaser(points);
+                firstClick = true;
+            }
+        });
+
+        // 初始化
+        initCanvas();
+    </script>
+</body>
+</html>
