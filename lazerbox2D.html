@@ -19,12 +19,28 @@
             margin: 10px;
             padding: 5px 10px;
         }
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        #reflectionCount {
+            width: 80px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h3>激光反射模拟器</h3>
         <p>先点击设置起点，再点击设置方向</p>
+        <div class="controls">
+            <label for="maxReflections">最大反射次数:</label>
+            <input type="range" id="maxReflections" min="300" max="100000" value="1000" step="100">
+            <output id="reflectionCount">1000</output>
+        </div>
         <canvas id="canvas" width="400" height="400"></canvas>
         <br>
         <button onclick="clearCanvas()">清除</button>
@@ -34,9 +50,26 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const boxSize = 300;
-        const maxReflections = 100000;
         let startPoint = null;
         let firstClick = true;
+        let lastPoints = null;
+        let lastDirection = null;
+
+        // 获取最大反射次数
+        function getMaxReflections() {
+            return parseInt(document.getElementById('maxReflections').value);
+        }
+
+        // 更新显示的反射次数
+        document.getElementById('maxReflections').addEventListener('input', function(e) {
+            document.getElementById('reflectionCount').value = e.target.value;
+            // 如果已经有激光路径，重新计算并绘制
+            if (lastPoints && lastDirection) {
+                clearCanvas(false);
+                const points = calculateReflection(lastPoints[0], lastDirection, (canvas.width - boxSize) / 2);
+                drawLaser(points);
+            }
+        });
 
         // 初始化画布
         function initCanvas() {
@@ -47,10 +80,14 @@
         }
 
         // 清除画布
-        function clearCanvas() {
+        function clearCanvas(resetState = true) {
             initCanvas();
-            startPoint = null;
-            firstClick = true;
+            if (resetState) {
+                startPoint = null;
+                firstClick = true;
+                lastPoints = null;
+                lastDirection = null;
+            }
         }
 
         // 计算反射
@@ -58,6 +95,7 @@
             let points = [start];
             let currentPoint = {...start};
             let currentDirection = {...direction};
+            const maxReflections = getMaxReflections();
             
             for (let i = 0; i < maxReflections; i++) {
                 // 计算下一个交点
@@ -143,8 +181,12 @@
                     y: dy / length
                 };
 
+                // 保存最后的点和方向，用于重新计算
+                lastDirection = direction;
+                
                 // 计算并绘制反射路径
                 const points = calculateReflection(startPoint, direction, margin);
+                lastPoints = points;
                 drawLaser(points);
                 firstClick = true;
             }
