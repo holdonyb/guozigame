@@ -20,15 +20,49 @@
             padding: 5px 10px;
         }
         .controls {
-            margin: 15px 0;
+            margin: 5px 0;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
         }
-        #reflectionCount {
+        .control-group {
+            margin: 5px 0;
+        }
+        .number-input {
+            display: flex;
+            align-items: center;
+        }
+        .number-input button {
+            width: 30px;
+            height: 30px;
+            margin: 0;
+            padding: 0;
+            border: 1px solid #ddd;
+            background: #f8f8f8;
+            cursor: pointer;
+        }
+        .number-input button:hover {
+            background: #e8e8e8;
+        }
+        .number-input input[type="number"] {
             width: 80px;
+            height: 30px;
             text-align: center;
+            border: 1px solid #ddd;
+            margin: 0 5px;
+        }
+        .number-input input[type="number"]::-webkit-inner-spin-button,
+        .number-input input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="range"] {
+            width: 200px;
+        }
+        .control-label {
+            text-align: center;
+            margin: 5px 0;
         }
     </style>
 </head>
@@ -36,10 +70,25 @@
     <div class="container">
         <h3>激光反射模拟器</h3>
         <p>先点击设置起点，再点击设置方向</p>
-        <div class="controls">
-            <label for="maxReflections">最大反射次数:</label>
-            <input type="range" id="maxReflections" min="1" max="100000" value="1000" step="100">
-            <output id="reflectionCount">1000</output>
+        <div class="control-group">
+            <div class="control-label">最大反射次数</div>
+            <div class="controls">
+                <input type="range" id="maxReflections" min="1" max="100000" value="1000" step="1">
+                <div class="number-input">
+                    <button type="button" onclick="decrementValue('reflectionCount')">-</button>
+                    <input type="number" id="reflectionCount" min="1" max="100000" value="1000" onchange="updateSlider('maxReflections', this.value)">
+                    <button type="button" onclick="incrementValue('reflectionCount')">+</button>
+                </div>
+            </div>
+            <div class="control-label">激光粗细</div>
+            <div class="controls">
+                <input type="range" id="lineWidth" min="0.1" max="10" value="2" step="0.1">
+                <div class="number-input">
+                    <button type="button" onclick="decrementValue('lineWidthCount')">-</button>
+                    <input type="number" id="lineWidthCount" min="0.1" max="10" value="2" step="0.1" onchange="updateSlider('lineWidth', this.value)">
+                    <button type="button" onclick="incrementValue('lineWidthCount')">+</button>
+                </div>
+            </div>
         </div>
         <canvas id="canvas" width="400" height="400"></canvas>
         <br>
@@ -55,23 +104,51 @@
         let lastPoints = null;
         let lastDirection = null;
 
-        // 获取最大反射次数
         function getMaxReflections() {
             return parseInt(document.getElementById('maxReflections').value);
         }
 
-        // 更新显示的反射次数
-        document.getElementById('maxReflections').addEventListener('input', function(e) {
-            document.getElementById('reflectionCount').value = e.target.value;
-            // 如果已经有激光路径，重新计算并绘制
+        function getLineWidth() {
+            return parseFloat(document.getElementById('lineWidth').value);
+        }
+
+        function updateSlider(sliderId, value) {
+            document.getElementById(sliderId).value = value;
+            updateReflections();
+        }
+
+        function incrementValue(inputId) {
+            const input = document.getElementById(inputId);
+            input.stepUp();
+            const sliderId = inputId === 'reflectionCount' ? 'maxReflections' : 'lineWidth';
+            updateSlider(sliderId, input.value);
+        }
+
+        function decrementValue(inputId) {
+            const input = document.getElementById(inputId);
+            input.stepDown();
+            const sliderId = inputId === 'reflectionCount' ? 'maxReflections' : 'lineWidth';
+            updateSlider(sliderId, input.value);
+        }
+
+        function updateReflections() {
             if (lastPoints && lastDirection) {
                 clearCanvas(false);
                 const points = calculateReflection(lastPoints[0], lastDirection, (canvas.width - boxSize) / 2);
                 drawLaser(points);
             }
+        }
+
+        document.getElementById('maxReflections').addEventListener('input', function(e) {
+            document.getElementById('reflectionCount').value = e.target.value;
+            updateReflections();
         });
 
-        // 初始化画布
+        document.getElementById('lineWidth').addEventListener('input', function(e) {
+            document.getElementById('lineWidthCount').value = e.target.value;
+            updateReflections();
+        });
+
         function initCanvas() {
             const margin = (canvas.width - boxSize) / 2;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -79,7 +156,6 @@
             ctx.strokeRect(margin, margin, boxSize, boxSize);
         }
 
-        // 清除画布
         function clearCanvas(resetState = true) {
             initCanvas();
             if (resetState) {
@@ -90,7 +166,6 @@
             }
         }
 
-        // 计算反射
         function calculateReflection(start, direction, boxMargin) {
             let points = [start];
             let currentPoint = {...start};
@@ -98,13 +173,11 @@
             const maxReflections = getMaxReflections();
             
             for (let i = 0; i < maxReflections; i++) {
-                // 计算下一个交点
                 let nextPoint = getNextIntersection(currentPoint, currentDirection, boxMargin);
                 if (!nextPoint) break;
                 
                 points.push(nextPoint);
                 
-                // 计算反射方向
                 if (nextPoint.wall === 'vertical') {
                     currentDirection.x *= -1;
                 } else {
@@ -117,16 +190,12 @@
             return points;
         }
 
-        // 获取下一个交点
         function getNextIntersection(point, direction, margin) {
             const rightBorder = margin + boxSize;
             const bottomBorder = margin + boxSize;
             
-            // 计算与垂直边界的交点
             let tx1 = (margin - point.x) / direction.x;
             let tx2 = (rightBorder - point.x) / direction.x;
-            
-            // 计算与水平边界的交点
             let ty1 = (margin - point.y) / direction.y;
             let ty2 = (bottomBorder - point.y) / direction.y;
             
@@ -137,7 +206,6 @@
             if (ty1 > 0) intersections.push({t: ty1, x: point.x + direction.x * ty1, y: margin, wall: 'horizontal'});
             if (ty2 > 0) intersections.push({t: ty2, x: point.x + direction.x * ty2, y: bottomBorder, wall: 'horizontal'});
             
-            // 找到最近的交点
             let closest = intersections
                 .filter(i => i.x >= margin && i.x <= rightBorder && i.y >= margin && i.y <= bottomBorder)
                 .sort((a, b) => a.t - b.t)[0];
@@ -145,7 +213,6 @@
             return closest;
         }
 
-        // 绘制激光路径
         function drawLaser(points) {
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
@@ -153,7 +220,7 @@
                 ctx.lineTo(points[i].x, points[i].y);
             }
             ctx.strokeStyle = 'red';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = getLineWidth();
             ctx.stroke();
         }
 
@@ -165,14 +232,12 @@
 
             if (firstClick) {
                 startPoint = {x, y};
-                // 绘制起点
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
                 ctx.fillStyle = 'blue';
                 ctx.fill();
                 firstClick = false;
             } else {
-                // 计算方向向量
                 const dx = x - startPoint.x;
                 const dy = y - startPoint.y;
                 const length = Math.sqrt(dx * dx + dy * dy);
@@ -181,10 +246,8 @@
                     y: dy / length
                 };
 
-                // 保存最后的点和方向，用于重新计算
                 lastDirection = direction;
                 
-                // 计算并绘制反射路径
                 const points = calculateReflection(startPoint, direction, margin);
                 lastPoints = points;
                 drawLaser(points);
@@ -192,7 +255,6 @@
             }
         });
 
-        // 初始化
         initCanvas();
     </script>
 </body>
