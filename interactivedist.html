@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Test Score Distribution (0-100)</title>
+    <style>
+        .container {
+            width: 800px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .explanation {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0 20px 0; /* 调整上方和下方的外边距 */
+            line-height: 1.6;
+        }
+        .line-overlay {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            cursor: ew-resize;
+            z-index: 10;
+        }
+        .quartile-line {
+            background-color: rgba(0, 0, 255, 0.7);
+        }
+        .quartile-line:hover {
+            background-color: rgba(0, 0, 255, 0.9);
+        }
+        .mean-line {
+            background-color: rgba(255, 0, 0, 0.7);
+        }
+        .mean-line:hover {
+            background-color: rgba(255, 0, 0, 0.9);
+        }
+        .value-label {
+            position: absolute;
+            top: -25px;
+            transform: translateX(-50%);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .title {
+            text-align: center;
+            margin-bottom: 10px; /* 调整标题与下方内容的间距 */
+        }
+        .probabilities {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0; /* 调整区间概率部分的上下外边距 */
+        }
+        .probability {
+            margin: 0 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title">
+        <h1>Interactive Test Score Distribution (0-100)</h1>
+    </div>
+    <!-- 将 probabilities 部分移动到这里 -->
+    <div class="probabilities" id="probabilities">
+        <!-- 这里将显示各个区间的概率 -->
+    </div>
+    <div class="explanation">
+        <p>This interactive visualization demonstrates the distribution of test scores within a fixed range of 0-100 points.</p>
+        <ul>
+            <li><strong>Blue Lines</strong>: Q1 (25th percentile) and Q3 (75th percentile)</li>
+            <li><strong>Red Line</strong>: Mean score</li>
+            <li><strong>Shaded Areas</strong>: Proportions of different score intervals</li>
+        </ul>
+    </div>
+    <div class="chart-container">
+        <canvas id="chart"></canvas>
+        <div id="q1Line" class="line-overlay quartile-line">
+            <div class="value-label"></div>
+        </div>
+        <div id="q3Line" class="line-overlay quartile-line">
+            <div class="value-label"></div>
+        </div>
+        <div id="meanLine" class="line-overlay mean-line">
+            <div class="value-label"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 引入必要的库 -->
+<script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let chart = null;
+    let q1 = 50;     // 初始 Q1
+    let q3 = 70;     // 初始 Q3
+    let mean = 60;   // 初始均值
+    let stdDev = 10; // 初始标准差
+    let isDragging = false;
+    let currentLine = null;
+
+    const intervals = [
+        { range: [0, 50], color: 'rgba(255, 99, 132, 0.5)' },
+        { range: [50, 60], color: 'rgba(54, 162, 235, 0.5)' },
+        { range: [60, 70], color: 'rgba(255, 206, 86, 0.5)' },
+        { range: [70, 100], color: 'rgba(75, 192, 192, 0.5)' },
+    ];
+
+    // 计算截断正态分布的 PDF（Probability Density Function）
+    function truncatedNormalPDF(x, mean, stdDev, min, max) {
+        const pdf = jStat.normal.pdf(x, mean, stdDev);
+        const cdfMin = jStat.normal.cdf(min, mean, stdDev);
+        const cdfMax = jStat.normal.cdf(max, mean, stdDev);
+        const denominator = cdfMax - cdfMin;
+        return pdf / denominator;
+    }
+
+    // 计算截断正态分布的 CDF（Cumulative Distribution Function）
+    function truncatedNormalCDF(x, mean, stdDev, min, max) {
+        const cdfX = jStat.normal.cdf(x, mean, stdDev);
+        const cdfMin = jStat.normal.cdf(min, mean, stdDev);
+        const cdfMax = jStat.normal.cdf(max, mean, stdDev);
+        const denominator = cdfMax - cdfMin;
+        return (cdfX - cdfMin) / denominator;
+    }
+
+    // 计算截断正态分布的分位数函数（Quantile Function）
+    function truncatedNormalQuantile(p, mean, stdDev, min, max) {
+        const cdfMin = jStat.normal.cdf(min, mean, stdDev);
+        const cdfMax = jStat.normal.cdf(max, mean, stdDev);
+        const target = cdfMin + p * (cdfMax - cdfMin);
+        return jStat.normal.inv(target, mean, stdDev);
+    }
+
+    // 在给定均值、目标分位数和百分位的情况下，求解标准差
+    function solveStdDevForQuantile(targetQuantile, mean, p, min, max) {
+        let lowerStdDev = 1e-3;  // 下界
+        let upperStdDev = 100;   // 上界
+        let tol = 1e-5;          // 容差
+        let maxIter = 100;
+
+        // 检查是否有可行解
+        let quantileLower = truncatedNormalQuantile(p, mean, lowerStdDev, min, max);
+        let quantileUpper = truncatedNormalQuantile(p, mean, upperStdDev, min, max);
+
+        if ((quantileLower - targetQuantile) * (quantileUpper - targetQuantile) > 0) {
+            // 无解
+            return null;
+        }
+
+        let stdDevMid;
+
+        for (let i = 0; i < maxIter; i++) {
+            stdDevMid = (lowerStdDev + upperStdDev) / 2;
+            let quantile = truncatedNormalQuantile(p, mean, stdDevMid, min, max);
+            if (isNaN(quantile)) {
+                return null;
+            }
+            if (Math.abs(quantile - targetQuantile) < tol) {
+                return stdDevMid;
+            }
+            if ((quantile - targetQuantile) * (quantileLower - targetQuantile) < 0) {
+                upperStdDev = stdDevMid;
+                quantileUpper = quantile;
+            } else {
+                lowerStdDev = stdDevMid;
+                quantileLower = quantile;
+            }
+        }
+        return stdDevMid;
+    }
+
+    function updateStdDevAndRecalculateQuartile() {
+        let success = true;
+        if (currentLine.id === 'q1Line') {
+            // 固定均值和 Q1，求解 stdDev，然后计算 Q3
+            let newStdDev = solveStdDevForQuantile(q1, mean, 0.25, 0, 100);
+            if (newStdDev === null) {
+                success = false;
+            } else {
+                stdDev = newStdDev;
+                q3 = truncatedNormalQuantile(0.75, mean, stdDev, 0, 100);
+            }
+        } else if (currentLine.id === 'q3Line') {
+            // 固定均值和 Q3，求解 stdDev，然后计算 Q1
+            let newStdDev = solveStdDevForQuantile(q3, mean, 0.75, 0, 100);
+            if (newStdDev === null) {
+                success = false;
+            } else {
+                stdDev = newStdDev;
+                q1 = truncatedNormalQuantile(0.25, mean, stdDev, 0, 100);
+            }
+        }
+
+        // 确保标准差在合理范围内
+        if (stdDev !== null) {
+            stdDev = Math.max(stdDev, 1e-3);
+            stdDev = Math.min(stdDev, 100);
+        } else {
+            success = false;
+        }
+
+        return success;
+    }
+
+    function updateQuartiles() {
+        // 根据均值和标准差计算 Q1 和 Q3
+        q1 = truncatedNormalQuantile(0.25, mean, stdDev, 0, 100);
+        q3 = truncatedNormalQuantile(0.75, mean, stdDev, 0, 100);
+    }
+
+    function generateData() {
+        const points = [];
+        let maxY = 0;
+
+        for (let x = 0; x <= 100; x += 0.5) {
+            const y = truncatedNormalPDF(x, mean, stdDev, 0, 100);
+            maxY = Math.max(maxY, y);
+            points.push({ x: x, y: y });
+        }
+
+        // 归一化 y 值，方便绘图
+        return points.map(p => ({ x: p.x, y: p.y / maxY }));
+    }
+
+    function createChart() {
+        const ctx = document.getElementById('chart');
+        updateQuartiles();
+        const datasets = [];
+
+        // 生成整体数据
+        const data = generateData();
+
+        // 将数据根据区间分组，创建多个数据集
+        intervals.forEach(interval => {
+            const intervalData = data.filter(point => point.x >= interval.range[0] && point.x <= interval.range[1]);
+            datasets.push({
+                label: `Interval ${interval.range[0]}-${interval.range[1]}`,
+                data: intervalData,
+                borderColor: 'rgba(0, 0, 0, 0)',
+                backgroundColor: interval.color,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+            });
+        });
+
+        // 绘制曲线的轮廓（不填充）
+        datasets.push({
+            label: 'Score Distribution',
+            data: data,
+            borderColor: 'rgba(78, 115, 223, 1)',
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            fill: false,
+            tension: 0.4,
+            pointRadius: 0
+        });
+
+        if (chart) {
+            chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Score'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        display: false
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 30
+                    }
+                }
+            }
+        });
+
+        updateLines();
+        updateProbabilities();
+    }
+
+    function updateChart() {
+        if (!chart) return;
+
+        const datasets = [];
+
+        // 生成整体数据
+        const data = generateData();
+
+        // 将数据根据区间分组，创建多个数据集
+        intervals.forEach(interval => {
+            const intervalData = data.filter(point => point.x >= interval.range[0] && point.x <= interval.range[1]);
+            datasets.push({
+                label: `Interval ${interval.range[0]}-${interval.range[1]}`,
+                data: intervalData,
+                borderColor: 'rgba(0, 0, 0, 0)',
+                backgroundColor: interval.color,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+            });
+        });
+
+        // 绘制曲线的轮廓（不填充）
+        datasets.push({
+            label: 'Score Distribution',
+            data: data,
+            borderColor: 'rgba(78, 115, 223, 1)',
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            fill: false,
+            tension: 0.4,
+            pointRadius: 0
+        });
+
+        chart.data.datasets = datasets;
+        chart.update('none');
+        updateLines();
+        updateProbabilities();
+    }
+
+    function updateLines() {
+        const xScale = chart.scales.x;
+        const q1Pixel = xScale.getPixelForValue(q1);
+        const q3Pixel = xScale.getPixelForValue(q3);
+        const meanPixel = xScale.getPixelForValue(mean);
+
+        const q1Line = document.getElementById('q1Line');
+        const q3Line = document.getElementById('q3Line');
+        const meanLine = document.getElementById('meanLine');
+
+        q1Line.style.left = `${q1Pixel}px`;
+        q3Line.style.left = `${q3Pixel}px`;
+        meanLine.style.left = `${meanPixel}px`;
+
+        q1Line.querySelector('.value-label').textContent = `Q1: ${q1.toFixed(1)}`;
+        q3Line.querySelector('.value-label').textContent = `Q3: ${q3.toFixed(1)}`;
+        meanLine.querySelector('.value-label').textContent = `Mean: ${mean.toFixed(1)}`;
+    }
+
+    function updateProbabilities() {
+        const probabilitiesDiv = document.getElementById('probabilities');
+        probabilitiesDiv.innerHTML = '';
+
+        intervals.forEach(interval => {
+            const prob = (truncatedNormalCDF(interval.range[1], mean, stdDev, 0, 100) - truncatedNormalCDF(interval.range[0], mean, stdDev, 0, 100)) * 100;
+            const probDiv = document.createElement('div');
+            probDiv.className = 'probability';
+            probDiv.style.color = interval.color.replace('0.5', '1'); // 设置文本颜色与填充颜色一致
+            probDiv.textContent = `Interval ${interval.range[0]}-${interval.range[1]}: ${prob.toFixed(2)}%`;
+            probabilitiesDiv.appendChild(probDiv);
+        });
+    }
+
+    let previousQ1, previousQ3;
+
+    function handleDrag(e) {
+        if (!isDragging || !currentLine) return;
+
+        const container = document.querySelector('.chart-container');
+        const rect = container.getBoundingClientRect();
+        const xScale = chart.scales.x;
+
+        const x = e.clientX - rect.left;
+        let value = xScale.getValueForPixel(x);
+        value = Math.max(0.1, Math.min(99.9, value));  // 避免达到极端值
+
+        if (currentLine.id === 'meanLine') {
+            mean = value;
+            updateQuartiles();
+        } else if (currentLine.id === 'q1Line' || currentLine.id === 'q3Line') {
+            if (currentLine.id === 'q1Line') {
+                previousQ1 = q1;
+                q1 = value;
+                // 确保 Q1 不超过 Q3 - 0.1
+                q1 = Math.min(q1, q3 - 0.1);
+                // 调整 stdDev 并重新计算 Q3
+                let success = updateStdDevAndRecalculateQuartile();
+                if (!success) {
+                    q1 = previousQ1;
+                }
+            } else if (currentLine.id === 'q3Line') {
+                previousQ3 = q3;
+                q3 = value;
+                // 确保 Q3 不低于 Q1 + 0.1
+                q3 = Math.max(q3, q1 + 0.1);
+                // 调整 stdDev 并重新计算 Q1
+                let success = updateStdDevAndRecalculateQuartile();
+                if (!success) {
+                    q3 = previousQ3;
+                }
+            }
+        }
+
+        updateChart();
+    }
+
+    function handleDragStart(e) {
+        isDragging = true;
+        currentLine = e.target.closest('.line-overlay');
+        e.preventDefault();
+    }
+
+    function handleDragEnd() {
+        isDragging = false;
+        currentLine = null;
+    }
+
+    document.addEventListener('mousemove', handleDrag);
+    document.addEventListener('mouseup', handleDragEnd);
+
+    const lines = document.querySelectorAll('.line-overlay');
+    lines.forEach(line => {
+        line.addEventListener('mousedown', handleDragStart);
+    });
+
+    window.onload = createChart;
+</script>
+
+</body>
+</html>
