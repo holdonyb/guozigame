@@ -142,6 +142,11 @@
     </div>
     <div id="triangle-controls" class="controls" style="display:none;">
         <div>
+            <label for="vertex-offset">顶点偏移：</label>
+            <input type="range" id="vertex-offset" min="-100" max="100" value="0">
+            <span id="vertex-offset-value">0</span> 像素
+        </div>
+        <div>
             <button id="completeParallelogram">补全平行四边形</button>
         </div>
     </div>
@@ -156,7 +161,7 @@
             <p><strong>平行四边形面积公式：</strong> 面积 = 底 × 高</p>
             <p><strong>三角形面积公式：</strong> 面积 = (底 × 高) ÷ 2</p>
             <p>通过调整底边、高和偏移来理解为什么平行四边形可以变成矩形，从而理解它的面积公式。</p>
-            <p>对于三角形，通过补全成平行四边形，理解其面积与平行四边形的关系。</p>
+            <p>在三角形中，可以通过调整顶点位置，观察形状变化，并通过补全成平行四边形，理解其面积与平行四边形的关系。</p>
         </div>
     </div>
 
@@ -171,9 +176,11 @@
     const baseRange = document.getElementById('base');
     const heightRange = document.getElementById('height');
     const offsetRange = document.getElementById('offset');
+    const vertexOffsetRange = document.getElementById('vertex-offset');
     const baseValue = document.getElementById('base-value');
     const heightValue = document.getElementById('height-value');
     const offsetValue = document.getElementById('offset-value');
+    const vertexOffsetValue = document.getElementById('vertex-offset-value');
     const parallelogramControls = document.getElementById('parallelogram-controls');
     const triangleControls = document.getElementById('triangle-controls');
     const toRectangleBtn = document.getElementById('toRectangle');
@@ -195,6 +202,7 @@
         const b = parseInt(baseRange.value, 10);
         const h = parseInt(heightRange.value, 10);
         let off = parseInt(offsetRange.value, 10);
+        let vertexOffset = parseInt(vertexOffsetRange ? vertexOffsetRange.value : 0, 10);
 
         // 适应不同屏幕尺寸
         const scale = canvas.width / 600;
@@ -285,6 +293,10 @@
             const startX = (canvas.width - b * scale) / 2;
             const startY = (canvas.height)/2 + (h * scale)/2;
 
+            // 顶点位置
+            const topVertexX = startX + b * scale / 2 + vertexOffset * scale;
+            const topVertexY = startY - h * scale;
+
             ctx.fillStyle = '#4c97ff';
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
@@ -293,28 +305,39 @@
             ctx.beginPath();
             ctx.moveTo(startX, startY);
             ctx.lineTo(startX + b * scale, startY);
-            ctx.lineTo(startX + b * scale / 2, startY - h * scale);
+            ctx.lineTo(topVertexX, topVertexY);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
             if (showCompletedParallelogram) {
                 // 补全成平行四边形
-                // 绘制黄色三角形
+                // 黄色三角形的顶点
+                const otherTopVertexX = topVertexX + b * scale;
+                const otherTopVertexY = topVertexY;
+
                 ctx.fillStyle = '#ffcc00';
                 ctx.beginPath();
-                ctx.moveTo(startX + b * scale, startY);
-                ctx.lineTo(startX + b * scale * 1.5, startY - h * scale);
-                ctx.lineTo(startX + b * scale / 2, startY - h * scale);
+                ctx.moveTo(startX + b * scale, startY); // 底部顶点
+                ctx.lineTo(otherTopVertexX, otherTopVertexY); // 右上顶点
+                ctx.lineTo(topVertexX, topVertexY); // 左上顶点（原三角形的顶部顶点）
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // 绘制辅助矩形轮廓
+                // 绘制辅助矩形轮廓（固定在底边上方）
                 ctx.setLineDash([5,5]);
                 ctx.strokeStyle = 'red';
                 ctx.beginPath();
-                ctx.rect(startX + b * scale / 2, startY - h * scale, b * scale, h * scale);
+                ctx.rect(startX, startY - h * scale, b * scale, h * scale);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            } else {
+                // 绘制辅助矩形轮廓（固定在底边上方）
+                ctx.setLineDash([5,5]);
+                ctx.strokeStyle = 'red';
+                ctx.beginPath();
+                ctx.rect(startX, startY - h * scale, b * scale, h * scale);
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
@@ -327,7 +350,8 @@
     function updateLabels() {
         baseValue.textContent = baseRange.value;
         heightValue.textContent = heightRange.value;
-        offsetValue.textContent = parseInt(offsetRange.value, 10);
+        offsetValue.textContent = offsetRange ? parseInt(offsetRange.value, 10) : '';
+        vertexOffsetValue.textContent = vertexOffsetRange ? parseInt(vertexOffsetRange.value, 10) : '';
     }
 
     function calculateArea() {
@@ -417,10 +441,19 @@
         draw();
     });
 
-    offsetRange.addEventListener('input', () => {
-        updateLabels();
-        draw();
-    });
+    if (offsetRange) {
+        offsetRange.addEventListener('input', () => {
+            updateLabels();
+            draw();
+        });
+    }
+
+    if (vertexOffsetRange) {
+        vertexOffsetRange.addEventListener('input', () => {
+            updateLabels();
+            draw();
+        });
+    }
 
     // 平行四边形 -> 矩形按钮
     toRectangleBtn.addEventListener('click', () => {
