@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平行四边形和三角形面积理解游戏</title>
+<style>
+    body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f0f0f0;
+    }
+    header {
+        background: #4c97ff;
+        color: white;
+        padding: 20px;
+        text-align: center;
+    }
+    main {
+        max-width: 900px;
+        margin: 20px auto;
+        background: #fff;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 {
+        text-align: center;
+        margin: 10px 0;
+    }
+    .controls, .game-section {
+        margin: 20px 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .controls div, .game-section div {
+        margin: 10px 0;
+    }
+    label {
+        display: inline-block;
+        width: 100px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    input[type=range] {
+        width: 200px;
+    }
+    canvas {
+        background: #eaeaea;
+        display: block;
+        margin: 0 auto;
+        border: 1px solid #ccc;
+    }
+    .explanation {
+        margin-top: 20px;
+        line-height: 1.6;
+    }
+    .explanation p {
+        margin: 10px 0;
+    }
+    .guess-section {
+        margin-top: 20px;
+        text-align: center;
+    }
+    .guess-section input[type=text] {
+        width: 100px;
+        text-align: center;
+        margin: 0 10px;
+    }
+    .message {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+    }
+    footer {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+        font-size: 14px;
+    }
+    button {
+        margin: 0 10px;
+    }
+    .small-note {
+        font-size: 14px;
+        color: #666;
+        text-align: center;
+        margin-top: 10px;
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>平行四边形与三角形面积演示</h1>
+</header>
+<main>
+    <h2>直观理解面积公式</h2>
+    <div class="controls">
+        <div>
+            <label for="shape">图形类型：</label>
+            <select id="shape">
+                <option value="parallelogram">平行四边形</option>
+                <option value="triangle">三角形</option>
+            </select>
+        </div>
+        <div>
+            <label for="base">底边：</label>
+            <input type="range" id="base" min="100" max="400" value="200">
+            <span id="base-value">200</span> 像素
+        </div>
+        <div>
+            <label for="height">高：</label>
+            <input type="range" id="height" min="50" max="200" value="100">
+            <span id="height-value">100</span> 像素
+        </div>
+    </div>
+    <div id="parallelogram-controls" class="controls" style="display:flex;">
+        <div>
+            <label for="offset">偏移量：</label>
+            <input type="range" id="offset" min="-100" max="100" value="50">
+            <span id="offset-value">50</span> 像素
+        </div>
+        <div>
+            <button id="toRectangle">变为矩形</button>
+        </div>
+    </div>
+    <div id="triangle-controls" class="controls" style="display:none;">
+        <div>
+            <button id="completeParallelogram">补全平行四边形</button>
+        </div>
+    </div>
+
+    <div class="game-section">
+        <canvas id="myCanvas" width="600" height="400"></canvas>
+        <div class="explanation" id="explanation">
+            <p><strong>平行四边形面积公式：</strong> 底 × 高</p>
+            <p><strong>三角形面积公式：</strong> (底 × 高) ÷ 2</p>
+            <p>通过调整底边、高和偏移来理解为什么平行四边形可以变成矩形，从而理解它的面积公式。</p>
+            <p>对于三角形，通过补全另一半的三角形形成平行四边形，从而理解其面积是平行四边形的一半。</p>
+        </div>
+    </div>
+
+    <div class="guess-section">
+        <h3>试着猜一下当前图形的面积吧！</h3>
+        <input type="text" id="guess" placeholder="输入你的答案">
+        <button id="check">检查答案</button>
+    </div>
+    <div class="message" id="messageArea"></div>
+    <div class="small-note">提示：可以通过拖动滑块或点击按钮来进行动态演示。</div>
+</main>
+<footer>
+    让我们通过互动理解几何图形的面积 © 2023
+</footer>
+
+<script>
+    const shapeSelect = document.getElementById('shape');
+    const baseRange = document.getElementById('base');
+    const heightRange = document.getElementById('height');
+    const offsetRange = document.getElementById('offset');
+    const baseValue = document.getElementById('base-value');
+    const heightValue = document.getElementById('height-value');
+    const offsetValue = document.getElementById('offset-value');
+    const guessInput = document.getElementById('guess');
+    const checkButton = document.getElementById('check');
+    const messageArea = document.getElementById('messageArea');
+    const parallelogramControls = document.getElementById('parallelogram-controls');
+    const triangleControls = document.getElementById('triangle-controls');
+    const toRectangleBtn = document.getElementById('toRectangle');
+    const completeParallelogramBtn = document.getElementById('completeParallelogram');
+
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentShape = 'parallelogram';
+    let showCompletedParallelogram = false; // For triangle mode
+    let isAnimatingToRectangle = false; // For parallelogram animation
+    let animationProgress = 0; // For animation progress
+
+    function draw() {
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+
+        const b = parseInt(baseRange.value, 10);
+        const h = parseInt(heightRange.value, 10);
+        const off = parseInt(offsetRange.value, 10);
+
+        if (currentShape === 'parallelogram') {
+            // 平行四边形绘制
+            const startX = (canvas.width - b) / 2;
+            const startY = (canvas.height)/2 + h/2;
+
+            // 定义四个顶点
+            const pointA = {x: startX, y: startY};
+            const pointB = {x: startX + b, y: startY};
+            const pointC = {x: startX + b + off, y: startY - h};
+            const pointD = {x: startX + off, y: startY - h};
+
+            ctx.fillStyle = '#4c97ff';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+
+            // 绘制平行四边形
+            ctx.beginPath();
+            ctx.moveTo(pointA.x, pointA.y);
+            ctx.lineTo(pointB.x, pointB.y);
+            ctx.lineTo(pointC.x, pointC.y);
+            ctx.lineTo(pointD.x, pointD.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            if (isAnimatingToRectangle) {
+                // 计算动画进度
+                const progress = animationProgress / 100;
+                const cutWidth = off * progress;
+
+                // 绘制剪下的三角形
+                ctx.fillStyle = '#ffcc00';
+                ctx.beginPath();
+                ctx.moveTo(pointA.x, pointA.y);
+                ctx.lineTo(pointD.x, pointD.y);
+                ctx.lineTo(pointA.x + cutWidth, pointA.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // 绘制移动后的三角形
+                ctx.fillStyle = '#ffcc00';
+                ctx.beginPath();
+                ctx.moveTo(pointB.x - cutWidth, pointB.y);
+                ctx.lineTo(pointC.x, pointC.y);
+                ctx.lineTo(pointB.x, pointB.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // 更新动画进度
+                animationProgress += 2;
+                if (animationProgress <= 100) {
+                    requestAnimationFrame(draw);
+                } else {
+                    isAnimatingToRectangle = false;
+                    offsetRange.value = 0;
+                    updateLabels();
+                    draw();
+                }
+                return;
+            }
+
+            // 绘制辅助矩形轮廓
+            ctx.setLineDash([5,5]);
+            ctx.strokeStyle = 'red';
+            ctx.beginPath();
+            ctx.rect(startX, startY - h, b, h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+        } else if (currentShape === 'triangle') {
+            // 三角形绘制
+            const startX = (canvas.width - b) / 2;
+            const startY = (canvas.height)/2 + h/2;
+
+            ctx.fillStyle = '#4c97ff';
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+
+            // 绘制三角形
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(startX + b, startY);
+            ctx.lineTo(startX + b / 2, startY - h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            if (showCompletedParallelogram) {
+                // 绘制对称的三角形形成平行四边形
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.7)';
+                ctx.beginPath();
+                ctx.moveTo(startX + b, startY);
+                ctx.lineTo(startX + 1.5 * b, startY - h);
+                ctx.lineTo(startX + b / 2, startY - h);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // 绘制辅助矩形轮廓
+                ctx.setLineDash([5,5]);
+                ctx.strokeStyle = 'red';
+                ctx.beginPath();
+                ctx.rect(startX + b / 2, startY - h, b, h);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+    }
+
+    function updateLabels() {
+        baseValue.textContent = baseRange.value;
+        heightValue.textContent = heightRange.value;
+        offsetValue.textContent = offsetRange.value;
+    }
+
+    function calculateArea() {
+        const b = parseInt(baseRange.value, 10);
+        const h = parseInt(heightRange.value, 10);
+        if (currentShape === 'parallelogram') {
+            return b * h;
+        } else {
+            return (b * h) / 2;
+        }
+    }
+
+    shapeSelect.addEventListener('change', () => {
+        currentShape = shapeSelect.value;
+        messageArea.textContent = "";
+        guessInput.value = "";
+        showCompletedParallelogram = false;
+        isAnimatingToRectangle = false;
+        animationProgress = 0;
+
+        if (currentShape === 'parallelogram') {
+            parallelogramControls.style.display = 'flex';
+            triangleControls.style.display = 'none';
+        } else {
+            parallelogramControls.style.display = 'none';
+            triangleControls.style.display = 'flex';
+        }
+
+        draw();
+    });
+
+    baseRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    heightRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    offsetRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    checkButton.addEventListener('click', () => {
+        const userGuess = parseFloat(guessInput.value);
+        if (isNaN(userGuess)) {
+            messageArea.textContent = "请先输入一个数字哦！";
+            return;
+        }
+        const correctArea = calculateArea();
+        if (Math.abs(userGuess - correctArea) < 0.001) {
+            messageArea.textContent = "太棒了！你猜对了！";
+        } else {
+            messageArea.textContent = `不错的尝试！正确面积是 ${correctArea.toFixed(2)}`;
+        }
+    });
+
+    // 平行四边形 -> 矩形按钮
+    toRectangleBtn.addEventListener('click', () => {
+        if (isAnimatingToRectangle) return;
+        isAnimatingToRectangle = true;
+        animationProgress = 0;
+        requestAnimationFrame(draw);
+    });
+
+    // 三角形 -> 补全平行四边形按钮
+    completeParallelogramBtn.addEventListener('click', () => {
+        showCompletedParallelogram = true;
+        draw();
+    });
+
+    // 初始化
+    updateLabels();
+    draw();
+</script>
+</body>
+</html>
