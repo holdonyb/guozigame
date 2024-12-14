@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平行四边形和三角形面积演示</title>
+<style>
+    body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f0f0f0;
+    }
+    header {
+        background: #4c97ff;
+        color: white;
+        padding: 20px;
+        text-align: center;
+    }
+    main {
+        max-width: 900px;
+        margin: 20px auto;
+        background: #fff;
+        padding: 10px;
+        box-sizing: border-box;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 {
+        text-align: center;
+        margin: 10px 0;
+    }
+    .controls, .game-section {
+        margin: 20px 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        align-items: center;
+    }
+    .controls div, .game-section div {
+        margin: 10px 0;
+        text-align: center;
+    }
+    label {
+        display: inline-block;
+        width: 100px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    input[type=range] {
+        width: 200px;
+    }
+    canvas {
+        background: #eaeaea;
+        display: block;
+        margin: 0 auto;
+        border: 1px solid #ccc;
+        max-width: 100%;
+        height: auto;
+    }
+    .explanation {
+        margin-top: 20px;
+        line-height: 1.6;
+        text-align: center;
+    }
+    .explanation p {
+        margin: 10px 0;
+    }
+    .area-formula {
+        text-align: center;
+        font-size: 18px;
+        margin-top: 10px;
+    }
+    .formula-table {
+        display: inline-block;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .formula-table tr {
+        height: 30px;
+    }
+    .formula-table td {
+        padding: 0 5px;
+        font-size: 18px;
+    }
+    footer {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+        font-size: 14px;
+    }
+    button {
+        margin: 0 10px;
+    }
+    .small-note {
+        font-size: 14px;
+        color: #666;
+        text-align: center;
+        margin-top: 10px;
+    }
+    /* 适配移动端 */
+    @media (max-width: 600px) {
+        input[type=range] {
+            width: 150px;
+        }
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>平行四边形与三角形面积演示</h1>
+</header>
+<main>
+    <h2>直观理解面积公式</h2>
+    <div class="controls">
+        <div>
+            <label for="shape">图形类型：</label>
+            <select id="shape">
+                <option value="parallelogram">平行四边形</option>
+                <option value="triangle">三角形</option>
+            </select>
+        </div>
+        <div>
+            <label for="base">底边：</label>
+            <input type="range" id="base" min="1" max="10" value="5" step="0.1">
+            <span id="base-value">5</span> 单位
+        </div>
+        <div>
+            <label for="height">高：</label>
+            <input type="range" id="height" min="1" max="10" value="5" step="0.1">
+            <span id="height-value">5</span> 单位
+        </div>
+        <div>
+            <label for="fillType">面积表示：</label>
+            <select id="fillType">
+                <option value="color">涂色</option>
+                <option value="dots">圆点</option>
+                <option value="fruit">水果</option>
+            </select>
+        </div>
+        <div id="fruit-select-div" style="display:none;">
+            <label for="fruitSelect">选择水果：</label>
+            <select id="fruitSelect">
+                <option value="🍎">苹果</option>
+                <option value="🍌">香蕉</option>
+                <option value="🍓">草莓</option>
+                <option value="🍊">橘子</option>
+                <option value="🍇">葡萄</option>
+                <option value="🍉">西瓜</option>
+            </select>
+        </div>
+    </div>
+    <div id="parallelogram-controls" class="controls" style="display:flex;">
+        <div>
+            <label for="offset">偏移量：</label>
+            <input type="range" id="offset" min="-5" max="5" value="2" step="0.1">
+            <span id="offset-value">2</span> 单位
+        </div>
+        <div>
+            <button id="toRectangle">变为矩形</button>
+        </div>
+    </div>
+    <div id="triangle-controls" class="controls" style="display:none;">
+        <div>
+            <label for="vertex-offset">顶点偏移：</label>
+            <input type="range" id="vertex-offset" min="-5" max="5" value="0" step="0.1">
+            <span id="vertex-offset-value">0</span> 单位
+        </div>
+        <div>
+            <button id="completeParallelogram">补全平行四边形</button>
+        </div>
+    </div>
+
+    <div class="game-section">
+        <canvas id="myCanvas" width="600" height="400"></canvas>
+        <div class="area-formula" id="areaFormula">
+        </div>
+        <div class="explanation" id="explanation">
+            <p><strong>平行四边形面积公式：</strong> 面积 = 底 × 高</p>
+            <p><strong>三角形面积公式：</strong> 面积 = (底 × 高) ÷ 2</p>
+            <p>通过调整底边、高和偏移来理解为什么平行四边形可以变成矩形，从而理解它的面积公式。</p>
+            <p>在三角形中，可以通过调整顶点位置，观察形状变化，并通过补全成平行四边形，理解其面积与平行四边形的关系。</p>
+        </div>
+    </div>
+
+    <div class="small-note">提示：可以通过拖动滑块或点击按钮来进行动态演示。</div>
+</main>
+<footer>
+    让我们通过互动理解几何图形的面积 © 2023
+</footer>
+
+<script>
+    const shapeSelect = document.getElementById('shape');
+    const baseRange = document.getElementById('base');
+    const heightRange = document.getElementById('height');
+    const offsetRange = document.getElementById('offset');
+    const vertexOffsetRange = document.getElementById('vertex-offset');
+    const fillTypeSelect = document.getElementById('fillType');
+    const fruitSelectDiv = document.getElementById('fruit-select-div');
+    const fruitSelect = document.getElementById('fruitSelect');
+    const baseValue = document.getElementById('base-value');
+    const heightValue = document.getElementById('height-value');
+    const offsetValue = document.getElementById('offset-value');
+    const vertexOffsetValue = document.getElementById('vertex-offset-value');
+    const parallelogramControls = document.getElementById('parallelogram-controls');
+    const triangleControls = document.getElementById('triangle-controls');
+    const toRectangleBtn = document.getElementById('toRectangle');
+    const completeParallelogramBtn = document.getElementById('completeParallelogram');
+    const areaFormula = document.getElementById('areaFormula');
+
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentShape = 'parallelogram';
+    let showCompletedParallelogram = false;
+    let isAnimatingToRectangle = false;
+    let animationProgress = 0;
+    let originalOffset = 0;
+
+    function draw() {
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+
+        const b = parseFloat(baseRange.value);
+        const h = parseFloat(heightRange.value);
+        let off = parseFloat(offsetRange ? offsetRange.value : 0);
+        let vertexOffset = parseFloat(vertexOffsetRange ? vertexOffsetRange.value : 0);
+        const fillType = fillTypeSelect.value;
+
+        const unitSize = 30;
+        const gridWidth = b * unitSize;
+        const gridHeight = h * unitSize;
+        const startX = (canvas.width - gridWidth) / 2;
+        const startY = (canvas.height - gridHeight) / 2 + gridHeight;
+
+        ctx.lineWidth = 2;
+
+        if (currentShape === 'parallelogram') {
+            const offsetPixels = off * unitSize;
+            const pointA = {x: startX, y: startY};
+            const pointB = {x: startX + gridWidth, y: startY};
+            const pointC = {x: startX + gridWidth + offsetPixels, y: startY - gridHeight};
+            const pointD = {x: startX + offsetPixels, y: startY - gridHeight};
+
+            const parallelogramPath = new Path2D();
+            parallelogramPath.moveTo(pointA.x, pointA.y);
+            parallelogramPath.lineTo(pointB.x, pointB.y);
+            parallelogramPath.lineTo(pointC.x, pointC.y);
+            parallelogramPath.lineTo(pointD.x, pointD.y);
+            parallelogramPath.closePath();
+
+            if (fillType === 'color') {
+                ctx.fillStyle = '#4c97ff';
+                ctx.fill(parallelogramPath);
+            } else if (fillType === 'dots' || fillType === 'fruit') {
+                ctx.save();
+                ctx.clip(parallelogramPath);
+
+                const selectedFruit = fruitSelect.value;
+                const step = 1;
+
+                for (let row = 0; row < h; row += step) {
+                    for (let col = 0; col < b; col += step) {
+                        const x = startX + col * unitSize + unitSize / 2 + (off * (row + 0.5) / h) * unitSize;
+                        const y = startY - row * unitSize - unitSize / 2;
+
+                        if (fillType === 'dots') {
+                            ctx.fillStyle = '#4c97ff';
+                            ctx.beginPath();
+                            ctx.arc(x, y, unitSize * 0.45, 0, 2 * Math.PI);
+                            ctx.fill();
+                        } else if (fillType === 'fruit') {
+                            ctx.font = `${unitSize * 1.2}px serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(selectedFruit, x, y);
+                        }
+                    }
+                }
+                ctx.restore();
+            }
+
+            ctx.strokeStyle = '#333';
+            ctx.stroke(parallelogramPath);
+
+            ctx.fillStyle = 'black';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`底=${b.toFixed(1)}`, startX + gridWidth / 2, startY + 25);
+
+            ctx.textAlign = 'right';
+            ctx.fillText(`高=${h.toFixed(1)}`, startX - 10, startY - gridHeight / 2);
+
+            ctx.setLineDash([5,5]);
+            ctx.strokeStyle = 'red';
+            ctx.strokeRect(startX, startY - gridHeight, gridWidth, gridHeight);
+            ctx.setLineDash([]);
+
+            if (isAnimatingToRectangle) {
+                const progress = animationProgress / 100;
+                off = originalOffset * (1 - progress);
+                offsetRange.value = off;
+                updateLabels();
+
+                const offsetPixels = off * unitSize;
+                pointC.x = pointB.x + offsetPixels;
+                pointD.x = pointA.x + offsetPixels;
+
+                animationProgress += 2;
+                if (animationProgress <= 100) {
+                    requestAnimationFrame(draw);
+                } else {
+                    isAnimatingToRectangle = false;
+                    offsetRange.value = 0;
+                    updateLabels();
+                    draw();
+                }
+                return;
+            }
+
+        } else if (currentShape === 'triangle') {
+            const topVertexX = startX + gridWidth / 2 + vertexOffset * unitSize;
+            const topVertexY = startY - gridHeight;
+
+            const trianglePath = new Path2D();
+            trianglePath.moveTo(startX, startY);
+            trianglePath.lineTo(startX + gridWidth, startY);
+            trianglePath.lineTo(topVertexX, topVertexY);
+            trianglePath.closePath();
+
+            if (fillType === 'color') {
+                ctx.fillStyle = '#4c97ff';
+                ctx.fill(trianglePath);
+            } else if (fillType === 'dots' || fillType === 'fruit') {
+                ctx.save();
+                ctx.clip(trianglePath);
+
+                const selectedFruit = fruitSelect.value;
+                const step = 1;
+
+                for (let row = 0; row < h; row += step) {
+                    const colsInRow = b * ((h - row) / h);
+                    for (let col = 0; col < colsInRow; col += step) {
+                        const xOffset = (b - colsInRow) / 2 + col + 0.5;
+                        const x = startX + xOffset * unitSize + vertexOffset * unitSize * (row + 0.5) / h;
+                        const y = startY - row * unitSize - unitSize / 2;
+
+                        if (fillType === 'dots') {
+                            ctx.fillStyle = '#4c97ff';
+                            ctx.beginPath();
+                            ctx.arc(x, y, unitSize * 0.45, 0, 2 * Math.PI);
+                            ctx.fill();
+                        } else if (fillType === 'fruit') {
+                            ctx.font = `${unitSize * 1.2}px serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(selectedFruit, x, y);
+                        }
+                    }
+                }
+                ctx.restore();
+            }
+
+            ctx.strokeStyle = '#333';
+            ctx.stroke(trianglePath);
+
+            ctx.fillStyle = 'black';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`底=${b.toFixed(1)}`, startX + gridWidth / 2, startY + 25);
+
+            ctx.textAlign = 'right';
+            ctx.fillText(`高=${h.toFixed(1)}`, startX - 10, startY - gridHeight / 2);
+
+            ctx.setLineDash([5,5]);
+            ctx.strokeStyle = 'red';
+            ctx.strokeRect(startX, startY - gridHeight, gridWidth, gridHeight);
+            ctx.setLineDash([]);
+
+            if (showCompletedParallelogram) {
+                const otherTopVertexX = topVertexX + gridWidth;
+                const otherTopVertexY = topVertexY;
+
+                ctx.fillStyle = '#ffcc00';
+                ctx.beginPath();
+                ctx.moveTo(startX + gridWidth, startY);
+                ctx.lineTo(otherTopVertexX, otherTopVertexY);
+                ctx.lineTo(topVertexX, topVertexY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        updateAreaFormula();
+    }
+
+    function updateLabels() {
+        baseValue.textContent = parseFloat(baseRange.value).toFixed(1);
+        heightValue.textContent = parseFloat(heightRange.value).toFixed(1);
+        offsetValue.textContent = offsetRange ? parseFloat(offsetRange.value).toFixed(1) : '';
+        vertexOffsetValue.textContent = vertexOffsetRange ? parseFloat(vertexOffsetRange.value).toFixed(1) : '';
+    }
+
+    function calculateArea() {
+        const b = parseFloat(baseRange.value);
+        const h = parseFloat(heightRange.value);
+        if (currentShape === 'parallelogram') {
+            return (b * h).toFixed(2);
+        } else {
+            return ((b * h) / 2).toFixed(2);
+        }
+    }
+
+    function updateAreaFormula() {
+        const b = parseFloat(baseRange.value).toFixed(1);
+        const h = parseFloat(heightRange.value).toFixed(1);
+        let area = calculateArea();
+
+        areaFormula.innerHTML = '';
+
+        const table = document.createElement('table');
+        table.className = 'formula-table';
+
+        const row1 = document.createElement('tr');
+        const row2 = document.createElement('tr');
+
+        if (currentShape === 'parallelogram') {
+            const formulaElements = ['面积', '=', '底', '×', '高', '=', '面积值'];
+            const values = ['面积', '=', b, '×', h, '=', area];
+            for (let i = 0; i < formulaElements.length; i++) {
+                const cell1 = document.createElement('td');
+                cell1.textContent = formulaElements[i];
+                row1.appendChild(cell1);
+
+                const cell2 = document.createElement('td');
+                cell2.textContent = values[i];
+                row2.appendChild(cell2);
+            }
+        } else {
+            const formulaElements = ['面积', '=', '底', '×', '高', '÷', '2', '=', '面积值'];
+            const values = ['面积', '=', b, '×', h, '÷', '2', '=', area];
+            for (let i = 0; i < formulaElements.length; i++) {
+                const cell1 = document.createElement('td');
+                cell1.textContent = formulaElements[i];
+                row1.appendChild(cell1);
+
+                const cell2 = document.createElement('td');
+                cell2.textContent = values[i];
+                row2.appendChild(cell2);
+            }
+        }
+
+        table.appendChild(row1);
+        table.appendChild(row2);
+        areaFormula.appendChild(table);
+    }
+
+    shapeSelect.addEventListener('change', () => {
+        currentShape = shapeSelect.value;
+        showCompletedParallelogram = false;
+        isAnimatingToRectangle = false;
+        animationProgress = 0;
+
+        if (currentShape === 'parallelogram') {
+            parallelogramControls.style.display = 'flex';
+            triangleControls.style.display = 'none';
+        } else {
+            parallelogramControls.style.display = 'none';
+            triangleControls.style.display = 'flex';
+        }
+
+        draw();
+    });
+
+    baseRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    heightRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    fillTypeSelect.addEventListener('change', () => {
+        if (fillTypeSelect.value === 'fruit') {
+            fruitSelectDiv.style.display = 'inline-block';
+        } else {
+            fruitSelectDiv.style.display = 'none';
+        }
+        draw();
+    });
+
+    fruitSelect.addEventListener('change', () => {
+        draw();
+    });
+
+    offsetRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    vertexOffsetRange.addEventListener('input', () => {
+        updateLabels();
+        draw();
+    });
+
+    toRectangleBtn.addEventListener('click', () => {
+        if (isAnimatingToRectangle) return;
+        isAnimatingToRectangle = true;
+        animationProgress = 0;
+        originalOffset = parseFloat(offsetRange.value);
+        requestAnimationFrame(draw);
+    });
+
+    completeParallelogramBtn.addEventListener('click', () => {
+        showCompletedParallelogram = !showCompletedParallelogram;
+        draw();
+    });
+
+    updateLabels();
+    draw();
+
+    window.addEventListener('resize', () => {
+        canvas.width = Math.min(600, window.innerWidth - 40);
+        draw();
+    });
+
+    canvas.width = Math.min(600, window.innerWidth - 40);
+    draw();
+</script>
+</body>
+</html>
