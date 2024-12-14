@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>平行四边形和三角形面积理解游戏</title>
+<title>平行四边形和三角形面积演示</title>
 <style>
     body {
         font-family: sans-serif;
@@ -21,7 +21,8 @@
         max-width: 900px;
         margin: 20px auto;
         background: #fff;
-        padding: 20px;
+        padding: 10px;
+        box-sizing: border-box;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h1, h2, h3 {
@@ -32,11 +33,12 @@
         margin: 20px 0;
         display: flex;
         flex-wrap: wrap;
-        justify-content: space-between;
+        justify-content: space-around;
         align-items: center;
     }
     .controls div, .game-section div {
         margin: 10px 0;
+        text-align: center;
     }
     label {
         display: inline-block;
@@ -52,29 +54,33 @@
         display: block;
         margin: 0 auto;
         border: 1px solid #ccc;
+        max-width: 100%;
+        height: auto;
     }
     .explanation {
         margin-top: 20px;
         line-height: 1.6;
+        text-align: center;
     }
     .explanation p {
         margin: 10px 0;
     }
-    .guess-section {
-        margin-top: 20px;
-        text-align: center;
-    }
-    .guess-section input[type=text] {
-        width: 100px;
-        text-align: center;
-        margin: 0 10px;
-    }
-    .message {
-        margin-top: 20px;
+    .area-formula {
         text-align: center;
         font-size: 18px;
-        font-weight: bold;
-        color: #333;
+        margin-top: 10px;
+    }
+    .formula-table {
+        display: inline-block;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .formula-table tr {
+        height: 30px;
+    }
+    .formula-table td {
+        padding: 0 5px;
+        font-size: 18px;
     }
     footer {
         text-align: center;
@@ -90,6 +96,12 @@
         color: #666;
         text-align: center;
         margin-top: 10px;
+    }
+    /* 适配移动端 */
+    @media (max-width: 600px) {
+        input[type=range] {
+            width: 150px;
+        }
     }
 </style>
 </head>
@@ -136,20 +148,18 @@
 
     <div class="game-section">
         <canvas id="myCanvas" width="600" height="400"></canvas>
+        <!-- 公式显示区域 -->
+        <div class="area-formula" id="areaFormula">
+            <!-- 这里的内容将由JS动态生成 -->
+        </div>
         <div class="explanation" id="explanation">
-            <p><strong>平行四边形面积公式：</strong> 底 × 高</p>
-            <p><strong>三角形面积公式：</strong> (底 × 高) ÷ 2</p>
+            <p><strong>平行四边形面积公式：</strong> 面积 = 底 × 高</p>
+            <p><strong>三角形面积公式：</strong> 面积 = (底 × 高) ÷ 2</p>
             <p>通过调整底边、高和偏移来理解为什么平行四边形可以变成矩形，从而理解它的面积公式。</p>
-            <p>对于三角形，通过补全另一半的三角形形成平行四边形，从而理解其面积是平行四边形的一半。</p>
+            <p>对于三角形，通过补全成平行四边形，理解其面积与平行四边形的关系。</p>
         </div>
     </div>
 
-    <div class="guess-section">
-        <h3>试着猜一下当前图形的面积吧！</h3>
-        <input type="text" id="guess" placeholder="输入你的答案">
-        <button id="check">检查答案</button>
-    </div>
-    <div class="message" id="messageArea"></div>
     <div class="small-note">提示：可以通过拖动滑块或点击按钮来进行动态演示。</div>
 </main>
 <footer>
@@ -164,13 +174,11 @@
     const baseValue = document.getElementById('base-value');
     const heightValue = document.getElementById('height-value');
     const offsetValue = document.getElementById('offset-value');
-    const guessInput = document.getElementById('guess');
-    const checkButton = document.getElementById('check');
-    const messageArea = document.getElementById('messageArea');
     const parallelogramControls = document.getElementById('parallelogram-controls');
     const triangleControls = document.getElementById('triangle-controls');
     const toRectangleBtn = document.getElementById('toRectangle');
     const completeParallelogramBtn = document.getElementById('completeParallelogram');
+    const areaFormula = document.getElementById('areaFormula');
 
     const canvas = document.getElementById('myCanvas');
     const ctx = canvas.getContext('2d');
@@ -179,30 +187,42 @@
     let showCompletedParallelogram = false; // For triangle mode
     let isAnimatingToRectangle = false; // For parallelogram animation
     let animationProgress = 0; // For animation progress
+    let originalOffset = 0; // Store original offset
 
     function draw() {
         ctx.clearRect(0,0,canvas.width, canvas.height);
 
         const b = parseInt(baseRange.value, 10);
         const h = parseInt(heightRange.value, 10);
-        const off = parseInt(offsetRange.value, 10);
+        let off = parseInt(offsetRange.value, 10);
+
+        // 适应不同屏幕尺寸
+        const scale = canvas.width / 600;
 
         if (currentShape === 'parallelogram') {
             // 平行四边形绘制
-            const startX = (canvas.width - b) / 2;
-            const startY = (canvas.height)/2 + h/2;
+            const startX = (canvas.width - b * scale) / 2;
+            const startY = (canvas.height)/2 + (h * scale)/2;
 
             // 定义四个顶点
             const pointA = {x: startX, y: startY};
-            const pointB = {x: startX + b, y: startY};
-            const pointC = {x: startX + b + off, y: startY - h};
-            const pointD = {x: startX + off, y: startY - h};
+            const pointB = {x: startX + b * scale, y: startY};
+            const pointC = {x: startX + b * scale + off * scale, y: startY - h * scale};
+            const pointD = {x: startX + off * scale, y: startY - h * scale};
 
+            // 绘制辅助矩形轮廓
+            ctx.setLineDash([5,5]);
+            ctx.strokeStyle = 'red';
+            ctx.beginPath();
+            ctx.rect(startX, startY - h * scale, b * scale, h * scale);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 绘制平行四边形
             ctx.fillStyle = '#4c97ff';
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
 
-            // 绘制平行四边形
             ctx.beginPath();
             ctx.moveTo(pointA.x, pointA.y);
             ctx.lineTo(pointB.x, pointB.y);
@@ -212,32 +232,42 @@
             ctx.fill();
             ctx.stroke();
 
+            // 始终标记平行四边形和矩形之间的不同部分（黄色）
+            // 左侧三角形
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            ctx.moveTo(startX, startY); // 矩形左下角
+            ctx.lineTo(pointA.x, pointA.y); // 平行四边形左下角
+            ctx.lineTo(pointD.x, pointD.y); // 平行四边形左上角
+            ctx.lineTo(startX, startY - h * scale); // 矩形左上角
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 右侧三角形
+            ctx.beginPath();
+            ctx.moveTo(startX + b * scale, startY); // 矩形右下角
+            ctx.lineTo(pointB.x, pointB.y); // 平行四边形右下角
+            ctx.lineTo(pointC.x, pointC.y); // 平行四边形右上角
+            ctx.lineTo(startX + b * scale, startY - h * scale); // 矩形右上角
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 如果在动画过程中
             if (isAnimatingToRectangle) {
-                // 计算动画进度
+                // 动画进度从0到1
                 const progress = animationProgress / 100;
-                const cutWidth = off * progress;
 
-                // 绘制剪下的三角形
-                ctx.fillStyle = '#ffcc00';
-                ctx.beginPath();
-                ctx.moveTo(pointA.x, pointA.y);
-                ctx.lineTo(pointD.x, pointD.y);
-                ctx.lineTo(pointA.x + cutWidth, pointA.y);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                // 动画过程中，偏移量从originalOffset变为0
+                off = originalOffset * (1 - progress);
+                offsetRange.value = off;
+                updateLabels();
 
-                // 绘制移动后的三角形
-                ctx.fillStyle = '#ffcc00';
-                ctx.beginPath();
-                ctx.moveTo(pointB.x - cutWidth, pointB.y);
-                ctx.lineTo(pointC.x, pointC.y);
-                ctx.lineTo(pointB.x, pointB.y);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                // 更新顶点
+                pointC.x = pointB.x + off * scale;
+                pointD.x = pointA.x + off * scale;
 
-                // 更新动画进度
                 animationProgress += 2;
                 if (animationProgress <= 100) {
                     requestAnimationFrame(draw);
@@ -250,18 +280,10 @@
                 return;
             }
 
-            // 绘制辅助矩形轮廓
-            ctx.setLineDash([5,5]);
-            ctx.strokeStyle = 'red';
-            ctx.beginPath();
-            ctx.rect(startX, startY - h, b, h);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
         } else if (currentShape === 'triangle') {
             // 三角形绘制
-            const startX = (canvas.width - b) / 2;
-            const startY = (canvas.height)/2 + h/2;
+            const startX = (canvas.width - b * scale) / 2;
+            const startY = (canvas.height)/2 + (h * scale)/2;
 
             ctx.fillStyle = '#4c97ff';
             ctx.strokeStyle = '#333';
@@ -270,19 +292,20 @@
             // 绘制三角形
             ctx.beginPath();
             ctx.moveTo(startX, startY);
-            ctx.lineTo(startX + b, startY);
-            ctx.lineTo(startX + b / 2, startY - h);
+            ctx.lineTo(startX + b * scale, startY);
+            ctx.lineTo(startX + b * scale / 2, startY - h * scale);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
             if (showCompletedParallelogram) {
-                // 绘制对称的三角形形成平行四边形
-                ctx.fillStyle = 'rgba(255, 200, 0, 0.7)';
+                // 补全成平行四边形
+                // 绘制黄色三角形
+                ctx.fillStyle = '#ffcc00';
                 ctx.beginPath();
-                ctx.moveTo(startX + b, startY);
-                ctx.lineTo(startX + 1.5 * b, startY - h);
-                ctx.lineTo(startX + b / 2, startY - h);
+                ctx.moveTo(startX + b * scale, startY);
+                ctx.lineTo(startX + b * scale * 1.5, startY - h * scale);
+                ctx.lineTo(startX + b * scale / 2, startY - h * scale);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
@@ -291,17 +314,20 @@
                 ctx.setLineDash([5,5]);
                 ctx.strokeStyle = 'red';
                 ctx.beginPath();
-                ctx.rect(startX + b / 2, startY - h, b, h);
+                ctx.rect(startX + b * scale / 2, startY - h * scale, b * scale, h * scale);
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
         }
+
+        // 更新面积公式显示
+        updateAreaFormula();
     }
 
     function updateLabels() {
         baseValue.textContent = baseRange.value;
         heightValue.textContent = heightRange.value;
-        offsetValue.textContent = offsetRange.value;
+        offsetValue.textContent = parseInt(offsetRange.value, 10);
     }
 
     function calculateArea() {
@@ -314,10 +340,58 @@
         }
     }
 
+    function updateAreaFormula() {
+        const b = parseInt(baseRange.value, 10);
+        const h = parseInt(heightRange.value, 10);
+        let area = calculateArea();
+
+        // 清空公式容器
+        areaFormula.innerHTML = '';
+
+        // 创建公式表格
+        const table = document.createElement('table');
+        table.className = 'formula-table';
+
+        // 第一行：公式表达式
+        const row1 = document.createElement('tr');
+        // 第二行：数值代入
+        const row2 = document.createElement('tr');
+
+        if (currentShape === 'parallelogram') {
+            // 平行四边形公式
+            const formulaElements = ['面积', '=', '底', '×', '高', '=', '面积值'];
+            const values = ['面积', '=', b, '×', h, '=', area];
+            for (let i = 0; i < formulaElements.length; i++) {
+                const cell1 = document.createElement('td');
+                cell1.textContent = formulaElements[i];
+                row1.appendChild(cell1);
+
+                const cell2 = document.createElement('td');
+                cell2.textContent = values[i];
+                row2.appendChild(cell2);
+            }
+        } else {
+            // 三角形公式
+            const formulaElements = ['面积', '=', '底', '×', '高', '÷', '2', '=', '面积值'];
+            const values = ['面积', '=', b, '×', h, '÷', '2', '=', area];
+            for (let i = 0; i < formulaElements.length; i++) {
+                const cell1 = document.createElement('td');
+                cell1.textContent = formulaElements[i];
+                row1.appendChild(cell1);
+
+                const cell2 = document.createElement('td');
+                cell2.textContent = values[i];
+                row2.appendChild(cell2);
+            }
+        }
+
+        table.appendChild(row1);
+        table.appendChild(row2);
+        areaFormula.appendChild(table);
+    }
+
     shapeSelect.addEventListener('change', () => {
         currentShape = shapeSelect.value;
-        messageArea.textContent = "";
-        guessInput.value = "";
         showCompletedParallelogram = false;
         isAnimatingToRectangle = false;
         animationProgress = 0;
@@ -348,36 +422,33 @@
         draw();
     });
 
-    checkButton.addEventListener('click', () => {
-        const userGuess = parseFloat(guessInput.value);
-        if (isNaN(userGuess)) {
-            messageArea.textContent = "请先输入一个数字哦！";
-            return;
-        }
-        const correctArea = calculateArea();
-        if (Math.abs(userGuess - correctArea) < 0.001) {
-            messageArea.textContent = "太棒了！你猜对了！";
-        } else {
-            messageArea.textContent = `不错的尝试！正确面积是 ${correctArea.toFixed(2)}`;
-        }
-    });
-
     // 平行四边形 -> 矩形按钮
     toRectangleBtn.addEventListener('click', () => {
         if (isAnimatingToRectangle) return;
         isAnimatingToRectangle = true;
         animationProgress = 0;
+        originalOffset = parseInt(offsetRange.value, 10);
         requestAnimationFrame(draw);
     });
 
     // 三角形 -> 补全平行四边形按钮
     completeParallelogramBtn.addEventListener('click', () => {
-        showCompletedParallelogram = true;
+        showCompletedParallelogram = !showCompletedParallelogram;
         draw();
     });
 
     // 初始化
     updateLabels();
+    draw();
+
+    // 监听窗口大小变化，调整画布尺寸
+    window.addEventListener('resize', () => {
+        canvas.width = Math.min(600, window.innerWidth - 40);
+        draw();
+    });
+
+    // 初始调整画布尺寸
+    canvas.width = Math.min(600, window.innerWidth - 40);
     draw();
 </script>
 </body>
