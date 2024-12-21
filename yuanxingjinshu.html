@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+        }
+        canvas {
+            background: #000;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        const size = Math.min(window.innerWidth * 0.8, window.innerHeight * 0.8);
+        canvas.width = size;
+        canvas.height = size;
+        
+        // Animation parameters
+        const FPS = 30;
+        const SAMPLES_PER_SECOND = 10;
+        const FADE_FRAMES = 15;
+        const frameInterval = 1000 / FPS;
+        const sampleInterval = 1000 / SAMPLES_PER_SECOND;
+        
+        // Circle parameters
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const radius = size * 0.4;
+        
+        // Store active chords
+        let chords = [];
+        let lastSampleTime = 0;
+        
+        function drawMetallicCircle() {
+            // Create gradient for metallic effect
+            const gradient = ctx.createLinearGradient(
+                centerX - radius, centerY - radius,
+                centerX + radius, centerY + radius
+            );
+            gradient.addColorStop(0, '#404040');
+            gradient.addColorStop(0.5, '#808080');
+            gradient.addColorStop(1, '#404040');
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function addNewChord(now) {
+            if (now - lastSampleTime >= sampleInterval) {
+                const angle = Math.random() * Math.PI * 2;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                
+                chords.push({
+                    x1: centerX,
+                    y1: centerY - radius, // Fixed point at top
+                    x2: x,
+                    y2: y,
+                    frame: 0
+                });
+                
+                lastSampleTime = now;
+            }
+        }
+        
+        function drawChords() {
+            chords.forEach((chord) => {
+                // Bright initial color that fades
+                const alpha = Math.max(0, 1 - (chord.frame / FADE_FRAMES));
+                const intensity = Math.floor(255 * alpha);
+                
+                // Draw chord
+                ctx.beginPath();
+                ctx.moveTo(chord.x1, chord.y1);
+                ctx.lineTo(chord.x2, chord.y2);
+                ctx.strokeStyle = `rgba(0, ${intensity}, ${intensity}, ${alpha})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw points
+                ctx.beginPath();
+                ctx.arc(chord.x1, chord.y1, 4, 0, Math.PI * 2);
+                ctx.arc(chord.x2, chord.y2, 4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+                ctx.fill();
+                
+                chord.frame++;
+            });
+            
+            // Remove old chords
+            chords = chords.filter(chord => chord.frame < FADE_FRAMES);
+        }
+        
+        let lastRenderTime = 0;
+        function animate(now) {
+            if (now - lastRenderTime >= frameInterval) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                drawMetallicCircle();
+                addNewChord(now);
+                drawChords();
+                
+                lastRenderTime = now;
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        animate(0);
+    </script>
+</body>
+</html>
