@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>3D 龙卷风 - 交互式演示</title>
+    <style>
+        /* 重置与自适应 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: sans-serif;
+            background: linear-gradient(#b3e5fc, #ffffff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        header {
+            text-align: center;
+            padding: 1rem;
+            color: #01579b;
+        }
+        main {
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 1rem 1rem;
+        }
+
+        /* 3D 场景的外层容器，提供透视效果 */
+        .scene {
+            width: 100%;
+            max-width: 600px;
+            height: 500px;
+            margin: 0 auto;
+            perspective: 1000px; /* 提供 3D 透视 */
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            position: relative;
+            background: #e1f5fe;
+            overflow: hidden;
+        }
+
+        /* 可旋转的容器，内含龙卷风模型 */
+        .tornado-container {
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.2s ease;
+            position: relative;
+        }
+
+        /* 用多层圆盘模拟龙卷风“锥形” */
+        .disk {
+            position: absolute;
+            left: 50%;
+            transform-style: preserve-3d;
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: swirl 2.5s linear infinite;
+        }
+        @keyframes swirl {
+            0% {
+                transform: rotateZ(0deg);
+            }
+            100% {
+                transform: rotateZ(360deg);
+            }
+        }
+        
+        /* 自下而上建造龙卷风，每层半径逐渐减小 */
+        .disk1 {
+            width: 300px;
+            height: 300px;
+            margin-left: -150px;
+            bottom: 0;
+            background: radial-gradient(rgba(128,128,128,0.3), rgba(0,0,0,0.3));
+        }
+        .disk2 {
+            width: 250px;
+            height: 250px;
+            margin-left: -125px;
+            bottom: 50px;
+            background: radial-gradient(rgba(128,128,128,0.2), rgba(0,0,0,0.2));
+        }
+        .disk3 {
+            width: 200px;
+            height: 200px;
+            margin-left: -100px;
+            bottom: 100px;
+            background: radial-gradient(rgba(128,128,128,0.2), rgba(0,0,0,0.25));
+        }
+        .disk4 {
+            width: 150px;
+            height: 150px;
+            margin-left: -75px;
+            bottom: 150px;
+            background: radial-gradient(rgba(128,128,128,0.1), rgba(0,0,0,0.2));
+        }
+        .disk5 {
+            width: 100px;
+            height: 100px;
+            margin-left: -50px;
+            bottom: 200px;
+            background: radial-gradient(rgba(128,128,128,0.1), rgba(0,0,0,0.2));
+        }
+
+        /* 标注风速的标签 */
+        .speed-label {
+            position: absolute;
+            color: #e65100;
+            font-weight: bold;
+            background: rgba(255,255,255,0.7);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.2rem;
+            pointer-events: none;
+            font-size: 0.9rem;
+        }
+        .speed-label1 {
+            bottom: 30px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+        }
+        .speed-label2 {
+            bottom: 80px; 
+            left: 60%; 
+        }
+        .speed-label3 {
+            bottom: 130px; 
+            left: 40%; 
+        }
+        .speed-label4 {
+            bottom: 180px; 
+            left: 58%; 
+        }
+
+        /* 模拟“上升气流”的箭头 */
+        .updraft-arrow {
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 4px;
+            height: 250px;
+            background: rgba(255,255,255,0.8);
+            transform: translateX(-50%);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            animation: floatArrow 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes floatArrow {
+            0% {
+                transform: translate(-50%, 0);
+            }
+            100% {
+                transform: translate(-50%, -10px);
+            }
+        }
+        .arrow-head {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 12px solid rgba(255,255,255,0.8);
+            margin-top: 2px;
+        }
+        .arrow-text {
+            margin-top: 1rem;
+            color: #303f9f;
+            font-weight: bold;
+            background: rgba(255,255,255,0.7);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.2rem;
+            font-size: 0.8rem;
+        }
+
+        /* 文字解释区 */
+        .info {
+            margin-top: 1rem;
+            background: rgba(255,255,255,0.9);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            line-height: 1.6;
+            color: #424242;
+        }
+
+        /* 小屏幕上适当缩小场景高度 */
+        @media (max-width: 600px) {
+            .scene {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>3D 龙卷风 - 交互式演示</h1>
+        <p>请使用鼠标或手指拖拽来旋转3D模型</p>
+    </header>
+
+    <main>
+        <div class="scene" id="scene">
+            <div class="tornado-container" id="tornadoContainer">
+                <!-- 多层圆盘 用于模拟龙卷风外形 -->
+                <div class="disk disk1"></div>
+                <div class="disk disk2"></div>
+                <div class="disk disk3"></div>
+                <div class="disk disk4"></div>
+                <div class="disk disk5"></div>
+
+                <!-- 上升气流(箭头) -->
+                <div class="updraft-arrow">
+                    <div class="arrow-head"></div>
+                    <div class="arrow-text">上升气流</div>
+                </div>
+
+                <!-- 风速标注 -->
+                <div class="speed-label speed-label1">约 120 km/h</div>
+                <div class="speed-label speed-label2">约 180 km/h</div>
+                <div class="speed-label speed-label3">约 220 km/h</div>
+                <div class="speed-label speed-label4">约 300 km/h</div>
+            </div>
+        </div>
+
+        <div class="info">
+            <h2>为什么会有上升气流？</h2>
+            <p>由于大气不稳定、温度梯度与湿度差异，底层热空气向上涌动，并被龙卷风强烈的旋转和低压中心吸入，形成明显的上升气流。这个上升气流能够托起轻质物体，包括人、动物、碎片等。</p>
+            <h2>不同高度的风速</h2>
+            <p>龙卷风近地面半径通常更大，受到地面摩擦影响风速相对较低。随高度升高，半径会缩小而风速变大。示例中以圆盘大小及标注数字进行示意。实际龙卷风内部风场远比这个模型更加复杂。</p>
+        </div>
+    </main>
+
+    <script>
+        (function(){
+            var tornadoContainer = document.getElementById("tornadoContainer");
+            var isMouseDown = false;
+            var startX = 0;
+            var startY = 0;
+            var currentRotationX = 0; // 沿X轴旋转角度
+            var currentRotationY = 0; // 沿Y轴旋转角度
+
+            function handlePointerDown(e) {
+                isMouseDown = true;
+                if(e.touches && e.touches.length > 0){
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                } else {
+                    startX = e.clientX;
+                    startY = e.clientY;
+                }
+            }
+
+            function handlePointerMove(e) {
+                if (!isMouseDown) return;
+                var x, y;
+                if(e.touches && e.touches.length > 0){
+                    x = e.touches[0].clientX;
+                    y = e.touches[0].clientY;
+                } else {
+                    x = e.clientX;
+                    y = e.clientY;
+                }
+                var deltaX = x - startX;
+                var deltaY = y - startY;
+
+                // 这里用字符串拼接，避免某些浏览器对 ES6 模板字符串兼容性差
+                currentRotationY += deltaX * 0.3;
+                currentRotationX -= deltaY * 0.3;
+
+                // 限制上下翻转角度，避免翻转过度
+                if(currentRotationX > 80) currentRotationX = 80;
+                if(currentRotationX < -80) currentRotationX = -80;
+
+                tornadoContainer.style.transform =
+                    "rotateX(" + currentRotationX + "deg) rotateY(" + currentRotationY + "deg)";
+
+                startX = x;
+                startY = y;
+            }
+
+            function handlePointerUp() {
+                isMouseDown = false;
+            }
+
+            // 监听鼠标事件
+            document.addEventListener("mousedown", handlePointerDown, false);
+            document.addEventListener("mousemove", handlePointerMove, false);
+            document.addEventListener("mouseup", handlePointerUp, false);
+
+            // 监听触摸事件
+            document.addEventListener("touchstart", handlePointerDown, { passive: false });
+            document.addEventListener("touchmove", handlePointerMove, { passive: false });
+            document.addEventListener("touchend", handlePointerUp, false);
+
+        })();
+    </script>
+</body>
+</html>
