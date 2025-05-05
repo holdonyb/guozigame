@@ -1,765 +1,693 @@
-<!DOCTYPE html><html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>英语学习消消乐 · Neo Edition</title>
-  <!-- Google Fonts for futuristic look -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>English Match‑3 · Neo Edition</title>
+  <!-- Futuristic font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet" />
   <style>
     /* =========================================================================
-       Theming & Design Tokens (easy palette swaps)
+       Design Tokens
        ========================================================================= */
     :root {
-      /* brand */
       --brand-gradient: linear-gradient(135deg, #00c9ff 0%, #92fe9d 100%);
       --brand-accent: #00e1ff;
-      --brand-accent-dark: #0095c7;/* surfaces */
-  --surface-glass-bg: rgba(255, 255, 255, 0.15);
-  --surface-glass-border: rgba(255, 255, 255, 0.25);
-  --surface-paper-bg: rgba(255, 255, 255, 0.6);
+      --brand-accent-dark: #0095c7;
+      --surface-glass-bg: rgba(255, 255, 255, 0.16);
+      --surface-glass-border: rgba(255, 255, 255, 0.25);
+      --surface-paper-bg: rgba(255, 255, 255, 0.68);
+      --text-primary: #ffffff;
+      --text-dark: #1d232a;
+      --success: #4caf50;
+      --error: #ff5252;
+      --grid-cols: 8; /* default */
+    }
 
-  /* text */
-  --text-primary: #ffffff;
-  --text-dark: #222831;
+    @media (max-width: 640px) {
+      :root {
+        --grid-cols: 6;
+      }
+    }
 
-  /* feedback */
-  --success: #4caf50;
-  --error: #ff5252;
-  --warning: #ffb300;
-}
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+    html,
+    body {
+      height: 100%;
+      font-family: "Poppins", Arial, sans-serif;
+      background: var(--brand-gradient);
+      color: var(--text-dark);
+      overflow: hidden;
+    }
 
-body {
-  font-family: "Poppins", Arial, sans-serif;
-  background: var(--brand-gradient);
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-dark);
-  overflow: hidden;
-}
+    /* ---------------- Main wrapper ---------------- */
+    .game-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(6px, 2vw, 20px);
+      backdrop-filter: blur(18px) saturate(1.2);
+      -webkit-backdrop-filter: blur(18px) saturate(1.2);
+      background: var(--surface-glass-bg);
+      border: 1px solid var(--surface-glass-border);
+      border-radius: 18px;
+    }
 
-/* Glass container wrapper */
-.game-container {
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  background: var(--surface-glass-bg);
-  border: 1px solid var(--surface-glass-border);
-  border-radius: 20px;
-  width: 95%;
-  max-width: 900px;
-  height: 95vh;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-}
+    /* ---------------- Score badge ---------------- */
+    .score-display {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 18px;
+      background: rgba(0, 0, 0, 0.65);
+      color: var(--text-primary);
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      z-index: 30;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
 
-/* ================== upper section ================== */
-.upper-section {
-  display: flex;
-  height: 38%;
-  padding: 20px;
-  gap: 20px;
-}
+    /* ---------------- Upper section ---------------- */
+    .upper-section {
+      display: flex;
+      gap: 16px;
+      flex: 0 0 35%;
+    }
 
-/* Avatar / hero character */
-.character-section {
-  flex: 0 0 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+    @media (max-width: 640px) {
+      .upper-section {
+        flex-direction: column;
+        flex: 0 0 auto;
+      }
+    }
 
-.character {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  background: var(--brand-gradient);
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.3s;
-}
+    .character-section {
+      flex: 0 0 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-.character-face {
-  font-size: 52px;
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
-}
+    .character {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: var(--brand-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s;
+    }
 
-.character.attack {
-  animation: attack 0.5s ease-in-out;
-}
+    .character-face {
+      font-size: 46px;
+      filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+    }
 
-@keyframes attack {
-  0% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(30px) scale(1.05);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
+    .character.attack {
+      animation: attack 0.5s ease-in-out;
+    }
 
-/* Test paper (enemy) */
-.test-paper {
-  flex: 1;
-  background: var(--surface-paper-bg);
-  border-radius: 15px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-}
+    @keyframes attack {
+      0% {
+        transform: translateX(0);
+      }
+      50% {
+        transform: translateX(30px) scale(1.05);
+      }
+      100% {
+        transform: translateX(0);
+      }
+    }
 
-.paper-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
+    .test-paper {
+      flex: 1;
+      background: var(--surface-paper-bg);
+      backdrop-filter: blur(4px);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    }
 
-.paper-title {
-  font-weight: 600;
-  font-size: 1.2rem;
-}
+    .paper-title {
+      font-weight: 700;
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
 
-/* Health bar */
-.paper-health {
-  height: 18px;
-  width: 100%;
-  background: var(--error);
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-}
+    .paper-health {
+      height: 16px;
+      background: var(--error);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .health-bar {
+      height: 100%;
+      width: 100%;
+      background: var(--success);
+      transition: width 0.3s;
+    }
 
-.health-bar {
-  height: 100%;
-  width: 100%;
-  background: var(--success);
-  transition: width 0.3s;
-}
+    .paper-content {
+      font-size: 0.85rem;
+      line-height: 1.4;
+      overflow-y: auto;
+    }
 
-.paper-content {
-  flex: 1;
-  overflow: auto;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 10px;
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
+    /* ---------------- Lower section ---------------- */
+    .lower-section {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      margin-top: 12px;
+    }
 
-/* Score badge */
-.score-display {
-  position: absolute;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 16px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.6);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
-}
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(var(--grid-cols), 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 6px;
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+      padding: 6px;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
 
-/* ================== lower section ================== */
-.lower-section {
-  flex: 1;
-  position: relative;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+    .tile {
+      background: #ffffffc9;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(18px, 7vw, 30px);
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s, box-shadow 0.1s;
+      aspect-ratio: 1 / 1;
+    }
 
-/* Grid board */
-.game-board {
-  flex: 1;
-  display: grid;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.1);
-  padding: 10px;
-  border-radius: 15px;
-  backdrop-filter: blur(5px);
-}
+    .tile:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
 
-.tile {
-  background: #ffffffaa;
-  border-radius: 10px;
-  font-size: clamp(20px, 4vw, 34px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s;
-  user-select: none;
-}
+    .tile.selected {
+      transform: scale(0.9);
+      box-shadow: 0 0 12px var(--brand-accent);
+    }
 
-.tile:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
+    .tile.matched {
+      animation: matched 0.4s ease forwards;
+    }
 
-.tile.selected {
-  transform: scale(0.9);
-  box-shadow: 0 0 10px var(--brand-accent);
-}
+    @keyframes matched {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      60% {
+        transform: scale(1.25);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(0);
+        opacity: 0;
+      }
+    }
 
-.tile.matched {
-  animation: matched 0.45s ease forwards;
-}
+    /* Overlay & dialogs */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      z-index: 20;
+    }
 
-@keyframes matched {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.3);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(0);
-    opacity: 0;
-  }
-}
+    .dialog {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: var(--surface-paper-bg);
+      padding: 22px;
+      width: 90%;
+      max-width: 460px;
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      animation: pop 0.25s ease forwards;
+      z-index: 30;
+    }
 
-/* Pop‑ups & overlay */
-.overlay {
-  position: absolute;
-  inset: 0;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  background: rgba(0, 0, 0, 0.45);
-  display: none;
-  z-index: 10;
-}
+    @keyframes pop {
+      from {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0;
+      }
+      to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+    }
 
-.dialog {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
-  background: var(--surface-paper-bg);
-  border-radius: 16px;
-  padding: 24px;
-  width: 90%;
-  max-width: 480px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  display: none;
-  flex-direction: column;
-  gap: 18px;
-  animation: pop 0.3s ease forwards;
-  z-index: 20;
-}
+    .option {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
 
-@keyframes pop {
-  from {
-    transform: translate(-50%, -50%) scale(0.85);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-}
+    .option:hover {
+      background: var(--brand-accent);
+      color: var(--text-primary);
+    }
 
-.question-text {
-  font-weight: 600;
-  color: var(--brand-accent-dark);
-}
+    .option.correct {
+      background: var(--success);
+      color: var(--text-primary);
+    }
 
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+    .option.incorrect {
+      background: var(--error);
+      color: var(--text-primary);
+    }
 
-.option {
-  border-radius: 8px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: background 0.25s, transform 0.15s;
-}
+    .result-emoji {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 96px;
+      z-index: 25;
+      pointer-events: none;
+      animation: popup 1s forwards;
+    }
 
-.option:hover {
-  background: var(--brand-accent);
-  color: var(--text-primary);
-  transform: translateY(-2px);
-}
+    @keyframes popup {
+      0% {
+        transform: scale(0);
+      }
+      70% {
+        transform: scale(1.3);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
 
-.option.correct {
-  background: var(--success);
-  color: var(--text-primary);
-}
+    .restart-button {
+      align-self: center;
+      background: var(--brand-gradient);
+      color: var(--text-dark);
+      padding: 10px 24px;
+      border: none;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.2s;
+    }
 
-.option.incorrect {
-  background: var(--error);
-  color: var(--text-primary);
-}
-
-.result-emoji {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  font-size: 110px;
-  pointer-events: none;
-  z-index: 15;
-  animation: popup 1s forwards;
-}
-
-@keyframes popup {
-  0% {
-    transform: translate(-50%, -50%) scale(0);
-  }
-  70% {
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-/* Summary dialog */
-.summary-title {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--brand-accent-dark);
-}
-
-.summary-score {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: var(--success);
-}
-
-.restart-button {
-  margin-top: 10px;
-  align-self: center;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 999px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--brand-gradient);
-  color: var(--text-dark);
-  transition: filter 0.25s;
-}
-
-.restart-button:hover {
-  filter: brightness(1.1);
-}
-
-/* Responsive tweaks */
-@media (max-width: 640px) {
-  .upper-section {
-    flex-direction: column;
-    height: 45%;
-  }
-
-  .character-section {
-    flex: none;
-    order: 2;
-    margin-top: 10px;
-  }
-
-  .test-paper {
-    order: 1;
-  }
-
-  .game-board {
-    gap: 4px;
-  }
-}
-
+    .restart-button:hover {
+      filter: brightness(1.1);
+    }
   </style>
 </head>
 <body>
-  <!-- Game markup unchanged except for class names referencing simplified CSS -->
   <div class="game-container">
-    <!-- Score -->
-    <div class="score-display">Score: <span id="score">0</span></div><!-- Upper (avatar + enemy paper) -->
-<div class="upper-section">
-  <div class="character-section">
-    <div class="character">
-      <div class="character-face">👾</div>
+    <div class="score-display">Score: <span id="score">0</span></div>
+
+    <div class="upper-section">
+      <div class="character-section">
+        <div class="character">
+          <div class="character-face">👾</div>
+        </div>
+      </div>
+      <div class="test-paper">
+        <div class="paper-title">English Challenge</div>
+        <div class="paper-health"><div class="health-bar"></div></div>
+        <div class="paper-content">
+          Match tiles to trigger questions. Correct answers damage this paper
+          monster. Clear its HP to win!
+        </div>
+      </div>
+    </div>
+
+    <div class="lower-section">
+      <div class="game-board" id="game-board"></div>
+      <div class="overlay" id="overlay"></div>
+
+      <div class="dialog" id="question-popup">
+        <div class="question-text" id="question-text"></div>
+        <div class="options" id="options-container"></div>
+      </div>
+
+      <div class="result-emoji" id="result-emoji"></div>
+
+      <div class="dialog" id="summary-popup">
+        <div class="summary-title">Mission Complete</div>
+        <div class="summary-score" id="final-score"></div>
+        <div class="summary-stats" id="summary-stats"></div>
+        <button class="restart-button" id="restart-button">Play Again</button>
+      </div>
     </div>
   </div>
-  <div class="test-paper">
-    <div class="paper-header">
-      <div class="paper-title">English Challenge</div>
-    </div>
-    <div class="paper-health">
-      <div class="health-bar"></div>
-    </div>
-    <div class="paper-content">
-      <p>
-        Answer the multiple‑choice questions below by clearing tiles on the
-        board. Each correct answer deals damage to this paper monster.
-      </p>
-      <p>Good luck, space cadet! 🚀</p>
-    </div>
-  </div>
-</div>
 
-<!-- Lower (match‑3 board) -->
-<div class="lower-section">
-  <div class="game-board" id="game-board"></div>
-  <div class="overlay" id="overlay"></div>
+  <!-- ===================== Sounds ===================== -->
+  <audio id="sfx-match" src="https://cdn.jsdelivr.net/gh/tonydong-assets/sfx/match.mp3" preload="auto"></audio>
+  <audio id="sfx-correct" src="https://cdn.jsdelivr.net/gh/tonydong-assets/sfx/correct.mp3" preload="auto"></audio>
+  <audio id="sfx-wrong" src="https://cdn.jsdelivr.net/gh/tonydong-assets/sfx/wrong.mp3" preload="auto"></audio>
+  <audio id="sfx-win" src="https://cdn.jsdelivr.net/gh/tonydong-assets/sfx/win.mp3" preload="auto"></audio>
 
-  <!-- Question dialog -->
-  <div class="dialog" id="question-popup">
-    <div class="question-text" id="question-text"></div>
-    <div class="options" id="options-container"></div>
-  </div>
-
-  <!-- Emoji feedback -->
-  <div class="result-emoji" id="result-emoji"></div>
-
-  <!-- Summary dialog -->
-  <div class="dialog" id="summary-popup" style="z-index:22;">
-    <div class="summary-title">Mission Complete!</div>
-    <div class="summary-score" id="final-score"></div>
-    <div class="summary-stats" id="summary-stats"></div>
-    <button class="restart-button" id="restart-button">Play Again</button>
-  </div>
-</div>
-
-  </div>  <!-- JavaScript logic (mostly unchanged) -->  <script>
-    /* ---------------- Game state vars ---------------- */
+  <script>
+    /* ---------------- State ---------------- */
     let score = 0;
     let paperHealth = 100;
     let selectedTile = null;
     let board = [];
-    let boardSize = window.innerWidth < 640 ? 6 : 8;
     const boardSizeY = 8;
+    let boardSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-cols'));
     let canPlay = true;
-    let answeredQuestions = 0;
-    let correctAnswers = 0;
-    const usedQuestionIndices = new Set();
+    let answered = 0;
+    let correct = 0;
+    const used = new Set();
 
     /* ---------------- Data ---------------- */
     const tileTypes = ['🍎', '🍌', '🍇', '🍊', '🍓', '🥝', '🍉', '🍍'];
-
     const questions = [
-      { question: "What ___ your name?", options: ["is", "are", "am", "be"], correctAnswer: 0 },
-      { question: "These ___ my friends.", options: ["is", "are", "am", "be"], correctAnswer: 1 },
-      { question: "She ___ like sports.", options: ["don't", "doesn't", "isn't", "aren't"], correctAnswer: 1 },
-      { question: "Where ___ you from?", options: ["is", "are", "am", "be"], correctAnswer: 1 },
-      { question: "I ___ a student.", options: ["is", "are", "am", "be"], correctAnswer: 2 },
-      { question: "He ___ breakfast every morning.", options: ["has", "have", "having", "to have"], correctAnswer: 0 },
-      { question: "We ___ to school by bus.", options: ["go", "goes", "going", "to go"], correctAnswer: 0 },
-      { question: "My mother ___ TV in the evening.", options: ["watch", "watches", "watching", "to watch"], correctAnswer: 1 },
-      { question: "The book is ___ the table.", options: ["on", "in", "at", "for"], correctAnswer: 0 },
-      { question: "___ do you like English? Because it's interesting.", options: ["What", "Why", "When", "How"], correctAnswer: 1 },
-      { question: "This pen is ___.", options: ["me", "my", "mine", "I"], correctAnswer: 2 },
-      { question: "There ___ an apple on the desk.", options: ["is", "are", "am", "be"], correctAnswer: 0 }
+      { q: 'What ___ your name?', o: ['is', 'are', 'am', 'be'], a: 0 },
+      { q: 'These ___ my friends.', o: ['is', 'are', 'am', 'be'], a: 1 },
+      { q: 'She ___ like sports.', o: ["don't", "doesn't", "isn't", "aren't"], a: 1 },
+      { q: 'Where ___ you from?', o: ['is', 'are', 'am', 'be'], a: 1 },
+      { q: 'I ___ a student.', o: ['is', 'are', 'am', 'be'], a: 2 },
+      { q: 'He ___ breakfast every morning.', o: ['has', 'have', 'having', 'to have'], a: 0 },
+      { q: 'We ___ to school by bus.', o: ['go', 'goes', 'going', 'to go'], a: 0 },
+      { q: 'My mother ___ TV in the evening.', o: ['watch', 'watches', 'watching', 'to watch'], a: 1 },
+      { q: 'The book is ___ the table.', o: ['on', 'in', 'at', 'for'], a: 0 },
+      { q: "___ do you like English?", o: ['What', 'Why', 'When', 'How'], a: 1 },
+      { q: 'This pen is ___.', o: ['me', 'my', 'mine', 'I'], a: 2 },
+      { q: 'There ___ an apple on the desk.', o: ['is', 'are', 'am', 'be'], a: 0 }
     ];
 
-    const totalQuestions = questions.length;
+    const totalQ = questions.length;
 
-    /* ---------------- Element refs ---------------- */
-    const gameBoardElement = document.getElementById('game-board');
-    const scoreDisplay = document.getElementById('score');
+    /* ---------------- Elements ---------------- */
+    const gb = document.getElementById('game-board');
+    const scoreEl = document.getElementById('score');
     const healthBar = document.querySelector('.health-bar');
-    const character = document.querySelector('.character');
-    const questionPopup = document.getElementById('question-popup');
-    const questionText = document.getElementById('question-text');
-    const optionsContainer = document.getElementById('options-container');
+    const char = document.querySelector('.character');
     const overlay = document.getElementById('overlay');
+    const qPopup = document.getElementById('question-popup');
+    const qText = document.getElementById('question-text');
+    const optBox = document.getElementById('options-container');
     const resultEmoji = document.getElementById('result-emoji');
-    const summaryPopup = document.getElementById('summary-popup');
-    const finalScoreElement = document.getElementById('final-score');
-    const summaryStatsElement = document.getElementById('summary-stats');
-    const restartButton = document.getElementById('restart-button');
+    const finalScore = document.getElementById('final-score');
+    const stats = document.getElementById('summary-stats');
+    const summary = document.getElementById('summary-popup');
+    const restart = document.getElementById('restart-button');
+
+    /* ---------------- SFX ---------------- */
+    const sfxMatch = document.getElementById('sfx-match');
+    const sfxCorrect = document.getElementById('sfx-correct');
+    const sfxWrong = document.getElementById('sfx-wrong');
+    const sfxWin = document.getElementById('sfx-win');
 
     /* ---------------- Game setup ---------------- */
-    restartButton.addEventListener('click', () => {
-      summaryPopup.style.display = 'none';
+    restart.addEventListener('click', () => {
       overlay.style.display = 'none';
-      resetGame();
+      summary.style.display = 'none';
+      reset();
     });
 
-    function initGame() {
-      createGameBoard();
-      updateScore(0);
-      updateHealth(100);
+    function init() {
+      buildBoard();
+      updScore(0);
+      updHealth(100);
     }
 
-    /* ------------- Board generation ------------- */
-    function createGameBoard() {
-      gameBoardElement.innerHTML = '';
+    /* responsive board cols */
+    window.addEventListener('resize', () => {
+      const cols = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-cols'));
+      if (cols !== boardSize) {
+        boardSize = cols;
+        buildBoard();
+      }
+    });
+
+    /* ---------------- Board utils ---------------- */
+    function buildBoard() {
+      gb.innerHTML = '';
       board = [];
-      boardSize = window.innerWidth < 640 ? 6 : 8;
-
-      gameBoardElement.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-      gameBoardElement.style.gridTemplateRows = `repeat(${boardSizeY}, 1fr)`;
-
       for (let y = 0; y < boardSizeY; y++) {
         const row = [];
         for (let x = 0; x < boardSize; x++) {
-          let type;
+          let t;
           do {
-            type = Math.floor(Math.random() * tileTypes.length);
+            t = Math.floor(Math.random() * tileTypes.length);
           } while (
-            (x >= 2 && row[x - 1] === type && row[x - 2] === type) ||
-            (y >= 2 && board[y - 1]?.[x] === type && board[y - 2]?.[x] === type)
+            (x >= 2 && row[x - 1] === t && row[x - 2] === t) ||
+            (y >= 2 && board[y - 1]?.[x] === t && board[y - 2]?.[x] === t)
           );
-          row.push(type);
+          row.push(t);
         }
         board.push(row);
       }
-
-      for (let y = 0; y < boardSizeY; y++) {
-        for (let x = 0; x < boardSize; x++) {
-          const tile = document.createElement('div');
-          tile.className = 'tile';
-          tile.textContent = tileTypes[board[y][x]];
-          tile.dataset.x = x;
-          tile.dataset.y = y;
-          tile.addEventListener('click', () => handleTileClick(tile, x, y));
-          gameBoardElement.appendChild(tile);
-        }
-      }
+      gb.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+      gb.style.gridTemplateRows = `repeat(${boardSizeY}, 1fr)`;
+      board.forEach((row, y) => {
+        row.forEach((t, x) => {
+          const d = document.createElement('div');
+          d.className = 'tile';
+          d.textContent = tileTypes[t];
+          d.dataset.x = x;
+          d.dataset.y = y;
+          d.addEventListener('click', () => onTile(d, x, y));
+          gb.appendChild(d);
+        });
+      });
     }
 
-    /* ------------- Interaction ------------- */
-    function handleTileClick(tile, x, y) {
+    function onTile(el, x, y) {
       if (!canPlay) return;
-
       if (!selectedTile) {
-        selectedTile = { element: tile, x, y };
-        tile.classList.add('selected');
+        selectedTile = { el, x, y };
+        el.classList.add('selected');
         return;
       }
-
-      const { element: firstTile, x: x1, y: y1 } = selectedTile;
-      if ((Math.abs(x - x1) === 1 && y === y1) || (Math.abs(y - y1) === 1 && x === x1)) {
-        swapTiles(x1, y1, x, y);
+      const { el: first, x: x1, y: y1 } = selectedTile;
+      const adjacent = (Math.abs(x - x1) === 1 && y === y1) || (Math.abs(y - y1) === 1 && x === x1);
+      if (adjacent) {
+        swap(x1, y1, x, y);
         setTimeout(() => {
-          const matches = findMatches();
-          if (matches.length) {
-            handleMatches(matches);
-          } else {
-            swapTiles(x, y, x1, y1);
-          }
-          firstTile.classList.remove('selected');
+          const m = matches();
+          if (m.length) handleMatch(m);
+          else swap(x, y, x1, y1);
+          first.classList.remove('selected');
           selectedTile = null;
-        }, 250);
+        }, 200);
       } else {
-        firstTile.classList.remove('selected');
-        selectedTile = { element: tile, x, y };
-        tile.classList.add('selected');
+        first.classList.remove('selected');
+        selectedTile = { el, x, y };
+        el.classList.add('selected');
       }
     }
 
-    /* ------------- Tile ops ------------- */
-    function swapTiles(x1, y1, x2, y2) {
-      const temp = board[y1][x1];
-      board[y1][x1] = board[y2][x2];
-      board[y2][x2] = temp;
-
-      const tiles = document.querySelectorAll('.tile');
-      const index1 = y1 * boardSize + x1;
-      const index2 = y2 * boardSize + x2;
-      tiles[index1].textContent = tileTypes[board[y1][x1]];
-      tiles[index2].textContent = tileTypes[board[y2][x2]];
+    function swap(x1, y1, x2, y2) {
+      [board[y1][x1], board[y2][x2]] = [board[y2][x2], board[y1][x1]];
+      const tiles = gb.children;
+      const i1 = y1 * boardSize + x1;
+      const i2 = y2 * boardSize + x2;
+      tiles[i1].textContent = tileTypes[board[y1][x1]];
+      tiles[i2].textContent = tileTypes[board[y2][x2]];
     }
 
-    function findMatches() {
-      const matches = [];
-      // horizontal
-      for (let y = 0; y < boardSizeY; y++) {
+    function matches() {
+      const res = [];
+      // horiz
+      for (let y = 0; y < boardSizeY; y++)
         for (let x = 0; x < boardSize - 2; x++) {
           if (board[y][x] !== null && board[y][x] === board[y][x + 1] && board[y][x] === board[y][x + 2]) {
-            let length = 3;
-            while (x + length < boardSize && board[y][x] === board[y][x + length]) length++;
-            for (let i = 0; i < length; i++) matches.push({ x: x + i, y });
-            x += length - 1;
+            let len = 3;
+            while (x + len < boardSize && board[y][x] === board[y][x + len]) len++;
+            for (let i = 0; i < len; i++) res.push({ x: x + i, y });
+            x += len - 1;
           }
         }
-      }
-      // vertical
-      for (let x = 0; x < boardSize; x++) {
+      // vert
+      for (let x = 0; x < boardSize; x++)
         for (let y = 0; y < boardSizeY - 2; y++) {
           if (board[y][x] !== null && board[y][x] === board[y + 1][x] && board[y][x] === board[y + 2][x]) {
-            let length = 3;
-            while (y + length < boardSizeY && board[y][x] === board[y + length][x]) length++;
-            for (let i = 0; i < length; i++) matches.push({ x, y: y + i });
-            y += length - 1;
+            let len = 3;
+            while (y + len < boardSizeY && board[y][x] === board[y + len][x]) len++;
+            for (let i = 0; i < len; i++) res.push({ x, y: y + i });
+            y += len - 1;
           }
         }
-      }
-      return matches.filter((m, i, self) => i === self.findIndex(t => t.x === m.x && t.y === m.y));
+      return res.filter((m, i, self) => i === self.findIndex(t => t.x === m.x && t.y === m.y));
     }
 
-    function handleMatches(matches) {
+    function handleMatch(arr) {
       canPlay = false;
-      const tiles = document.querySelectorAll('.tile');
-      matches.forEach(m => {
+      sfxMatch.currentTime = 0;
+      sfxMatch.play();
+      arr.forEach(m => {
         const idx = m.y * boardSize + m.x;
-        tiles[idx].classList.add('matched');
+        gb.children[idx].classList.add('matched');
         board[m.y][m.x] = null;
       });
-
       setTimeout(() => {
-        fillEmptyTiles();
+        drop();
         setTimeout(() => {
-          const newMatches = findMatches();
-          if (newMatches.length) handleMatches(newMatches);
+          const n = matches();
+          if (n.length) handleMatch(n);
           else {
             canPlay = true;
-            showQuestion();
+            ask();
           }
-        }, 400);
-      }, 400);
+        }, 350);
+      }, 350);
     }
 
-    function fillEmptyTiles() {
+    function drop() {
       for (let x = 0; x < boardSize; x++) {
-        let nullCount = 0;
+        let nulls = 0;
         for (let y = boardSizeY - 1; y >= 0; y--) {
-          if (board[y][x] === null) nullCount++;
-          else if (nullCount) {
-            board[y + nullCount][x] = board[y][x];
+          if (board[y][x] === null) nulls++;
+          else if (nulls) {
+            board[y + nulls][x] = board[y][x];
             board[y][x] = null;
-            const tiles = document.querySelectorAll('.tile');
-            const fromIdx = y * boardSize + x;
-            const toIdx = (y + nullCount) * boardSize + x;
-            tiles[toIdx].textContent = tiles[fromIdx].textContent;
-            tiles[fromIdx].className = 'tile matched';
-            tiles[toIdx].className = 'tile';
+            const t = gb.children[y * boardSize + x];
+            const d = gb.children[(y + nulls) * boardSize + x];
+            d.textContent = t.textContent;
+            t.className = 'tile matched';
+            d.className = 'tile';
           }
         }
-        for (let y = 0; y < nullCount; y++) {
-          const newType = Math.floor(Math.random() * tileTypes.length);
-          board[y][x] = newType;
-          const tiles = document.querySelectorAll('.tile');
+        for (let y = 0; y < nulls; y++) {
+          const nt = Math.floor(Math.random() * tileTypes.length);
+          board[y][x] = nt;
           const idx = y * boardSize + x;
-          tiles[idx].textContent = tileTypes[newType];
-          tiles[idx].className = 'tile';
+          const d = gb.children[idx];
+          d.textContent = tileTypes[nt];
+          d.className = 'tile';
         }
       }
     }
 
-    /* ------------- Q&A flow ------------- */
-    function showQuestion() {
-      if (usedQuestionIndices.size >= totalQuestions) return showSummary();
-      let idx;
+    /* ---------------- Q&A ---------------- */
+    function ask() {
+      if (used.size >= totalQ) return finish();
+      let i;
       do {
-        idx = Math.floor(Math.random() * totalQuestions);
-      } while (usedQuestionIndices.has(idx));
-      usedQuestionIndices.add(idx);
-      const q = questions[idx];
-      questionText.textContent = q.question;
-      optionsContainer.innerHTML = '';
-      q.options.forEach((opt, i) => {
-        const el = document.createElement('div');
-        el.className = 'option';
-        el.textContent = opt;
-        el.addEventListener('click', () => checkAnswer(i, q.correctAnswer));
-        optionsContainer.appendChild(el);
+        i = Math.floor(Math.random() * totalQ);
+      } while (used.has(i));
+      used.add(i);
+      const q = questions[i];
+      qText.textContent = q.q;
+      optBox.innerHTML = '';
+      q.o.forEach((opt, idx) => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        div.textContent = opt;
+        div.addEventListener('click', () => check(idx === q.a, idx, q.a));
+        optBox.appendChild(div);
       });
       overlay.style.display = 'block';
-      questionPopup.style.display = 'flex';
+      qPopup.style.display = 'flex';
     }
 
-    function checkAnswer(sel, correct) {
-      const opts = document.querySelectorAll('.option');
-      answeredQuestions++;
-      if (sel === correct) {
-        correctAnswers++;
+    function check(ok, sel, correctIdx) {
+      const opts = optBox.children;
+      answered++;
+      if (ok) {
+        correct++;
         opts[sel].classList.add('correct');
-        updateScore(score + 10);
-        updateHealth(paperHealth - 10);
-        character.classList.add('attack');
-        setTimeout(() => character.classList.remove('attack'), 400);
-        showEmoji('😎');
+        sfxCorrect.currentTime = 0;
+        sfxCorrect.play();
+        updScore(score + 10);
+        updHealth(paperHealth - 10);
+        char.classList.add('attack');
+        setTimeout(() => char.classList.remove('attack'), 400);
+        emoji('😎');
       } else {
         opts[sel].classList.add('incorrect');
-        opts[correct].classList.add('correct');
-        showEmoji('😞');
+        opts[correctIdx].classList.add('correct');
+        sfxWrong.currentTime = 0;
+        sfxWrong.play();
+        emoji('😞');
       }
       setTimeout(() => {
         overlay.style.display = 'none';
-        questionPopup.style.display = 'none';
-        if (answeredQuestions >= totalQuestions || paperHealth <= 0) showSummary();
-      }, 1100);
+        qPopup.style.display = 'none';
+        if (answered >= totalQ || paperHealth <= 0) finish();
+      }, 1000);
     }
 
-    function showEmoji(symbol) {
-      resultEmoji.textContent = symbol;
-      resultEmoji.style.transform = 'translate(-50%, -50%) scale(0)';
-      resultEmoji.style.display = 'block';
-      setTimeout(() => {
-        resultEmoji.style.transform = 'translate(-50%, -50%) scale(1)';
-      }, 10);
-      setTimeout(() => {
-        resultEmoji.style.display = 'none';
-      }, 900);
+    function emoji(e) {
+      resultEmoji.textContent = e;
+      resultEmoji.style.display = 'flex';
+      setTimeout(() => (resultEmoji.style.display = 'none'), 900);
     }
 
-    /* ------------- HUD updates ------------- */
-    function updateScore(newScore) {
-      score = newScore;
-      scoreDisplay.textContent = score;
+    /* ---------------- HUD ---------------- */
+    function updScore(v) {
+      score = v;
+      scoreEl.textContent = score;
     }
 
-    function updateHealth(val) {
-      paperHealth = Math.max(0, val);
+    function updHealth(v) {
+      paperHealth = Math.max(0, v);
       healthBar.style.width = `${paperHealth}%`;
-      if (paperHealth <= 0) setTimeout(showSummary, 600);
+      if (paperHealth === 0) setTimeout(finish, 600);
     }
 
-    /* ------------- Summary ------------- */
-    function showSummary() {
-      finalScoreElement.textContent = `Score: ${score}`;
-      const pct = Math.round((correctAnswers / totalQuestions) * 100);
+    /* ---------------- End ---------------- */
+    function finish() {
+      finalScore.textContent = `Score: ${score}`;
+      const pct = Math.round((correct / answered) * 100 || 0);
       const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : 'D';
-      summaryStatsElement.innerHTML = `Answered: ${answeredQuestions}/${totalQuestions}<br>Correct: ${correctAnswers}<br>Accuracy: ${pct}%<br>Grade: ${grade}`;
+      stats.innerHTML = `Answered ${answered}/${totalQ}<br>Correct ${correct}<br>Accuracy ${pct}%<br>Grade ${grade}`;
       overlay.style.display = 'block';
-      summaryPopup.style.display = 'flex';
+      summary.style.display = 'flex';
+      sfxWin.currentTime = 0;
+      sfxWin.play();
     }
 
-    function resetGame() {
+    function reset() {
       score = 0;
       paperHealth = 100;
-      answeredQuestions = 0;
-      correctAnswers = 0;
-      usedQuestionIndices.clear();
-      updateScore(score);
-      updateHealth(paperHealth);
-      createGameBoard();
+      answered = 0;
+      correct = 0;
+      used.clear();
+      updScore(0);
+      updHealth(100);
+      buildBoard();
       canPlay = true;
     }
 
-    /* Responsive board rebuild */
-    window.addEventListener('resize', () => {
-      const newSize = window.innerWidth < 640 ? 6 : 8;
-      if (newSize !== boardSize) createGameBoard();
-    });
-
-    /* Init */
-    initGame();
-  </script></body>
+    /* ---------------- Start ---------------- */
+    init();
+  </script>
+</body>
 </html>
