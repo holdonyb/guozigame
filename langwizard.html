@@ -329,6 +329,58 @@
       animation: scaleUp 0.5s forwards;
     }
     
+    /* 示例词区域 */
+    #example-words {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .example-word {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .example-word:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+    
+    /* 图像显示区 */
+    #image-display {
+      width: 150px;
+      height: 150px;
+      margin: 1rem auto;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 4rem;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .image-icon {
+      font-size: 4rem;
+      transition: all 0.5s;
+    }
+    
+    .image-icon.animate {
+      animation: bounce 0.5s ease-in-out;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
     @keyframes scaleUp {
       0% { transform: scale(0.5); }
       80% { transform: scale(1.1); }
@@ -378,6 +430,206 @@
     .hidden {
       display: none;
     }
+
+    /* 简单CSS图像 */
+    .css-apple {
+      width: 60px;
+      height: 60px;
+      background-color: #ff3b30;
+      border-radius: 50%;
+      position: relative;
+      margin: 20px auto;
+    }
+    
+    .css-apple::before {
+      content: '';
+      position: absolute;
+      top: -15px;
+      left: 25px;
+      width: 10px;
+      height: 20px;
+      background-color: #8e8e93;
+      border-radius: 5px 5px 0 0;
+    }
+    
+    .css-apple::after {
+      content: '';
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 10px;
+      height: 10px;
+      background-color: white;
+      border-radius: 50%;
+    }
+    
+    .css-cat {
+      position: relative;
+      width: 80px;
+      height: 60px;
+      background-color: #a0522d;
+      border-radius: 30px;
+      margin: 30px auto 10px;
+    }
+    
+    .css-cat::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      left: 15px;
+      width: 50px;
+      height: 40px;
+      background-color: #a0522d;
+      border-radius: 50%;
+    }
+    
+    .css-cat::after {
+      content: '';
+      position: absolute;
+      top: -15px;
+      left: 25px;
+      width: 10px;
+      height: 10px;
+      background-color: black;
+      border-radius: 50%;
+      box-shadow: 20px 0 0 0 black;
+    }
+    
+    .css-cat-ear {
+      position: absolute;
+      top: -30px;
+      left: 15px;
+      width: 0;
+      height: 0;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-bottom: 25px solid #a0522d;
+    }
+    
+    .css-cat-ear:last-child {
+      left: 50px;
+    }
+    
+    .css-dog {
+      position: relative;
+      width: 80px;
+      height: 60px;
+      background-color: #cd853f;
+      border-radius: 30px;
+      margin: 30px auto 10px;
+    }
+    
+    .css-dog::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      left: 15px;
+      width: 50px;
+      height: 40px;
+      background-color: #cd853f;
+      border-radius: 50%;
+    }
+    
+    .css-dog::after {
+      content: '';
+      position: absolute;
+      top: -15px;
+      left: 25px;
+      width: 10px;
+      height: 10px;
+      background-color: black;
+      border-radius: 50%;
+      box-shadow: 20px 0 0 0 black;
+    }
+    
+    .css-dog-ear {
+      position: absolute;
+      top: -35px;
+      left: 10px;
+      width: 20px;
+      height: 30px;
+      background-color: #cd853f;
+      border-radius: 50% 50% 0 0;
+    }
+    
+    .css-dog-ear:last-child {
+      left: 50px;
+    }
+    
+    .css-ball {
+      width: 60px;
+      height: 60px;
+      background: radial-gradient(circle at 20px 20px, #ff9500, #ff3b30);
+      border-radius: 50%;
+      margin: 20px auto;
+    }
+    
+    .css-hat {
+      position: relative;
+      width: 80px;
+      height: 10px;
+      background-color: #8e8e93;
+      border-radius: 5px;
+      margin: 30px auto 10px;
+    }
+    
+    .css-hat::after {
+      content: '';
+      position: absolute;
+      top: -30px;
+      left: 20px;
+      width: 40px;
+      height: 30px;
+      background-color: #8e8e93;
+      border-radius: 50% 50% 0 0;
+    }
+    
+    /* 指导教学 */
+    .guide-container {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    
+    .guide-title {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #ffd700;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 10px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      margin: 0.5rem 0;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background-color: #4cd964;
+      border-radius: 5px;
+      transition: width 0.5s;
+    }
+    
+    /* 任务提示 */
+    .task-hint {
+      background-color: rgba(255, 215, 0, 0.2);
+      border: 2px dashed #ffd700;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      text-align: center;
+      animation: pulse-border 2s infinite;
+    }
+    
+    @keyframes pulse-border {
+      0%, 100% { border-color: #ffd700; }
+      50% { border-color: #ff9500; }
+    }
   </style>
 </head>
 <body>
@@ -404,46 +656,71 @@
     <div id="start-screen" class="screen active">
       <h2 class="title-big">拼读魔法师</h2>
       <p>欢迎来到魔法学院！通过拼读魔法咒语，释放强大的魔法力量！</p>
+      <div class="guide-container">
+        <div class="guide-title">游戏玩法</div>
+        <p>1. 先学习字母发音，点击字母查看示例单词</p>
+        <p>2. 把字母拖到空格位置组成单词</p>
+        <p>3. 听声音找正确单词，成为拼读大师！</p>
+      </div>
       <button id="start-btn" class="btn">开始魔法训练</button>
     </div>
 
     <!-- 字母认知阶段 -->
     <div id="letter-screen" class="screen">
+      <div class="task-hint">
+        任务：点击字母，学习发音并查看示例单词
+      </div>
+      
       <div id="magic-circle-container">
         <div id="magic-circle">
           <div id="magic-circle-content"></div>
         </div>
       </div>
+      
       <div id="message-container">
         <div id="message">点击字母，释放魔法力量！</div>
       </div>
+      
       <div id="letter-bank"></div>
+      
+      <div id="example-words" class="hidden"></div>
+      
+      <div id="image-display" class="hidden"></div>
     </div>
 
     <!-- 拼读入门阶段 -->
     <div id="phonics-screen" class="screen">
-      <div id="magic-circle-container">
-        <div id="magic-circle">
-          <div id="magic-circle-content"></div>
-        </div>
+      <div class="task-hint">
+        任务：将左边字母拖到空格处，完成单词拼写
       </div>
+      
+      <div id="image-display"></div>
+      
       <div id="phonics-target" class="hidden"></div>
+      
       <div id="message-container">
         <div id="message">将字母拖到空格位置完成拼写！</div>
       </div>
+      
       <div id="letter-bank"></div>
     </div>
 
     <!-- 声音魔法对决阶段 -->
     <div id="duel-screen" class="screen">
+      <div class="task-hint">
+        任务：听单词发音，选择正确的单词
+      </div>
+      
       <div id="magic-circle-container">
         <div id="magic-circle">
           <div id="magic-circle-content"></div>
         </div>
       </div>
+      
       <div id="message-container">
         <div id="message">听好单词发音，快速选择正确的单词！</div>
       </div>
+      
       <div id="duel-container">
         <button id="play-sound-btn" class="btn">播放发音</button>
         <div id="word-options"></div>
@@ -462,28 +739,88 @@
 
   <script>
     /* 游戏数据 */
-    // 字母数据
-    const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const LETTER_SOUNDS = {
-      'A': 'æ', 'B': 'b', 'C': 'k', 'D': 'd', 'E': 'e', 'F': 'f',
-      'G': 'g', 'H': 'h', 'I': 'ɪ', 'J': 'dʒ', 'K': 'k', 'L': 'l',
-      'M': 'm', 'N': 'n', 'O': 'ɒ', 'P': 'p', 'Q': 'kw', 'R': 'r',
-      'S': 's', 'T': 't', 'U': 'ʌ', 'V': 'v', 'W': 'w', 'X': 'ks',
-      'Y': 'j', 'Z': 'z'
-    };
+    // 字母数据与示例单词
+    const LETTERS_DATA = [
+      { letter: 'A', words: ['apple', 'ant', 'astronaut'], icon: '🍎' },
+      { letter: 'B', words: ['ball', 'bat', 'book'], icon: '⚾' },
+      { letter: 'C', words: ['cat', 'car', 'cup'], icon: '🐱' },
+      { letter: 'D', words: ['dog', 'duck', 'door'], icon: '🐶' },
+      { letter: 'E', words: ['egg', 'elephant', 'exit'], icon: '🥚' },
+      { letter: 'F', words: ['fish', 'frog', 'fan'], icon: '🐠' },
+      { letter: 'G', words: ['goat', 'game', 'grass'], icon: '🐐' },
+      { letter: 'H', words: ['hat', 'house', 'hand'], icon: '🎩' },
+      { letter: 'I', words: ['igloo', 'insect', 'ice'], icon: '🧊' },
+      { letter: 'J', words: ['jump', 'juice', 'jar'], icon: '🧃' },
+      { letter: 'K', words: ['kite', 'king', 'key'], icon: '🪁' },
+      { letter: 'L', words: ['lion', 'lamp', 'leg'], icon: '🦁' },
+      { letter: 'M', words: ['monkey', 'moon', 'milk'], icon: '🐒' },
+      { letter: 'N', words: ['nest', 'nose', 'net'], icon: '🪹' },
+      { letter: 'O', words: ['orange', 'octopus', 'ox'], icon: '🍊' },
+      { letter: 'P', words: ['pig', 'penguin', 'pen'], icon: '🐷' },
+      { letter: 'Q', words: ['queen', 'quilt', 'question'], icon: '👑' },
+      { letter: 'R', words: ['rabbit', 'robot', 'rocket'], icon: '🐰' },
+      { letter: 'S', words: ['sun', 'star', 'sock'], icon: '☀️' },
+      { letter: 'T', words: ['tree', 'turtle', 'table'], icon: '🌳' },
+      { letter: 'U', words: ['umbrella', 'unicorn', 'up'], icon: '☂️' },
+      { letter: 'V', words: ['van', 'violin', 'volcano'], icon: '🚐' },
+      { letter: 'W', words: ['water', 'whale', 'window'], icon: '💧' },
+      { letter: 'X', words: ['x-ray', 'xylophone', 'box'], icon: '📦' },
+      { letter: 'Y', words: ['yo-yo', 'yacht', 'yellow'], icon: '🟡' },
+      { letter: 'Z', words: ['zebra', 'zoo', 'zigzag'], icon: '🦓' }
+    ];
 
     // 拼读组合数据
     const PHONICS = [
-      { suffix: 'at', prefixes: ['c', 'b', 'm', 'h', 'r', 'f'] },
-      { suffix: 'an', prefixes: ['c', 'm', 'p', 'f', 'r', 'v'] },
-      { suffix: 'it', prefixes: ['s', 'h', 'b', 'f', 'l', 'p'] },
-      { suffix: 'op', prefixes: ['t', 'h', 'p', 'm', 's', 'c'] },
-      { suffix: 'ig', prefixes: ['b', 'p', 'd', 'f', 'w', 'r'] },
-      { suffix: 'et', prefixes: ['p', 'g', 'n', 's', 'w', 'j'] },
-      { suffix: 'in', prefixes: ['p', 'f', 'w', 't', 'b', 's'] },
-      { suffix: 'og', prefixes: ['d', 'f', 'l', 'h', 'j', 'b'] },
-      { suffix: 'ut', prefixes: ['c', 'h', 'n', 'p', 'g', 'b'] },
-      { suffix: 'ap', prefixes: ['c', 'g', 'l', 'm', 'n', 't'] }
+      { suffix: 'at', prefixes: ['c', 'b', 'm', 'h', 'r', 'f'], 
+        words: {
+          'cat': { icon: '🐱', cssClass: 'css-cat', description: '一只可爱的猫' },
+          'bat': { icon: '🦇', cssClass: '', description: '一只蝙蝠' },
+          'hat': { icon: '🎩', cssClass: 'css-hat', description: '一顶帽子' },
+          'rat': { icon: '🐀', cssClass: '', description: '一只老鼠' },
+          'mat': { icon: '🧩', cssClass: '', description: '一块垫子' },
+          'fat': { icon: '🍔', cssClass: '', description: '胖胖的' }
+        }
+      },
+      { suffix: 'an', prefixes: ['c', 'm', 'p', 'f', 'r', 'v'], 
+        words: {
+          'can': { icon: '🥫', cssClass: '', description: '一个罐头' },
+          'man': { icon: '👨', cssClass: '', description: '一个男人' },
+          'pan': { icon: '🍳', cssClass: '', description: '一个平底锅' },
+          'fan': { icon: '🌬️', cssClass: '', description: '一个风扇' },
+          'ran': { icon: '🏃', cssClass: '', description: '跑步' },
+          'van': { icon: '🚐', cssClass: '', description: '一辆面包车' }
+        }
+      },
+      { suffix: 'in', prefixes: ['p', 'f', 't', 'w', 'b', 's'], 
+        words: {
+          'pin': { icon: '📌', cssClass: '', description: '一个别针' },
+          'fin': { icon: '🐬', cssClass: '', description: '鱼鳍' },
+          'tin': { icon: '🥫', cssClass: '', description: '一个锡罐' },
+          'win': { icon: '🏆', cssClass: '', description: '赢' },
+          'bin': { icon: '🗑️', cssClass: '', description: '一个垃圾桶' },
+          'sin': { icon: '😈', cssClass: '', description: '罪过' }
+        }
+      },
+      { suffix: 'og', prefixes: ['d', 'f', 'l', 'h', 'j', 'b'], 
+        words: {
+          'dog': { icon: '🐶', cssClass: 'css-dog', description: '一只狗' },
+          'fog': { icon: '🌫️', cssClass: '', description: '雾' },
+          'log': { icon: '🪵', cssClass: '', description: '原木' },
+          'hog': { icon: '🐷', cssClass: '', description: '一头猪' },
+          'jog': { icon: '🏃', cssClass: '', description: '慢跑' },
+          'bog': { icon: '💧', cssClass: '', description: '沼泽' }
+        }
+      },
+      { suffix: 'op', prefixes: ['t', 'h', 'p', 'm', 's', 'c'], 
+        words: {
+          'top': { icon: '🔝', cssClass: '', description: '顶部' },
+          'hop': { icon: '🐇', cssClass: '', description: '跳跃' },
+          'pop': { icon: '💥', cssClass: '', description: '爆裂声' },
+          'mop': { icon: '🧹', cssClass: '', description: '拖把' },
+          'sop': { icon: '🧽', cssClass: '', description: '浸泡' },
+          'cop': { icon: '👮', cssClass: '', description: '警察' }
+        }
+      }
     ];
 
     // 单词列表（用于声音对决阶段）
@@ -538,17 +875,28 @@
       combo: 0,
       maxCombo: 0,
       currentScreen: 'start',
+      mastered_letters: [],
+      mastered_phonics: [],
       currentPhonics: null,
       currentDuelWords: [],
       targetWord: '',
-      soundPlayed: false
+      soundPlayed: false,
+      targetImage: null,
+      currentLetterData: null
     };
 
     /* 辅助函数 */
     function $(id) { return document.getElementById(id); }
     function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
     
+    // 语音合成函数
     function speak(text) {
+      // 检查浏览器是否支持语音合成
+      if (!window.speechSynthesis) {
+        console.log('您的浏览器不支持语音合成');
+        return;
+      }
+      
       // 停止当前的语音
       window.speechSynthesis.cancel();
       
@@ -559,69 +907,101 @@
       utterance.rate = 0.8;
       utterance.pitch = 1.2;
       
-      window.speechSynthesis.speak(utterance);
+      // 尝试播放语音
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.log('语音合成出错:', e);
+      }
+    }
+
+    // 修复的音效函数
+    function playSound(type) {
+      try {
+        if (type === 'correct') {
+          playCorrectSound();
+        } else if (type === 'wrong') {
+          playWrongSound();
+        } else if (type === 'magic') {
+          playMagicSound();
+        }
+      } catch (e) {
+        console.log('音效播放出错:', e);
+      }
     }
 
     function playCorrectSound() {
-      const context = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(600, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(800, context.currentTime + 0.1);
-      
-      gainNode.gain.setValueAtTime(0.5, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-      
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.5);
-    }
-
-    function playWrongSound() {
-      const context = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(300, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(150, context.currentTime + 0.2);
-      
-      gainNode.gain.setValueAtTime(0.5, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-      
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.5);
-    }
-
-    function playMagicSound() {
-      const context = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // 创建多个音符
-      for (let i = 0; i < 5; i++) {
+      try {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = context.createOscillator();
         const gainNode = context.createGain();
         
         oscillator.type = 'sine';
-        const baseFreq = 300 + i * 100;
-        oscillator.frequency.setValueAtTime(baseFreq, context.currentTime + i * 0.05);
-        oscillator.frequency.exponentialRampToValueAtTime(baseFreq + 100, context.currentTime + i * 0.05 + 0.2);
+        oscillator.frequency.setValueAtTime(600, context.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(800, context.currentTime + 0.1);
         
-        gainNode.gain.setValueAtTime(0, context.currentTime + i * 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.2, context.currentTime + i * 0.05 + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + i * 0.05 + 0.5);
+        gainNode.gain.setValueAtTime(0.5, context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
         
         oscillator.connect(gainNode);
         gainNode.connect(context.destination);
         
-        oscillator.start(context.currentTime + i * 0.05);
-        oscillator.stop(context.currentTime + i * 0.05 + 0.5);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.5);
+      } catch (e) {
+        console.log('正确音效播放失败:', e);
+      }
+    }
+
+    function playWrongSound() {
+      try {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(300, context.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(150, context.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.5, context.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.5);
+      } catch (e) {
+        console.log('错误音效播放失败:', e);
+      }
+    }
+
+    function playMagicSound() {
+      try {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 创建多个音符
+        for (let i = 0; i < 5; i++) {
+          const oscillator = context.createOscillator();
+          const gainNode = context.createGain();
+          
+          oscillator.type = 'sine';
+          const baseFreq = 300 + i * 100;
+          oscillator.frequency.setValueAtTime(baseFreq, context.currentTime + i * 0.05);
+          oscillator.frequency.exponentialRampToValueAtTime(baseFreq + 100, context.currentTime + i * 0.05 + 0.2);
+          
+          gainNode.gain.setValueAtTime(0, context.currentTime + i * 0.05);
+          gainNode.gain.exponentialRampToValueAtTime(0.2, context.currentTime + i * 0.05 + 0.05);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + i * 0.05 + 0.5);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(context.destination);
+          
+          oscillator.start(context.currentTime + i * 0.05);
+          oscillator.stop(context.currentTime + i * 0.05 + 0.5);
+        }
+      } catch (e) {
+        console.log('魔法音效播放失败:', e);
       }
     }
 
@@ -679,7 +1059,12 @@
       $('level-up-message').textContent = LEVEL_MESSAGES[Math.min(gameState.level - 1, LEVEL_MESSAGES.length - 1)];
       $('level-up').classList.add('show');
       
-      playMagicSound();
+      try {
+        playMagicSound();
+      } catch (e) {
+        console.log('升级音效播放失败:', e);
+      }
+      
       updateStats();
       
       // 根据等级切换游戏阶段
@@ -727,261 +1112,429 @@
       }
     }
 
+    // 显示图片或图标
+    function showImage(container, imageData) {
+      if (!container) return;
+      
+      container.innerHTML = '';
+      container.classList.remove('hidden');
+      
+      if (imageData.cssClass && imageData.cssClass !== '') {
+        // 使用CSS创建的图形
+        const cssImage = document.createElement('div');
+        cssImage.className = imageData.cssClass;
+        
+        if (imageData.cssClass === 'css-cat') {
+          // 为猫添加耳朵
+          const leftEar = document.createElement('div');
+          leftEar.className = 'css-cat-ear';
+          const rightEar = document.createElement('div');
+          rightEar.className = 'css-cat-ear';
+          cssImage.appendChild(leftEar);
+          cssImage.appendChild(rightEar);
+        } else if (imageData.cssClass === 'css-dog') {
+          // 为狗添加耳朵
+          const leftEar = document.createElement('div');
+          leftEar.className = 'css-dog-ear';
+          const rightEar = document.createElement('div');
+          rightEar.className = 'css-dog-ear';
+          cssImage.appendChild(leftEar);
+          cssImage.appendChild(rightEar);
+        }
+        
+        container.appendChild(cssImage);
+      } else if (imageData.icon) {
+        // 使用Emoji图标
+        const iconEl = document.createElement('div');
+        iconEl.className = 'image-icon';
+        iconEl.textContent = imageData.icon;
+        container.appendChild(iconEl);
+      } else {
+        // 默认显示文字描述
+        container.textContent = imageData.description || '?';
+      }
+    }
+
+    // 让图像动起来
+    function animateImage(container) {
+      if (!container) return;
+      
+      const iconEl = container.querySelector('.image-icon');
+      if (iconEl) {
+        iconEl.classList.add('animate');
+        setTimeout(() => iconEl.classList.remove('animate'), 500);
+      } else {
+        // 对CSS图像添加抖动效果
+        container.classList.add('shake');
+        setTimeout(() => container.classList.remove('shake'), 500);
+      }
+    }
+
     /* 游戏阶段初始化 */
     function initLetterPhase() {
       // 清空字母区域
       const bank = $('letter-bank');
       bank.innerHTML = '';
       
+      // 隐藏示例词区域
+      const exampleWords = $('example-words');
+      exampleWords.innerHTML = '';
+      exampleWords.classList.add('hidden');
+      
+      // 隐藏图像显示区
+      const imageDisplay = $('image-display');
+      imageDisplay.innerHTML = '';
+      imageDisplay.classList.add('hidden');
+      
       // 随机选择字母
-      const selectedLetters = [];
-      while (selectedLetters.length < 6) {
-        const letter = rand(LETTERS);
-        if (!selectedLetters.includes(letter)) {
-          selectedLetters.push(letter);
+      const selectedLettersData = [];
+      while (selectedLettersData.length < 6) {
+        const letterData = rand(LETTERS_DATA);
+        if (!selectedLettersData.some(data => data.letter === letterData.letter)) {
+          selectedLettersData.push(letterData);
         }
       }
       
       // 创建字母卡片
-      selectedLetters.forEach(letter => {
+      selectedLettersData.forEach(letterData => {
         const card = document.createElement('div');
         card.className = 'card fade-in';
-        card.textContent = letter;
+        card.textContent = letterData.letter;
         
         card.addEventListener('click', () => {
+          // 保存当前选中的字母数据
+          gameState.currentLetterData = letterData;
+          
           // 播放字母音
-          speak(letter);
+          try {
+            speak(letterData.letter);
+          } catch (e) {
+            console.log('字母发音失败:', e);
+          }
           
           // 魔法效果
-          $('magic-circle-content').textContent = letter;
+          $('magic-circle-content').textContent = letterData.letter;
           flashCircle();
           
+          // 显示示例词
+          exampleWords.innerHTML = '';
+          exampleWords.classList.remove('hidden');
+          
+          letterData.words.forEach(word => {
+            const wordEl = document.createElement('div');
+            wordEl.className = 'example-word fade-in';
+            wordEl.textContent = word;
+            wordEl.addEventListener('click', () => {
+              // 播放单词发音
+              speak(word);
+              
+              // 显示图标
+              showImage(imageDisplay, { icon: letterData.icon });
+              animateImage(imageDisplay);
+              
+              // 提示信息
+              showMessage(`${letterData.letter}字母在单词 "${word}" 中!`);
+            });
+            
+            exampleWords.appendChild(wordEl);
+          });
+          
           // 随机趣味提示
-          showMessage(rand(RANDOM_EVENTS));
+          showMessage(`点击字母 ${letterData.letter} 的示例单词，听听发音吧!`);
           
           // 增加经验
           addXP();
           
           // 音效
-          playCorrectSound();
-          
-          // 延迟后重置魔法阵
-          setTimeout(() => {
-            $('magic-circle-content').textContent = '';
-          }, 2000);
+          try {
+            playCorrectSound();
+          } catch (e) {
+            console.log('音效播放失败:', e);
+          }
         });
         
         bank.appendChild(card);
       });
       
-      showMessage('点击字母，释放魔法力量！');
+      showMessage('点击字母，释放魔法力量！查看每个字母的示例单词。');
     }
 
     function initPhonicsPhase() {
-      // 选择一个拼读组合
-      gameState.currentPhonics = rand(PHONICS);
-      
-      // 显示目标区域
-      const target = $('phonics-target');
-      target.classList.remove('hidden');
-      target.innerHTML = `<span>_</span><span>${gameState.currentPhonics.suffix}</span>`;
-      
-      // 清空字母区域
-      const bank = $('letter-bank');
-      bank.innerHTML = '';
-      
-      // 随机选择前缀字母（确保至少包含一个正确选项）
-      const correctPrefix = rand(gameState.currentPhonics.prefixes);
-      const selectedPrefixes = [correctPrefix];
-      
-      while (selectedPrefixes.length < 4) {
-        const prefix = rand(gameState.currentPhonics.prefixes);
-        if (!selectedPrefixes.includes(prefix)) {
-          selectedPrefixes.push(prefix);
+      try {
+        // 选择一个拼读组合
+        gameState.currentPhonics = rand(PHONICS);
+        
+        // 选择一个目标单词
+        const allPrefixes = gameState.currentPhonics.prefixes;
+        const targetPrefix = rand(allPrefixes);
+        const targetWord = targetPrefix + gameState.currentPhonics.suffix;
+        
+        // 设置目标图像
+        gameState.targetImage = gameState.currentPhonics.words[targetWord];
+        
+        // 显示目标图像
+        const imageDisplay = $('image-display');
+        showImage(imageDisplay, gameState.targetImage);
+        
+        // 显示目标区域
+        const target = $('phonics-target');
+        target.classList.remove('hidden');
+        target.innerHTML = `<span>_</span><span>${gameState.currentPhonics.suffix}</span>`;
+        
+        // 清空字母区域
+        const bank = $('letter-bank');
+        bank.innerHTML = '';
+        
+        // 随机选择前缀字母（确保包含正确选项）
+        const selectedPrefixes = [targetPrefix];
+        
+        while (selectedPrefixes.length < 4) {
+          const prefix = rand(allPrefixes);
+          if (!selectedPrefixes.includes(prefix)) {
+            selectedPrefixes.push(prefix);
+          }
         }
-      }
-      
-      // 随机排序
-      selectedPrefixes.sort(() => Math.random() - 0.5);
-      
-      // 创建字母卡片
-      selectedPrefixes.forEach(prefix => {
-        const card = document.createElement('div');
-        card.className = 'card fade-in';
-        card.textContent = prefix;
-        card.draggable = true;
         
-        // 拖拽事件
-        card.addEventListener('dragstart', () => {
-          card.classList.add('dragging');
-        });
+        // 随机排序
+        selectedPrefixes.sort(() => Math.random() - 0.5);
         
-        card.addEventListener('dragend', () => {
-          card.classList.remove('dragging');
-        });
-        
-        bank.appendChild(card);
-      });
-      
-      // 设置放置区域
-      target.ondragover = (e) => {
-        e.preventDefault();
-        target.classList.add('highlight');
-      };
-      
-      target.ondragleave = () => {
-        target.classList.remove('highlight');
-      };
-      
-      target.ondrop = (e) => {
-        e.preventDefault();
-        target.classList.remove('highlight');
-        
-        const dragged = document.querySelector('.dragging');
-        if (!dragged) return;
-        
-        const prefix = dragged.textContent;
-        const word = prefix + gameState.currentPhonics.suffix;
-        
-        // 更新目标区域显示
-        target.innerHTML = `<span>${prefix}</span><span>${gameState.currentPhonics.suffix}</span>`;
-        
-        // 播放单词发音
-        speak(word);
-        
-        // 魔法效果
-        $('magic-circle-content').textContent = word;
-        flashCircle();
-        
-        // 检查是否是正确的前缀
-        if (gameState.currentPhonics.prefixes.includes(prefix)) {
-          playCorrectSound();
-          showMessage(`太棒了！你召唤出了 "${word}"！${rand(RANDOM_EVENTS)}`);
-          addXP();
-        } else {
-          playWrongSound();
-          showMessage(`你拼出了 "${word}"，但这不是我们想要的。再试一次！`);
-          resetCombo();
+        // 创建字母卡片
+        selectedPrefixes.forEach(prefix => {
+          const card = document.createElement('div');
+          card.className = 'card fade-in';
+          card.textContent = prefix;
+          card.draggable = true;
           
-          // 抖动效果
-          target.classList.add('shake');
-          setTimeout(() => target.classList.remove('shake'), 500);
-        }
+          // 拖拽事件
+          card.addEventListener('dragstart', () => {
+            card.classList.add('dragging');
+          });
+          
+          card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+          });
+          
+          bank.appendChild(card);
+        });
         
-        // 延迟后重置
-        setTimeout(() => {
-          $('magic-circle-content').textContent = '';
-          initPhonicsPhase();
-        }, 2000);
-      };
-      
-      showMessage('将字母拖到空格位置完成拼写！');
-    }
-
-    function initDuelPhase() {
-      // 根据玩家等级选择单词列表
-      const wordListIndex = Math.min(Math.floor((gameState.level - 4) / 2), WORD_LISTS.length - 1);
-      
-      // 随机选择3-4个单词
-      const numWords = Math.min(4, WORD_LISTS[wordListIndex].length);
-      gameState.currentDuelWords = [];
-      
-      while (gameState.currentDuelWords.length < numWords) {
-        const word = rand(WORD_LISTS[wordListIndex]);
-        if (!gameState.currentDuelWords.includes(word)) {
-          gameState.currentDuelWords.push(word);
-        }
-      }
-      
-      // 随机选择一个作为目标单词
-      gameState.targetWord = rand(gameState.currentDuelWords);
-      gameState.soundPlayed = false;
-      
-      // 清空单词选项区域
-      const wordOptions = $('word-options');
-      wordOptions.innerHTML = '';
-      
-      // 创建单词卡片
-      gameState.currentDuelWords.forEach(word => {
-        const card = document.createElement('div');
-        card.className = 'word-card fade-in';
-        card.textContent = word;
+        // 设置放置区域
+        target.ondragover = (e) => {
+          e.preventDefault();
+          target.classList.add('highlight');
+        };
         
-        card.addEventListener('click', () => {
-          // 检查是否已播放发音
-          if (!gameState.soundPlayed) {
-            showMessage('请先点击"播放发音"按钮！');
-            return;
+        target.ondragleave = () => {
+          target.classList.remove('highlight');
+        };
+        
+        target.ondrop = (e) => {
+          e.preventDefault();
+          target.classList.remove('highlight');
+          
+          const dragged = document.querySelector('.dragging');
+          if (!dragged) return;
+          
+          const prefix = dragged.textContent;
+          const word = prefix + gameState.currentPhonics.suffix;
+          
+          // 更新目标区域显示
+          target.innerHTML = `<span>${prefix}</span><span>${gameState.currentPhonics.suffix}</span>`;
+          
+          // 播放单词发音
+          try {
+            speak(word);
+          } catch (e) {
+            console.log('单词发音失败:', e);
           }
           
-          // 检查是否选择正确
-          if (word === gameState.targetWord) {
-            playCorrectSound();
-            
-            // 魔法效果
-            $('magic-circle-content').textContent = word;
+          // 魔法效果
+          $('magic-circle-content').textContent = word;
+          
+          // 显示对应图像
+          const wordImageData = gameState.currentPhonics.words[word] || { icon: '❓', description: '未知物体' };
+          showImage(imageDisplay, wordImageData);
+          animateImage(imageDisplay);
+          
+          // 检查是否是目标单词
+          if (word === targetWord) {
+            try {
+              playCorrectSound();
+            } catch (e) {
+              console.log('正确音效播放失败:', e);
+            }
+            showMessage(`太棒了！你召唤出了 "${word}"！${gameState.targetImage.description || ''}`);
+            addXP();
             flashCircle();
-            
-            showMessage(`太棒了！"${word}"是正确的！${rand(RANDOM_EVENTS)}`);
-            addXP(2); // 声音对决给予双倍经验
           } else {
-            playWrongSound();
-            showMessage(`不对，正确的单词是"${gameState.targetWord}"，请再听一次。`);
+            try {
+              playWrongSound();
+            } catch (e) {
+              console.log('错误音效播放失败:', e);
+            }
+            showMessage(`你拼出了 "${word}"，这是${wordImageData.description || '别的东西'}，但不是我们想要的。再试一次！`);
             resetCombo();
             
             // 抖动效果
-            card.classList.add('shake');
-            setTimeout(() => card.classList.remove('shake'), 500);
+            target.classList.add('shake');
+            setTimeout(() => target.classList.remove('shake'), 500);
           }
           
           // 延迟后重置
           setTimeout(() => {
-            $('magic-circle-content').textContent = '';
-            initDuelPhase();
+            if (word === targetWord) {
+              initPhonicsPhase(); // 只有正确才重新生成新题目
+            } else {
+              // 如果错误，恢复到原状态让玩家继续尝试
+              target.innerHTML = `<span>_</span><span>${gameState.currentPhonics.suffix}</span>`;
+              showImage(imageDisplay, gameState.targetImage);
+            }
           }, 2000);
+        };
+        
+        // 提示信息
+        showMessage(`请拖动正确的字母，拼出${gameState.targetImage.description || '目标单词'}！`);
+      } catch (e) {
+        console.log('拼读阶段初始化失败:', e);
+        // 如果出错，重新尝试
+        setTimeout(initPhonicsPhase, 100);
+      }
+    }
+
+    function initDuelPhase() {
+      try {
+        // 根据玩家等级选择单词列表
+        const wordListIndex = Math.min(Math.floor((gameState.level - 4) / 2), WORD_LISTS.length - 1);
+        
+        // 随机选择3-4个单词
+        const numWords = Math.min(4, WORD_LISTS[wordListIndex].length);
+        gameState.currentDuelWords = [];
+        
+        while (gameState.currentDuelWords.length < numWords) {
+          const word = rand(WORD_LISTS[wordListIndex]);
+          if (!gameState.currentDuelWords.includes(word)) {
+            gameState.currentDuelWords.push(word);
+          }
+        }
+        
+        // 随机选择一个作为目标单词
+        gameState.targetWord = rand(gameState.currentDuelWords);
+        gameState.soundPlayed = false;
+        
+        // 清空单词选项区域
+        const wordOptions = $('word-options');
+        wordOptions.innerHTML = '';
+        
+        // 创建单词卡片
+        gameState.currentDuelWords.forEach(word => {
+          const card = document.createElement('div');
+          card.className = 'word-card fade-in';
+          card.textContent = word;
+          
+          card.addEventListener('click', () => {
+            // 检查是否已播放发音
+            if (!gameState.soundPlayed) {
+              showMessage('请先点击"播放发音"按钮！');
+              return;
+            }
+            
+            // 检查是否选择正确
+            if (word === gameState.targetWord) {
+              try {
+                playCorrectSound();
+              } catch (e) {
+                console.log('正确音效播放失败:', e);
+              }
+              
+              // 魔法效果
+              $('magic-circle-content').textContent = word;
+              flashCircle();
+              
+              showMessage(`太棒了！"${word}"是正确的！${rand(RANDOM_EVENTS)}`);
+              addXP(2); // 声音对决给予双倍经验
+            } else {
+              try {
+                playWrongSound();
+              } catch (e) {
+                console.log('错误音效播放失败:', e);
+              }
+              
+              showMessage(`不对，正确的单词是"${gameState.targetWord}"，请再听一次。`);
+              resetCombo();
+              
+              // 抖动效果
+              card.classList.add('shake');
+              setTimeout(() => card.classList.remove('shake'), 500);
+            }
+            
+            // 延迟后重置
+            setTimeout(() => {
+              $('magic-circle-content').textContent = '';
+              initDuelPhase();
+            }, 2000);
+          });
+          
+          wordOptions.appendChild(card);
         });
         
-        wordOptions.appendChild(card);
-      });
-      
-      // 设置播放按钮
-      $('play-sound-btn').onclick = () => {
-        speak(gameState.targetWord);
-        gameState.soundPlayed = true;
-        showMessage('你听到了什么单词？快速选择正确的选项！');
-      };
-      
-      showMessage('点击"播放发音"按钮，然后选择你听到的单词！');
+        // 设置播放按钮
+        $('play-sound-btn').onclick = () => {
+          try {
+            speak(gameState.targetWord);
+            gameState.soundPlayed = true;
+            showMessage('你听到了什么单词？快速选择正确的选项！');
+          } catch (e) {
+            console.log('单词发音失败:', e);
+            gameState.soundPlayed = true; // 即使失败也允许玩家选择
+            showMessage('发音功能可能不可用，请选择你认为正确的单词！');
+          }
+        };
+        
+        showMessage('点击"播放发音"按钮，然后选择你听到的单词！');
+      } catch (e) {
+        console.log('声音对决阶段初始化失败:', e);
+        // 如果出错，重新尝试
+        setTimeout(initDuelPhase, 100);
+      }
     }
 
     /* 初始化游戏 */
     function initGame() {
-      // 重置游戏状态
-      gameState = {
-        level: 1,
-        xp: 0,
-        nextLevelXp: 5,
-        levelStep: 5,
-        combo: 0,
-        maxCombo: 0,
-        currentScreen: 'start',
-        currentPhonics: null,
-        currentDuelWords: [],
-        targetWord: '',
-        soundPlayed: false
-      };
-      
-      updateStats();
-      
-      // 设置开始按钮
-      $('start-btn').onclick = () => {
-        switchScreen('letter');
-      };
-      
-      // 设置升级继续按钮
-      $('level-up-continue').onclick = () => {
-        $('level-up').classList.remove('show');
-      };
+      try {
+        // 重置游戏状态
+        gameState = {
+          level: 1,
+          xp: 0,
+          nextLevelXp: 5,
+          levelStep: 5,
+          combo: 0,
+          maxCombo: 0,
+          currentScreen: 'start',
+          mastered_letters: [],
+          mastered_phonics: [],
+          currentPhonics: null,
+          currentDuelWords: [],
+          targetWord: '',
+          soundPlayed: false,
+          targetImage: null,
+          currentLetterData: null
+        };
+        
+        updateStats();
+        
+        // 设置开始按钮
+        $('start-btn').onclick = () => {
+          switchScreen('letter');
+        };
+        
+        // 设置升级继续按钮
+        $('level-up-continue').onclick = () => {
+          $('level-up').classList.remove('show');
+        };
+      } catch (e) {
+        console.log('游戏初始化失败:', e);
+        // 如果出错，显示错误提示
+        alert('游戏加载出现问题，请刷新页面重试。');
+      }
     }
 
     // 当文档加载完成时初始化游戏
