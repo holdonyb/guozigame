@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拼读魔法师 (Phonics Wizard)</title>
+  <style>
+    /* 全局样式 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #7579ff 0%, #b224ef 100%);
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    /* 标题和状态栏 */
+    header {
+      width: 100%;
+      padding: 1rem;
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.2);
+      position: relative;
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    #stats-bar {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      font-size: 1rem;
+    }
+    
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* 游戏容器 */
+    main {
+      width: 100%;
+      max-width: 800px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      position: relative;
+    }
+    
+    /* 游戏屏幕 */
+    .screen {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s;
+      opacity: 0;
+      pointer-events: none;
+      padding: 2rem;
+    }
+    
+    .screen.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    /* 开始屏幕 */
+    #start-screen {
+      background: rgba(0, 0, 0, 0.7);
+      text-align: center;
+      z-index: 100;
+    }
+    
+    .title-big {
+      font-size: 3rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+      animation: pulse 2s infinite;
+    }
+    
+    .btn {
+      background: linear-gradient(45deg, #ff416c, #ff4b2b);
+      border: none;
+      color: white;
+      padding: 1rem 2rem;
+      margin: 0.5rem;
+      border-radius: 50px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .btn:active {
+      transform: translateY(1px);
+    }
+    
+    /* 魔法阵 */
+    #magic-circle-container {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 2rem 0;
+    }
+    
+    #magic-circle {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 4px dashed #ffd700;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+      transition: all 0.3s;
+    }
+    
+    #magic-circle::before {
+      content: '';
+      position: absolute;
+      width: 90%;
+      height: 90%;
+      border-radius: 50%;
+      border: 2px dotted #ffd700;
+      animation: rotate 20s linear infinite;
+    }
+    
+    #magic-circle::after {
+      content: '';
+      position: absolute;
+      width: 70%;
+      height: 70%;
+      border-radius: 50%;
+      border: 1px solid #ffd700;
+      animation: rotate 15s linear infinite reverse;
+    }
+    
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    #magic-circle.glow {
+      box-shadow: 0 0 30px #ffd700, 0 0 50px #ffd700;
+      background: rgba(255, 215, 0, 0.2);
+    }
+    
+    #magic-circle-content {
+      font-size: 5rem;
+      z-index: 2;
+      text-shadow: 0 0 10px white;
+    }
+    
+    /* 消息区域 */
+    #message-container {
+      min-height: 80px;
+      width: 100%;
+      text-align: center;
+      margin: 1rem 0;
+      position: relative;
+    }
+    
+    #message {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 1.2rem;
+      max-width: 90%;
+      margin: 0 auto;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s;
+    }
+    
+    /* 字母卡片区 */
+    #letter-bank {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem 0;
+      min-height: 100px;
+    }
+    
+    .card {
+      width: 70px;
+      height: 90px;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2.5rem;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: 0.5s;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    
+    .card:hover::before {
+      left: 100%;
+    }
+    
+    .card.dragging {
+      opacity: 0.7;
+    }
+    
+    /* 拼读目标区域 */
+    #phonics-target {
+      font-size: 3rem;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 1rem 2rem;
+      border-radius: 50px;
+      margin: 1rem 0;
+      min-width: 200px;
+      text-align: center;
+      letter-spacing: 5px;
+    }
+    
+    #phonics-target.highlight {
+      background: rgba(255, 215, 0, 0.3);
+      box-shadow: 0 0 15px gold;
+    }
+    
+    /* 声音对决区域 */
+    #duel-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    #word-options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+    }
+    
+    .word-card {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      padding: 0.8rem 1.5rem;
+      border-radius: 10px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .word-card:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* 升级效果 */
+    #level-up {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+    
+    #level-up.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    #level-up-content {
+      text-align: center;
+      animation: scaleUp 0.5s forwards;
+    }
+    
+    @keyframes scaleUp {
+      0% { transform: scale(0.5); }
+      80% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    /* 动画效果 */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes pulse {
+      0% { text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff; }
+      50% { text-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff, 0 0 40px #ff00ff; }
+      100% { text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff; }
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    
+    .shake {
+      animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 600px) {
+      h1 { font-size: 1.5rem; }
+      #stats-bar { font-size: 0.8rem; }
+      .title-big { font-size: 2rem; }
+      .btn { padding: 0.8rem 1.5rem; font-size: 1rem; }
+      #magic-circle-container { width: 220px; height: 220px; }
+      .card { width: 60px; height: 80px; font-size: 2rem; }
+      #phonics-target { font-size: 2.5rem; }
+      .word-card { font-size: 1.2rem; padding: 0.6rem 1.2rem; }
+    }
+    
+    /* 淡入效果 */
+    .fade-in {
+      animation: fadeIn 0.5s forwards;
+    }
+    
+    /* 隐藏元素 */
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>拼读魔法师 (Phonics Wizard)</h1>
+    <div id="stats-bar">
+      <div class="stat">
+        <span>魔法等级:</span>
+        <span id="level">1</span>
+      </div>
+      <div class="stat">
+        <span>经验值:</span>
+        <span id="xp">0</span>/<span id="next-level">5</span>
+      </div>
+      <div class="stat">
+        <span>连击:</span>
+        <span id="combo">0</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 开始屏幕 -->
+    <div id="start-screen" class="screen active">
+      <h2 class="title-big">拼读魔法师</h2>
+      <p>欢迎来到魔法学院！通过拼读魔法咒语，释放强大的魔法力量！</p>
+      <button id="start-btn" class="btn">开始魔法训练</button>
+    </div>
+
+    <!-- 字母认知阶段 -->
+    <div id="letter-screen" class="screen">
+      <div id="magic-circle-container">
+        <div id="magic-circle">
+          <div id="magic-circle-content"></div>
+        </div>
+      </div>
+      <div id="message-container">
+        <div id="message">点击字母，释放魔法力量！</div>
+      </div>
+      <div id="letter-bank"></div>
+    </div>
+
+    <!-- 拼读入门阶段 -->
+    <div id="phonics-screen" class="screen">
+      <div id="magic-circle-container">
+        <div id="magic-circle">
+          <div id="magic-circle-content"></div>
+        </div>
+      </div>
+      <div id="phonics-target" class="hidden"></div>
+      <div id="message-container">
+        <div id="message">将字母拖到空格位置完成拼写！</div>
+      </div>
+      <div id="letter-bank"></div>
+    </div>
+
+    <!-- 声音魔法对决阶段 -->
+    <div id="duel-screen" class="screen">
+      <div id="magic-circle-container">
+        <div id="magic-circle">
+          <div id="magic-circle-content"></div>
+        </div>
+      </div>
+      <div id="message-container">
+        <div id="message">听好单词发音，快速选择正确的单词！</div>
+      </div>
+      <div id="duel-container">
+        <button id="play-sound-btn" class="btn">播放发音</button>
+        <div id="word-options"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 升级提示 -->
+  <div id="level-up">
+    <div id="level-up-content">
+      <h2>恭喜升级！</h2>
+      <p id="level-up-message">你已经成为 <span id="new-level">2</span> 级魔法师</p>
+      <button id="level-up-continue" class="btn">继续冒险</button>
+    </div>
+  </div>
+
+  <script>
+    /* 游戏数据 */
+    // 字母数据
+    const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const LETTER_SOUNDS = {
+      'A': 'æ', 'B': 'b', 'C': 'k', 'D': 'd', 'E': 'e', 'F': 'f',
+      'G': 'g', 'H': 'h', 'I': 'ɪ', 'J': 'dʒ', 'K': 'k', 'L': 'l',
+      'M': 'm', 'N': 'n', 'O': 'ɒ', 'P': 'p', 'Q': 'kw', 'R': 'r',
+      'S': 's', 'T': 't', 'U': 'ʌ', 'V': 'v', 'W': 'w', 'X': 'ks',
+      'Y': 'j', 'Z': 'z'
+    };
+
+    // 拼读组合数据
+    const PHONICS = [
+      { suffix: 'at', prefixes: ['c', 'b', 'm', 'h', 'r', 'f'] },
+      { suffix: 'an', prefixes: ['c', 'm', 'p', 'f', 'r', 'v'] },
+      { suffix: 'it', prefixes: ['s', 'h', 'b', 'f', 'l', 'p'] },
+      { suffix: 'op', prefixes: ['t', 'h', 'p', 'm', 's', 'c'] },
+      { suffix: 'ig', prefixes: ['b', 'p', 'd', 'f', 'w', 'r'] },
+      { suffix: 'et', prefixes: ['p', 'g', 'n', 's', 'w', 'j'] },
+      { suffix: 'in', prefixes: ['p', 'f', 'w', 't', 'b', 's'] },
+      { suffix: 'og', prefixes: ['d', 'f', 'l', 'h', 'j', 'b'] },
+      { suffix: 'ut', prefixes: ['c', 'h', 'n', 'p', 'g', 'b'] },
+      { suffix: 'ap', prefixes: ['c', 'g', 'l', 'm', 'n', 't'] }
+    ];
+
+    // 单词列表（用于声音对决阶段）
+    const WORD_LISTS = [
+      // 第一级 - 简单三字母单词
+      ['cat', 'dog', 'pig', 'hat', 'sun', 'pen', 'cup'],
+      // 第二级 - 更多三字母单词
+      ['bat', 'net', 'fog', 'pin', 'map', 'rug', 'box', 'leg'],
+      // 第三级 - 四字母单词
+      ['frog', 'ship', 'duck', 'book', 'flag', 'desk', 'hand'],
+      // 第四级 - 混合
+      ['milk', 'lamp', 'nest', 'fish', 'king', 'ring', 'star']
+    ];
+
+    // 趣味事件提示
+    const RANDOM_EVENTS = [
+      '一只会跳舞的苹果出现了！',
+      '你召唤了一只彩色的小鸟，它在空中飞翔！',
+      '魔法阵中冒出了蓝色的泡泡！',
+      '一顶会跳跃的帽子蹦了出来！',
+      '一条彩虹从魔法阵中飞出！',
+      '魔法书自动翻开，闪烁着金色的光芒！',
+      '一只可爱的小兔子从魔法阵中蹦出来！',
+      '你的魔法棒发出了闪亮的星星！',
+      '一朵小云朵在魔法阵上方形成，下起了糖果雨！',
+      '一个神秘的宝箱出现了，里面藏着宝贝！',
+      '你变出了一个会旋转的冰淇淋！',
+      '魔法阵开始播放美妙的音乐！',
+      '你的魔法让花朵在周围绽放！',
+      '一只小恐龙从魔法阵中探出头来！',
+      '你的魔法让四周出现了闪闪发光的星星！'
+    ];
+
+    // 升级提示
+    const LEVEL_MESSAGES = [
+      '你现在是见习魔法学徒了！',
+      '恭喜晋升为初级魔法师！你可以开始组合字母了。',
+      '你已成为中级魔法师！尝试听音辨词的挑战吧！',
+      '高级魔法师！你的魔法更强大了！',
+      '魔导士！你掌握了强大的拼读魔法！',
+      '大魔导师！你的魔法已经炉火纯青！',
+      '传奇魔法师！整个魔法世界都听说过你的名字！',
+      '终极魔法大师！你已掌握了几乎所有的拼读咒语！'
+    ];
+
+    // 游戏状态
+    let gameState = {
+      level: 1,
+      xp: 0,
+      nextLevelXp: 5,
+      levelStep: 5,
+      combo: 0,
+      maxCombo: 0,
+      currentScreen: 'start',
+      currentPhonics: null,
+      currentDuelWords: [],
+      targetWord: '',
+      soundPlayed: false
+    };
+
+    /* 辅助函数 */
+    function $(id) { return document.getElementById(id); }
+    function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    
+    function speak(text) {
+      // 停止当前的语音
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      // 设置英语发音
+      utterance.lang = 'en-US';
+      // 调整速度和音调使其更适合儿童
+      utterance.rate = 0.8;
+      utterance.pitch = 1.2;
+      
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function playCorrectSound() {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(600, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(800, context.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.5, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.5);
+    }
+
+    function playWrongSound() {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(300, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(150, context.currentTime + 0.2);
+      
+      gainNode.gain.setValueAtTime(0.5, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.5);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.5);
+    }
+
+    function playMagicSound() {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // 创建多个音符
+      for (let i = 0; i < 5; i++) {
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.type = 'sine';
+        const baseFreq = 300 + i * 100;
+        oscillator.frequency.setValueAtTime(baseFreq, context.currentTime + i * 0.05);
+        oscillator.frequency.exponentialRampToValueAtTime(baseFreq + 100, context.currentTime + i * 0.05 + 0.2);
+        
+        gainNode.gain.setValueAtTime(0, context.currentTime + i * 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.2, context.currentTime + i * 0.05 + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + i * 0.05 + 0.5);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        oscillator.start(context.currentTime + i * 0.05);
+        oscillator.stop(context.currentTime + i * 0.05 + 0.5);
+      }
+    }
+
+    function showMessage(msg) {
+      const messageEl = $('message');
+      messageEl.style.opacity = '0';
+      
+      setTimeout(() => {
+        messageEl.textContent = msg;
+        messageEl.style.opacity = '1';
+      }, 300);
+    }
+
+    function flashCircle() {
+      const circle = $('magic-circle');
+      circle.classList.add('glow');
+      setTimeout(() => circle.classList.remove('glow'), 1500);
+    }
+
+    function updateStats() {
+      $('level').textContent = gameState.level;
+      $('xp').textContent = gameState.xp;
+      $('next-level').textContent = gameState.nextLevelXp;
+      $('combo').textContent = gameState.combo;
+    }
+
+    function addXP(amount = 1) {
+      gameState.xp += amount;
+      gameState.combo++;
+      
+      if (gameState.combo > gameState.maxCombo) {
+        gameState.maxCombo = gameState.combo;
+      }
+      
+      updateStats();
+      
+      // 检查是否升级
+      if (gameState.xp >= gameState.nextLevelXp) {
+        levelUp();
+      }
+    }
+
+    function resetCombo() {
+      gameState.combo = 0;
+      updateStats();
+    }
+
+    function levelUp() {
+      gameState.level++;
+      gameState.xp = 0;
+      gameState.nextLevelXp = gameState.level * gameState.levelStep;
+      
+      // 显示升级效果
+      $('new-level').textContent = gameState.level;
+      $('level-up-message').textContent = LEVEL_MESSAGES[Math.min(gameState.level - 1, LEVEL_MESSAGES.length - 1)];
+      $('level-up').classList.add('show');
+      
+      playMagicSound();
+      updateStats();
+      
+      // 根据等级切换游戏阶段
+      if (gameState.level === 2) {
+        // 从字母认知升级到拼读入门
+        $('level-up-continue').onclick = () => {
+          $('level-up').classList.remove('show');
+          switchScreen('phonics');
+        };
+      } else if (gameState.level === 4) {
+        // 从拼读入门升级到声音魔法对决
+        $('level-up-continue').onclick = () => {
+          $('level-up').classList.remove('show');
+          switchScreen('duel');
+        };
+      } else {
+        // 其他等级继续当前阶段
+        $('level-up-continue').onclick = () => {
+          $('level-up').classList.remove('show');
+        };
+      }
+    }
+
+    function switchScreen(screenName) {
+      // 隐藏所有屏幕
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
+      
+      // 显示目标屏幕
+      $(`${screenName}-screen`).classList.add('active');
+      gameState.currentScreen = screenName;
+      
+      // 初始化对应阶段
+      switch (screenName) {
+        case 'letter':
+          initLetterPhase();
+          break;
+        case 'phonics':
+          initPhonicsPhase();
+          break;
+        case 'duel':
+          initDuelPhase();
+          break;
+      }
+    }
+
+    /* 游戏阶段初始化 */
+    function initLetterPhase() {
+      // 清空字母区域
+      const bank = $('letter-bank');
+      bank.innerHTML = '';
+      
+      // 随机选择字母
+      const selectedLetters = [];
+      while (selectedLetters.length < 6) {
+        const letter = rand(LETTERS);
+        if (!selectedLetters.includes(letter)) {
+          selectedLetters.push(letter);
+        }
+      }
+      
+      // 创建字母卡片
+      selectedLetters.forEach(letter => {
+        const card = document.createElement('div');
+        card.className = 'card fade-in';
+        card.textContent = letter;
+        
+        card.addEventListener('click', () => {
+          // 播放字母音
+          speak(letter);
+          
+          // 魔法效果
+          $('magic-circle-content').textContent = letter;
+          flashCircle();
+          
+          // 随机趣味提示
+          showMessage(rand(RANDOM_EVENTS));
+          
+          // 增加经验
+          addXP();
+          
+          // 音效
+          playCorrectSound();
+          
+          // 延迟后重置魔法阵
+          setTimeout(() => {
+            $('magic-circle-content').textContent = '';
+          }, 2000);
+        });
+        
+        bank.appendChild(card);
+      });
+      
+      showMessage('点击字母，释放魔法力量！');
+    }
+
+    function initPhonicsPhase() {
+      // 选择一个拼读组合
+      gameState.currentPhonics = rand(PHONICS);
+      
+      // 显示目标区域
+      const target = $('phonics-target');
+      target.classList.remove('hidden');
+      target.innerHTML = `<span>_</span><span>${gameState.currentPhonics.suffix}</span>`;
+      
+      // 清空字母区域
+      const bank = $('letter-bank');
+      bank.innerHTML = '';
+      
+      // 随机选择前缀字母（确保至少包含一个正确选项）
+      const correctPrefix = rand(gameState.currentPhonics.prefixes);
+      const selectedPrefixes = [correctPrefix];
+      
+      while (selectedPrefixes.length < 4) {
+        const prefix = rand(gameState.currentPhonics.prefixes);
+        if (!selectedPrefixes.includes(prefix)) {
+          selectedPrefixes.push(prefix);
+        }
+      }
+      
+      // 随机排序
+      selectedPrefixes.sort(() => Math.random() - 0.5);
+      
+      // 创建字母卡片
+      selectedPrefixes.forEach(prefix => {
+        const card = document.createElement('div');
+        card.className = 'card fade-in';
+        card.textContent = prefix;
+        card.draggable = true;
+        
+        // 拖拽事件
+        card.addEventListener('dragstart', () => {
+          card.classList.add('dragging');
+        });
+        
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+        });
+        
+        bank.appendChild(card);
+      });
+      
+      // 设置放置区域
+      target.ondragover = (e) => {
+        e.preventDefault();
+        target.classList.add('highlight');
+      };
+      
+      target.ondragleave = () => {
+        target.classList.remove('highlight');
+      };
+      
+      target.ondrop = (e) => {
+        e.preventDefault();
+        target.classList.remove('highlight');
+        
+        const dragged = document.querySelector('.dragging');
+        if (!dragged) return;
+        
+        const prefix = dragged.textContent;
+        const word = prefix + gameState.currentPhonics.suffix;
+        
+        // 更新目标区域显示
+        target.innerHTML = `<span>${prefix}</span><span>${gameState.currentPhonics.suffix}</span>`;
+        
+        // 播放单词发音
+        speak(word);
+        
+        // 魔法效果
+        $('magic-circle-content').textContent = word;
+        flashCircle();
+        
+        // 检查是否是正确的前缀
+        if (gameState.currentPhonics.prefixes.includes(prefix)) {
+          playCorrectSound();
+          showMessage(`太棒了！你召唤出了 "${word}"！${rand(RANDOM_EVENTS)}`);
+          addXP();
+        } else {
+          playWrongSound();
+          showMessage(`你拼出了 "${word}"，但这不是我们想要的。再试一次！`);
+          resetCombo();
+          
+          // 抖动效果
+          target.classList.add('shake');
+          setTimeout(() => target.classList.remove('shake'), 500);
+        }
+        
+        // 延迟后重置
+        setTimeout(() => {
+          $('magic-circle-content').textContent = '';
+          initPhonicsPhase();
+        }, 2000);
+      };
+      
+      showMessage('将字母拖到空格位置完成拼写！');
+    }
+
+    function initDuelPhase() {
+      // 根据玩家等级选择单词列表
+      const wordListIndex = Math.min(Math.floor((gameState.level - 4) / 2), WORD_LISTS.length - 1);
+      
+      // 随机选择3-4个单词
+      const numWords = Math.min(4, WORD_LISTS[wordListIndex].length);
+      gameState.currentDuelWords = [];
+      
+      while (gameState.currentDuelWords.length < numWords) {
+        const word = rand(WORD_LISTS[wordListIndex]);
+        if (!gameState.currentDuelWords.includes(word)) {
+          gameState.currentDuelWords.push(word);
+        }
+      }
+      
+      // 随机选择一个作为目标单词
+      gameState.targetWord = rand(gameState.currentDuelWords);
+      gameState.soundPlayed = false;
+      
+      // 清空单词选项区域
+      const wordOptions = $('word-options');
+      wordOptions.innerHTML = '';
+      
+      // 创建单词卡片
+      gameState.currentDuelWords.forEach(word => {
+        const card = document.createElement('div');
+        card.className = 'word-card fade-in';
+        card.textContent = word;
+        
+        card.addEventListener('click', () => {
+          // 检查是否已播放发音
+          if (!gameState.soundPlayed) {
+            showMessage('请先点击"播放发音"按钮！');
+            return;
+          }
+          
+          // 检查是否选择正确
+          if (word === gameState.targetWord) {
+            playCorrectSound();
+            
+            // 魔法效果
+            $('magic-circle-content').textContent = word;
+            flashCircle();
+            
+            showMessage(`太棒了！"${word}"是正确的！${rand(RANDOM_EVENTS)}`);
+            addXP(2); // 声音对决给予双倍经验
+          } else {
+            playWrongSound();
+            showMessage(`不对，正确的单词是"${gameState.targetWord}"，请再听一次。`);
+            resetCombo();
+            
+            // 抖动效果
+            card.classList.add('shake');
+            setTimeout(() => card.classList.remove('shake'), 500);
+          }
+          
+          // 延迟后重置
+          setTimeout(() => {
+            $('magic-circle-content').textContent = '';
+            initDuelPhase();
+          }, 2000);
+        });
+        
+        wordOptions.appendChild(card);
+      });
+      
+      // 设置播放按钮
+      $('play-sound-btn').onclick = () => {
+        speak(gameState.targetWord);
+        gameState.soundPlayed = true;
+        showMessage('你听到了什么单词？快速选择正确的选项！');
+      };
+      
+      showMessage('点击"播放发音"按钮，然后选择你听到的单词！');
+    }
+
+    /* 初始化游戏 */
+    function initGame() {
+      // 重置游戏状态
+      gameState = {
+        level: 1,
+        xp: 0,
+        nextLevelXp: 5,
+        levelStep: 5,
+        combo: 0,
+        maxCombo: 0,
+        currentScreen: 'start',
+        currentPhonics: null,
+        currentDuelWords: [],
+        targetWord: '',
+        soundPlayed: false
+      };
+      
+      updateStats();
+      
+      // 设置开始按钮
+      $('start-btn').onclick = () => {
+        switchScreen('letter');
+      };
+      
+      // 设置升级继续按钮
+      $('level-up-continue').onclick = () => {
+        $('level-up').classList.remove('show');
+      };
+    }
+
+    // 当文档加载完成时初始化游戏
+    document.addEventListener('DOMContentLoaded', initGame);
+  </script>
+</body>
+</html>
