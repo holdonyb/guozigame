@@ -1,0 +1,13 @@
+# Python virtual environment
+.venv/
+
+# Cursor rules - specific to this user's setup, or if it contains sensitive scratchpad info
+.cursorrules
+
+# IDE specific files
+.idea/
+.vscode/
+
+# OS specific files
+.DS_Store
+Thumbs.db 

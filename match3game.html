@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match-3 Educational Game</title>
+    <!-- Add favicon to prevent 404 error -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <!-- Optional: Add a Google Font for a more playful look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            margin: 0; 
+            background-color: #f0f0f0; /* Fallback, game canvas will cover this */
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; /* This centers #game-container and initial #quiz-panel if not absolutely positioned */
+            align-items: center; 
+            min-height: 100vh; 
+            font-family: 'Nunito', sans-serif; /* Using Nunito, or your preferred playful font */
+            overflow: hidden; /* Prevent scrollbars if panel is slightly larger than viewport during transition */
+        }
+        #game-container {
+            /*让 game-container 成为 quiz-panel 的定位上下文 (如果用 absolute)*/
+            /*position: relative; */
+        }
+        #game-container canvas { 
+            border: 1px solid #ccc; /* Can be removed if background image has its own border */
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #quiz-panel {
+            /* display: none;  由 UIManager 控制 */
+            position: fixed; /* 改为 fixed 使其相对于视口定位，覆盖所有内容 */
+            top: 50%;
+            left: 50%;
+            /* transform: translate(-50%, -50%) scale(0.95);  初始状态通过 transform 控制 */
+            transform: translate(-50%, -50%) scale(0.8); /* 初始更小一点，配合opacity */
+            width: 90%; 
+            max-width: 450px; 
+            background-color: #fff5e1; 
+            padding: 25px;
+            border: 3px solid #ffc107; 
+            border-radius: 15px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            text-align: center;
+            /* margin-top: 20px;  不再需要，因为是固定定位 */
+            z-index: 1000; /* 确保在最上层 */
+            transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            opacity: 0;
+            /* transform: scale(0.95); /* 初始状态 */
+            pointer-events: none; /* 隐藏时不可交互 */
+        }
+        #quiz-panel.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1); /* 最终状态 */
+            pointer-events: auto; /* 显示时可交互 */
+        }
+        #question-text {
+            font-size: 1.3em; /* Slightly larger question text */
+            margin-bottom: 20px;
+            color: #543815; /* Dark brown text color */
+            font-weight: 700;
+        }
+        .answer-button {
+            display: block;
+            width: 100%;
+            margin: 10px 0; /* Increased margin */
+            padding: 15px;
+            cursor: pointer;
+            border: 2px solid #ffc107; /* Orange border */
+            background-color: #ffffff; /* White background */
+            color: #543815; /* Dark brown text */
+            border-radius: 10px; /* Rounded corners for buttons */
+            font-size: 1.1em;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+            box-sizing: border-box; 
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .answer-button:hover {
+            background-color: #ffe082; /* Lighter orange on hover */
+            transform: translateY(-2px);
+        }
+        .answer-button:active {
+            background-color: #ffca28; /* Darker orange on click */
+            transform: translateY(0px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Phaser will insert the canvas here -->
+    </div>
+
+    <div id="quiz-panel">
+        <p id="question-text">Question will appear here.</p>
+        <div id="answer-options">
+            <button class="answer-button" data-index="0">Option A</button>
+            <button class="answer-button" data-index="1">Option B</button>
+            <button class="answer-button" data-index="2">Option C</button>
+            <button class="answer-button" data-index="3">Option D</button>
+        </div>
+    </div>
+
+    <!-- Load Phaser first -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    
+    <!-- Inline JavaScript classes -->
+    <script>
+// Tile class
+class Tile extends Phaser.GameObjects.Sprite {
+    constructor(scene, x, y, textureKey, boardXIndex, boardYIndex, tileType, boardManager) {
+        super(scene, x, y, textureKey);
+        this.scene.add.existing(this); // 添加到场景的显示列表和更新列表
+
+        this.boardXIndex = boardXIndex; // 在棋盘网格中的索引（例如，列）
+        this.boardYIndex = boardYIndex; // 在棋盘网格中的索引（例如，行）
+        this.tileType = tileType;     // 元素类型标识符（例如，'pen', 'book'）
+        this.boardManager = boardManager; // 对board manager的引用，用于通信
+        this.isSpecial = false; // 新增：标记是否为特殊 tile
+
+        // 显式设置显示尺寸以匹配计算出的 tileSize
+        if (this.boardManager && this.boardManager.tileSize) {
+            this.setDisplaySize(this.boardManager.tileSize, this.boardManager.tileSize);
+        }
+
+        // 互动性
+        this.setInteractive();
+        
+        // 处理点击事件
+        this.on('pointerdown', this.handlePointerDown, this);
+
+        // console.log(`Tile created: Type ${tileType} at [${boardXIndex}, ${boardYIndex}]`); // 可以暂时注释掉，减少日志
+    }
+
+    // 更新元素的网格位置（例如，在下落后）
+    updateBoardPosition(newBoardXIndex, newBoardYIndex) {
+        this.boardXIndex = newBoardXIndex;
+        this.boardYIndex = newBoardYIndex;
+        // 视觉位置(this.x, this.y)将通过BoardManager中的动画更新
+    }
+
+    // 为此元素设置新的类型和纹理（例如，如果它变形）
+    changeType(newTileType, newTextureKey) {
+        this.tileType = newTileType;
+        this.setTexture(newTextureKey);
+        // 如果一个 tile 类型改变了，它通常不再是特殊 tile，除非 changeType 的逻辑有特殊处理
+        // this.isSpecial = false; // 取决于游戏设计，暂时不在这里重置
+        // this.clearTint();
+    }
+
+    // 点击处理程序
+    handlePointerDown(pointer) {
+        // 只在匹配状态下交互
+        if (this.scene.gameState !== 'matching') return;
+        
+        // 播放点击音效
+        if (this.scene.sounds && this.scene.sounds.click) {
+            this.scene.sounds.click.play();
+        }
+        
+        console.log(`Tile clicked: Type ${this.tileType} at [${this.boardXIndex}, ${this.boardYIndex}]`);
+        this.boardManager.handleTileClick(this); // 将点击处理委托给BoardManager
+    }
+
+    // 销毁动画（由BoardManager调用）
+    // 返回一个Promise，在动画完成时resolve
+    animateDestroy() {
+        return new Promise(resolve => {
+            this.scene.tweens.add({
+                targets: this,
+                alpha: 0,
+                scale: 0.5,
+                duration: 250, // 毫秒
+                ease: 'Power2',
+                onComplete: () => {
+                    this.destroy(); // Phaser的destroy方法
+                    resolve();
+                }
+            });
+        });
+    }
+
+    // 移动动画（由BoardManager调用）
+    // 返回一个Promise，在动画完成时resolve
+    animateMove(targetWorldX, targetWorldY, duration = 250) {
+        return new Promise(resolve => {
+            this.scene.tweens.add({
+                targets: this,
+                x: targetWorldX,
+                y: targetWorldY,
+                duration: duration, // 毫秒
+                ease: 'Quad.Out', // 更平滑的移动
+                onComplete: () => {
+                    resolve();
+                }
+            });
+        });
+    }
+}
+
+// PlayerDataManager class
+class PlayerDataManager {
+    constructor() {
+        this.score = 0;
+        this.level = 1; // Example: can be used for difficulty or unlocking features
+        // this.unlockedAbilities = [];
+        // this.lives = 3; // Example
+
+        this.loadData(); // Optionally load saved data
+        console.log("PlayerDataManager: Initialized. Score:", this.score);
+    }
+
+    addScore(amount) {
+        this.score += amount;
+        console.log(`PlayerDataManager: Score updated. New score: ${this.score}`);
+        this.saveData();
+    }
+
+    resetScore() {
+        this.score = 0;
+        this.saveData();
+        console.log("PlayerDataManager: Score reset.");
+    }
+
+    getScore() {
+        return this.score;
+    }
+
+    // Basic persistence using localStorage (optional)
+    saveData() {
+        try {
+            localStorage.setItem('match3GameScore', this.score.toString());
+            // localStorage.setItem('match3GameLevel', this.level.toString());
+        } catch (e) {
+            console.warn("PlayerDataManager: Could not save data to localStorage.", e);
+        }
+    }
+
+    loadData() {
+        try {
+            const savedScore = localStorage.getItem('match3GameScore');
+            if (savedScore !== null) {
+                this.score = parseInt(savedScore, 10);
+            }
+            // const savedLevel = localStorage.getItem('match3GameLevel');
+            // if (savedLevel !== null) {
+            //     this.level = parseInt(savedLevel, 10);
+            // }
+        } catch (e) {
+            console.warn("PlayerDataManager: Could not load data from localStorage.", e);
+        }
+    }
+}
+
+// QuizManager class
+class QuizManager {
+    constructor(scene) { // Scene can be used for Phaser event emitter or other scene-specific actions
+        this.scene = scene; 
+        this.questions = [];
+        this.currentQuestion = null;
+        this.events = new Phaser.Events.EventEmitter(); // For emitting events like 'quizAnswered'
+
+        this.loadQuestions();
+    }
+
+    loadQuestions() {
+        // Populate this array with the 20 physics questions provided earlier
+        this.questions = [
+            {
+                questionText: "The Law Of Conservation Of Energy States How Energy Changes In An Isolated System?",
+                options: ["Energy Does Not Disappear", "Energy Only Transforms Into Other Forms", "Energy Always Decreases", "Energy Always Increases"],
+                correctAnswerIndex: 1
+            },
+            {
+                questionText: "How Is The Velocity Of An Object Defined?",
+                options: ["Displacement Divided By Time", "Speed Divided By Time", "Force Divided By Time", "Mass Divided By Time"],
+                correctAnswerIndex: 0
+            },
+            {
+                questionText: "According To Newton's Second Law, The Acceleration Of An Object Is Directly Proportional To Which Of The Following?",
+                options: ["The Object's Mass", "The Object's Speed", "The Force Acting On The Object", "The Object's Displacement"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "What Is The Unit Of Force In The International System Of Units (SI)?",
+                options: ["Watt", "Joule", "Newton", "Pascal"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "Which Of The Following Is A Vector Quantity?",
+                options: ["Mass", "Distance", "Speed", "Velocity"],
+                correctAnswerIndex: 3
+            },
+            {
+                questionText: "What Is The Formula For Work Done By A Constant Force?",
+                options: ["Work = Force x Velocity", "Work = Force x Distance", "Work = Mass x Acceleration", "Work = Pressure x Volume"],
+                correctAnswerIndex: 1
+            },
+            {
+                questionText: "What Does Ohm's Law State About The Relationship Between Voltage, Current, And Resistance?",
+                options: ["Voltage = Current / Resistance", "Voltage = Current x Resistance", "Voltage = Resistance / Current", "Current = Voltage x Resistance"],
+                correctAnswerIndex: 1
+            },
+            {
+                questionText: "What Is The Process Of A Solid Turning Directly Into A Gas Called?",
+                options: ["Melting", "Evaporation", "Sublimation", "Condensation"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "Which Of The Following Is A Form Of Energy?",
+                options: ["Force", "Power", "Work", "Temperature"],
+                correctAnswerIndex: 2 // Work is energy transfer
+            },
+            {
+                questionText: "What Is The Unit Of Power In The International System Of Units (SI)?",
+                options: ["Joule", "Watt", "Newton", "Volt"],
+                correctAnswerIndex: 1
+            },
+            {
+                questionText: "What Instrument Is Used To Measure Temperature?",
+                options: ["Barometer", "Ammeter", "Thermometer", "Voltmeter"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "Which Of The Following Describes The Law Of Reflection Of Light?",
+                options: ["The Angle Of Incidence Is Greater Than The Angle Of Reflection.", "The Angle Of Incidence Is Less Than The Angle Of Reflection.", "The Angle Of Incidence Is Equal To The Angle Of Reflection.", "Light Scatters Randomly Upon Reflection."],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "What Is The Primary Function Of A Simple Machine Like A Lever?",
+                options: ["To Increase The Amount Of Work Done.", "To Change The Direction Or Magnitude Of A Force.", "To Generate Energy.", "To Convert Electrical Energy To Mechanical Energy."],
+                correctAnswerIndex: 1
+            },
+            {
+                questionText: "What Is The Phenomenon Where Light Bends As It Passes From One Medium To Another?",
+                options: ["Reflection", "Refraction", "Diffraction", "Interference"],
+                correctAnswerIndex: 1
+            },
+            {
+                questionText: "What Type Of Energy Is Stored In A Stretched Spring?",
+                options: ["Kinetic Energy", "Gravitational Potential Energy", "Elastic Potential Energy", "Chemical Energy"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "What Is The Unit Of Electric Current In The International System Of Units (SI)?",
+                options: ["Volt", "Ohm", "Ampere", "Watt"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "What Does Archimedes' Principle Relate To?",
+                options: ["The Motion Of Planets", "The Behavior Of Gases", "Buoyancy In Fluids", "The Strength Of Materials"],
+                correctAnswerIndex: 2
+            },
+            {
+                questionText: "What Is The Speed Of Light In A Vacuum (Approximately)?",
+                options: ["3 x 10^8 m/s", "3 x 10^6 m/s", "3 x 10^5 km/s", "300,000 m/s"],
+                correctAnswerIndex: 0
+            },
+            {
+                questionText: "What Is The Relationship Between Frequency (f) And Wavelength (λ) Of A Wave With Speed (v)?",
+                options: ["v = f + λ", "v = f - λ", "v = f / λ", "v = f x λ"],
+                correctAnswerIndex: 3
+            },
+            {
+                questionText: "What Happens To The Pressure Of An Ideal Gas When Its Volume Is Doubled (At Constant Temperature)?",
+                options: ["The Pressure Doubles.", "The Pressure Halves.", "The Pressure Remains The Same.", "The Pressure Increases Four Times."],
+                correctAnswerIndex: 1
+            }
+        ];
+        console.log("QuizManager: Questions loaded", this.questions.length);
+    }
+
+    presentRandomQuestion() {
+        if (this.questions.length === 0) {
+            console.warn("QuizManager: No questions available!");
+            this.events.emit('quizAnswered', false, null); // Indicate no question could be presented
+            return null;
+        }
+        const randomIndex = Phaser.Math.RND.integerInRange(0, this.questions.length - 1);
+        this.currentQuestion = this.questions[randomIndex];
+        console.log("QuizManager: Presenting question:", this.currentQuestion.questionText);
+        return this.currentQuestion; // Return the question object for UIManager to display
+    }
+
+    submitAnswer(selectedAnswerIndex) {
+        if (!this.currentQuestion) {
+            console.error("QuizManager: No current question to submit answer for.");
+            this.events.emit('quizAnswered', false, this.currentQuestion); // Should not happen ideally
+            return;
+        }
+
+        const isCorrect = (selectedAnswerIndex === this.currentQuestion.correctAnswerIndex);
+        console.log(`QuizManager: Answer submitted. Selected: ${selectedAnswerIndex}, Correct Index: ${this.currentQuestion.correctAnswerIndex}, Result: ${isCorrect}`);
+        
+        // Emit an event with the result and the question (for context if needed)
+        this.events.emit('quizAnswered', isCorrect, this.currentQuestion);
+        
+        this.currentQuestion = null; // Clear current question after answering
+    }
+}
+
+// UIManager class
+class UIManager {
+    constructor(scene) {
+        this.scene = scene; // Phaser scene reference for creating Phaser UI elements
+        this.scoreText = null;
+        // this.characterImage = null; // 不再需要单独的角色图片
+        // Texture keys for character faces - ensure these match loaded asset keys
+        // this.happyFaceTextureKey = 'happy_face'; 
+        // this.sadFaceTextureKey = 'sad_face';
+
+        // DOM elements for the quiz panel
+        this.quizPanelElement = document.getElementById('quiz-panel');
+        this.questionTextElement = document.getElementById('question-text');
+        this.answerButtonElements = document.querySelectorAll('#answer-options .answer-button');
+
+        if (!this.quizPanelElement || !this.questionTextElement || this.answerButtonElements.length === 0) {
+            console.error("UIManager: Could not find all required HTML elements for the quiz panel.");
+        }
+    }
+
+    createUI() {
+        // 分数文本（可能需要调整位置以适应新的全屏背景）
+        this.scoreText = this.scene.add.text(40, 40, 'Score: 0', { // 稍微调整了位置
+            fontSize: '28px', 
+            fill: '#ffffff', // 改为白色以在深色背景上更清晰
+            fontFamily: 'Arial',
+            stroke: '#000000', // 添加黑色描边使其更易读
+            strokeThickness: 4
+        });
+        this.scoreText.setDepth(10); 
+
+        // this.characterImage 的创建和设置已移除
+
+        console.log("UIManager: Phaser UI (score text) created.");
+    }
+
+    updateScore(newScore) {
+        if (this.scoreText) {
+            this.scoreText.setText(`Score: ${newScore}`);
+        }
+    }
+
+    // updateCharacterFace 方法不再需要，因为背景图会处理角色表情
+    // updateCharacterFace(isHappy) {
+    //     if (this.characterImage) {
+    //         this.characterImage.setTexture(isHappy ? this.happyFaceTextureKey : this.sadFaceTextureKey);
+    //     }
+    // }
+
+    // --- HTML Quiz Panel Management ---
+    showQuizPanel(show) {
+        if (this.quizPanelElement) {
+            if (show) {
+                // First make it block, then add visible class for transition to work from display:none
+                this.quizPanelElement.style.display = 'block'; 
+                // Timeout to allow display:block to take effect before transition starts
+                setTimeout(() => {
+                    this.quizPanelElement.classList.add('visible');
+                }, 20); 
+            } else {
+                this.quizPanelElement.classList.remove('visible');
+                // Listen for transition end to set display:none, preventing interference
+                this.quizPanelElement.addEventListener('transitionend', () => {
+                    if (!this.quizPanelElement.classList.contains('visible')) {
+                        this.quizPanelElement.style.display = 'none';
+                    }
+                }, { once: true }); // Important: use once:true to auto-remove listener
+            }
+            console.log(`UIManager: Quiz panel ${show ? 'shown' : 'hidden (transitioning)'}`);
+        }
+    }
+
+    displayQuestion(question) {
+        if (!question) {
+            console.error("UIManager: No question data provided to display.");
+            if (this.questionTextElement) this.questionTextElement.textContent = "Error: Could not load question.";
+            this.answerButtonElements.forEach(button => button.style.display = 'none');
+            return;
+        }
+
+        if (this.questionTextElement) {
+            this.questionTextElement.textContent = question.questionText;
+        }
+
+        this.answerButtonElements.forEach((button, index) => {
+            if (index < question.options.length) {
+                button.textContent = question.options[index];
+                button.style.display = 'block';
+                button.dataset.index = index; 
+            } else {
+                button.style.display = 'none';
+            }
+        });
+        console.log("UIManager: Question displayed in panel.");
+    }
+
+    // Method to attach event listeners to answer buttons
+    // This should be called once, typically after UIManager is initialized in GameScene
+    attachAnswerButtonListeners(callback) {
+        this.answerButtonElements.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const selectedIndex = parseInt(event.target.dataset.index);
+                if (typeof callback === 'function') {
+                    callback(selectedIndex); 
+                }
+            });
+        });
+        console.log("UIManager: Answer button listeners attached.");
+    }
+}
+
+// BoardManager class
+class BoardManager {
+    constructor(scene) {
+        this.scene = scene;
+        this.gridWidth = 8; // Number of columns
+        this.gridHeight = 8; // Number of rows
+        this.tileSize = 64; // Pixel size of each tile (adjust based on your assets)
+        this.boardOffsetX = 0; // X offset of the board on the screen
+        this.boardOffsetY = 0; // Y offset of the board on the screen
+
+        this.tileGrid = []; // 2D array to hold Tile objects
+        this.tileTypes = []; // Array of texture keys for different tile types (e.g., ['pen_tile', 'book_tile', ...])
+        
+        this.selectedTile = null; // For click-to-swap mechanic
+
+        // Phaser event emitter for board-related events (e.g., 'matchCompleted')
+        this.events = new Phaser.Events.EventEmitter();
+
+        this.isProcessingMove = false; // Flag to prevent input during animations/processing
+
+        console.log("BoardManager: Initialized");
+    }
+
+    // Call this from GameScene.create() after assets are loaded
+    initializeBoard(tileTypes, boardConfig) {
+        this.tileTypes = tileTypes; 
+        this.gridWidth = boardConfig.width;
+        this.gridHeight = boardConfig.height;
+        this.tileSize = boardConfig.tileSize;
+
+        const bgInfo = boardConfig.backgroundInfo;
+
+        // 棋盘区域相对于背景图原点 (已设为左上角) 的偏移（已缩放）
+        const boardRelativeXScaled = bgInfo.boardRelativeX * bgInfo.scale;
+        const boardRelativeYScaled = bgInfo.boardRelativeY * bgInfo.scale;
+
+        // 棋盘区域在画布上的绝对左上角坐标
+        // bgInfo.bgCanvasX 和 bgInfo.bgCanvasY 是背景图左上角在画布上的坐标
+        this.boardOffsetX = bgInfo.bgCanvasX + boardRelativeXScaled;
+        this.boardOffsetY = bgInfo.bgCanvasY + boardRelativeYScaled;
+
+        console.log(`BoardManager: Calculated - bgCanvasX: ${bgInfo.bgCanvasX}, bgCanvasY: ${bgInfo.bgCanvasY}, bgScale: ${bgInfo.scale}`);
+        console.log(`BoardManager: Calculated - boardOffsetX: ${this.boardOffsetX}, boardOffsetY: ${this.boardOffsetY}, TileSize: ${this.tileSize}`);
+
+        this.createBoard();
+        this.scene.time.delayedCall(100, () => { 
+            this.removeAllInitialMatches();
+        }, [], this);
+    }
+
+    createBoard() {
+        console.log("BoardManager: Creating board...");
+        this.tileGrid = [];
+        for (let x = 0; x < this.gridWidth; x++) {
+            this.tileGrid[x] = [];
+            for (let y = 0; y < this.gridHeight; y++) {
+                this.tileGrid[x][y] = this.createRandomTile(x, y);
+            }
+        }
+        console.log("BoardManager: Board created.");
+    }
+
+    createRandomTile(gridX, gridY) {
+        const randomTypeIndex = Phaser.Math.RND.integerInRange(0, this.tileTypes.length - 1);
+        const tileTypeKey = this.tileTypes[randomTypeIndex];
+        const worldPos = this.getWorldPosition(gridX, gridY);
+        
+        const tile = new Tile(this.scene, worldPos.x, worldPos.y, tileTypeKey, gridX, gridY, tileTypeKey, this);
+        return tile;
+    }
+
+    getWorldPosition(gridX, gridY) {
+        return {
+            x: this.boardOffsetX + gridX * this.tileSize + this.tileSize / 2,
+            y: this.boardOffsetY + gridY * this.tileSize + this.tileSize / 2
+        };
+    }
+    
+    getGridPosition(worldX, worldY) {
+        const gridX = Math.floor((worldX - this.boardOffsetX) / this.tileSize);
+        const gridY = Math.floor((worldY - this.boardOffsetY) / this.tileSize);
+        if (gridX >= 0 && gridX < this.gridWidth && gridY >= 0 && gridY < this.gridHeight) {
+            return { x: gridX, y: gridY };
+        }
+        return null; // Out of bounds
+    }
+
+    handleTileClick(tile) {
+        if (this.isProcessingMove || this.scene.gameState !== 'matching') return;
+
+        console.log(`BoardManager: Clicked on tile type ${tile.tileType} at [${tile.boardXIndex}, ${tile.boardYIndex}]`);
+
+        if (!this.selectedTile) {
+            // First tile selected
+            this.selectedTile = tile;
+            this.selectedTile.setAlpha(0.7); // Visual feedback for selection
+        } else {
+            // Second tile selected, try to swap
+            this.selectedTile.setAlpha(1.0); // Reset alpha of first tile
+            if (this.areAdjacent(this.selectedTile, tile)) {
+                this.trySwapTiles(this.selectedTile, tile);
+            } else {
+                 console.log("BoardManager: Tiles are not adjacent.");
+            }
+            this.selectedTile = null; // Reset selection
+        }
+    }
+
+    areAdjacent(tile1, tile2) {
+        const dx = Math.abs(tile1.boardXIndex - tile2.boardXIndex);
+        const dy = Math.abs(tile1.boardYIndex - tile2.boardYIndex);
+        return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+    }
+
+    async trySwapTiles(tile1, tile2) {
+        if (this.isProcessingMove) return;
+        this.isProcessingMove = true;
+        this.scene.gameState = 'swapping'; // Or a general 'processing' state
+
+        // Store original grid positions before swapping references
+        const tile1GridX = tile1.boardXIndex;
+        const tile1GridY = tile1.boardYIndex;
+        const tile2GridX = tile2.boardXIndex;
+        const tile2GridY = tile2.boardYIndex;
+
+        // Swap them in the grid data structure
+        this.tileGrid[tile1GridX][tile1GridY] = tile2;
+        this.tileGrid[tile2GridX][tile2GridY] = tile1;
+
+        // Update their internal board indices
+        tile1.updateBoardPosition(tile2GridX, tile2GridY);
+        tile2.updateBoardPosition(tile1GridX, tile1GridY);
+
+        // Animate the visual swap
+        const tile1WorldPos = this.getWorldPosition(tile1.boardXIndex, tile1.boardYIndex);
+        const tile2WorldPos = this.getWorldPosition(tile2.boardXIndex, tile2.boardYIndex);
+
+        await Promise.all([
+            tile1.animateMove(tile1WorldPos.x, tile1WorldPos.y),
+            tile2.animateMove(tile2WorldPos.x, tile2WorldPos.y)
+        ]);
+
+        // Check for matches
+        const matches = this.findAllMatches();
+        if (matches.length > 0) {
+            console.log("BoardManager: Match found after swap!");
+            await this.processMatches(matches);
+            this.events.emit('matchCompleted'); // Signal GameScene to trigger quiz
+        } else {
+            console.log("BoardManager: No match. Swapping back.");
+            // Swap back in grid data
+            this.tileGrid[tile1GridX][tile1GridY] = tile1;
+            this.tileGrid[tile2GridX][tile2GridY] = tile2;
+            // Update internal indices back
+            tile1.updateBoardPosition(tile1GridX, tile1GridY);
+            tile2.updateBoardPosition(tile2GridX, tile2GridY);
+
+            // Animate swap back
+            const originalTile1WorldPos = this.getWorldPosition(tile1.boardXIndex, tile1.boardYIndex);
+            const originalTile2WorldPos = this.getWorldPosition(tile2.boardXIndex, tile2.boardYIndex);
+            await Promise.all([
+                tile1.animateMove(originalTile1WorldPos.x, originalTile1WorldPos.y),
+                tile2.animateMove(originalTile2WorldPos.x, originalTile2WorldPos.y)
+            ]);
+            this.scene.changeState('matching');
+        }
+        this.isProcessingMove = false;
+    }
+
+    // --- Match Finding, Removing, Refilling Logic (to be implemented) ---
+    async processMatches(initialMatches) {
+        let currentMatches = initialMatches;
+        while (currentMatches.length > 0) {
+            this.scene.changeState('removing');
+            // Remove matched tiles (with animation)
+            const destroyPromises = currentMatches.map(tile => tile.animateDestroy());
+            await Promise.all(destroyPromises);
+
+            // Nullify positions in grid
+            currentMatches.forEach(tile => {
+                if (this.tileGrid[tile.boardXIndex] && this.tileGrid[tile.boardXIndex][tile.boardYIndex] === tile) {
+                     this.tileGrid[tile.boardXIndex][tile.boardYIndex] = null;
+                }
+            });
+            
+            this.scene.changeState('refilling');
+            await this.refillBoard(); // Handle falling tiles and new tiles
+            
+            currentMatches = this.findAllMatches(); // Check for new matches (chain reaction)
+            if (currentMatches.length > 0) {
+                console.log("BoardManager: Chain reaction! New matches found.");
+            }
+        }
+        // After all matches and refills are done, GameScene will handle transition to quiz or back to matching
+    }
+
+    findAllMatches() {
+        const matches = [];
+        const visited = new Set(); // To avoid adding same tile multiple times from different match groups
+
+        // Check horizontal matches
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth - 2; x++) {
+                const tile1 = this.tileGrid[x][y];
+                if (!tile1) continue;
+                let matchLength = 1;
+                for (let i = 1; x + i < this.gridWidth; i++) {
+                    const nextTile = this.tileGrid[x + i][y];
+                    if (nextTile && nextTile.tileType === tile1.tileType) {
+                        matchLength++;
+                    } else {
+                        break;
+                    }
+                }
+                if (matchLength >= 3) {
+                    for (let i = 0; i < matchLength; i++) {
+                        if (!visited.has(this.tileGrid[x+i][y])){
+                            matches.push(this.tileGrid[x+i][y]);
+                            visited.add(this.tileGrid[x+i][y]);
+                        }
+                    }
+                    x += matchLength -1; // Skip checked tiles
+                }
+            }
+        }
+
+        // Check vertical matches
+        for (let x = 0; x < this.gridWidth; x++) {
+            for (let y = 0; y < this.gridHeight - 2; y++) {
+                const tile1 = this.tileGrid[x][y];
+                if (!tile1) continue;
+                let matchLength = 1;
+                for (let i = 1; y + i < this.gridHeight; i++) {
+                    const nextTile = this.tileGrid[x][y + i];
+                    if (nextTile && nextTile.tileType === tile1.tileType) {
+                        matchLength++;
+                    } else {
+                        break;
+                    }
+                }
+                if (matchLength >= 3) {
+                    for (let i = 0; i < matchLength; i++) {
+                         if (!visited.has(this.tileGrid[x][y+i])){
+                            matches.push(this.tileGrid[x][y+i]);
+                            visited.add(this.tileGrid[x][y+i]);
+                        }
+                    }
+                    y += matchLength -1; // Skip checked tiles
+                }
+            }
+        }
+        if (matches.length > 0) console.log("BoardManager: Found matches:", matches.length);
+        return matches; // Return unique set of matched tiles
+    }
+
+    async refillBoard() {
+        const fallPromises = [];
+        // Make tiles fall
+        for (let x = 0; x < this.gridWidth; x++) {
+            let emptySlots = 0;
+            for (let y = this.gridHeight - 1; y >= 0; y--) {
+                const tile = this.tileGrid[x][y];
+                if (tile === null) {
+                    emptySlots++;
+                } else if (emptySlots > 0) {
+                    this.tileGrid[x][y + emptySlots] = tile;
+                    this.tileGrid[x][y] = null;
+                    tile.updateBoardPosition(x, y + emptySlots);
+                    const targetWorldPos = this.getWorldPosition(x, y + emptySlots);
+                    fallPromises.push(tile.animateMove(targetWorldPos.x, targetWorldPos.y, 250 + emptySlots * 50));
+                }
+            }
+            // Fill empty slots at the top
+            for (let i = 0; i < emptySlots; i++) {
+                const newTile = this.createRandomTile(x, i);
+                this.tileGrid[x][i] = newTile;
+                // Animate new tile falling from above the board
+                const startWorldY = this.boardOffsetY - (emptySlots - i) * this.tileSize + this.tileSize / 2;
+                newTile.y = startWorldY; // Start position off-screen or at top
+                const targetWorldPos = this.getWorldPosition(x, i);
+                fallPromises.push(newTile.animateMove(targetWorldPos.x, targetWorldPos.y, 300 + i * 60));
+            }
+        }
+        await Promise.all(fallPromises);
+        console.log("BoardManager: Board refilled.");
+    }
+
+    removeAllInitialMatches() {
+        let matches = this.findAllMatches();
+        let iterations = 0; // Safety break for infinite loops
+        while (matches.length > 0 && iterations < 10) {
+            console.log("BoardManager: Removing initial matches...");
+            matches.forEach(tile => {
+                if (tile && !tile.isSpecial && this.tileGrid[tile.boardXIndex] && this.tileGrid[tile.boardXIndex][tile.boardYIndex] === tile) {
+                    tile.destroy(); 
+                    this.tileGrid[tile.boardXIndex][tile.boardYIndex] = this.createRandomTile(tile.boardXIndex, tile.boardYIndex);
+                }
+            });
+            matches = this.findAllMatches();
+            iterations++;
+        }
+        if (iterations >= 10) {
+            console.warn("BoardManager: Exceeded max iterations removing initial matches. Board might be unstable.");
+        }
+        console.log("BoardManager: Initial matches cleared.");
+        if (this.scene.gameState !== 'quizzing' && this.scene.gameState !== 'shuffle_quiz') { // 避免在答题时改变状态
+             this.scene.changeState('matching'); 
+        }
+    }
+
+    shuffleBoard(keepSpecialTiles) {
+        console.log(`BoardManager: shuffleBoard called. Keep special: ${keepSpecialTiles}`);
+        this.isProcessingMove = true;
+        // GameScene 将处理状态转换为 'shuffling'，然后是 'shuffle_quiz'
+
+        const preservedTiles = [];
+
+        for (let x = 0; x < this.gridWidth; x++) {
+            for (let y = 0; y < this.gridHeight; y++) {
+                const tile = this.tileGrid[x][y];
+                if (tile) {
+                    if (keepSpecialTiles && tile.isSpecial) {
+                        preservedTiles.push({ x: x, y: y, tileData: tile }); // 保存特殊 tile 及其位置
+                        // 不要销毁它，但从当前网格逻辑中移除，避免被重复填充
+                        this.tileGrid[x][y] = null; 
+                    } else {
+                        tile.destroy();
+                        this.tileGrid[x][y] = null;
+                    }
+                }
+            }
+        }
+
+        // 重新创建棋盘上的普通 tile
+        for (let x = 0; x < this.gridWidth; x++) {
+            for (let y = 0; y < this.gridHeight; y++) {
+                if (this.tileGrid[x][y] === null) { // 只填充之前被清空或未被保留的格子
+                    let isPreservedLocation = false;
+                    for(const pTile of preservedTiles) {
+                        if (pTile.x === x && pTile.y ===y) {
+                            isPreservedLocation = true;
+                            break;
+                        }
+                    }
+                    if (!isPreservedLocation) {
+                        this.tileGrid[x][y] = this.createRandomTile(x, y);
+                    }
+                }
+            }
+        }
+
+        // 将保留的特殊 tile 放回网格
+        preservedTiles.forEach(pItem => {
+            this.tileGrid[pItem.x][pItem.y] = pItem.tileData;
+            // 确保它在视觉上正确 (如果之前被隐藏或移除了)
+            if (!pItem.tileData.scene) { // 如果 tile 已经从场景移除 (不太可能，因为我们只是null了grid引用)
+                this.scene.add.existing(pItem.tileData);
+            }
+            pItem.tileData.setActive(true).setVisible(true);
+            pItem.tileData.setPosition(this.getWorldPosition(pItem.x, pItem.y).x, this.getWorldPosition(pItem.x, pItem.y).y);
+        });
+
+        console.log("BoardManager: Board has been reshuffled.");
+
+        this.removeAllInitialMatches(); // 这会清除新生成的匹配并最终转换到 'matching' 状态
+                                    // 它现在也应该尊重 isSpecial 标志
+        // isProcessingMove 会在 removeAllInitialMatches -> changeState('matching') 中被 GameScene 重置
+    }
+
+    spawnSpecialTileRandomly() { 
+        if (!this.tileTypes || this.tileTypes.length === 0) {
+            console.warn("BoardManager: tileTypes array is empty. Cannot spawn special tile.");
+            return;
+        }
+        const baseSpecialTypeKey = Phaser.Math.RND.pick(this.tileTypes);
+        console.log(`BoardManager: Attempting to spawn a special tile based on type: ${baseSpecialTypeKey}`);
+
+        let attempts = 0;
+        const maxAttempts = this.gridWidth * this.gridHeight;
+        while (attempts < maxAttempts) {
+            const randX = Phaser.Math.RND.integerInRange(0, this.gridWidth - 1);
+            const randY = Phaser.Math.RND.integerInRange(0, this.gridHeight - 1);
+            const tile = this.tileGrid[randX][randY];
+            
+            if (tile && !tile.isSpecial) { // 只在普通 tile 上生成特殊 tile
+                console.log(`BoardManager: Spawning special tile (type: ${baseSpecialTypeKey}) at [${randX}, ${randY}]`);
+                tile.changeType(baseSpecialTypeKey, baseSpecialTypeKey);
+                tile.setTint(0xffd700); 
+                tile.isSpecial = true; // 标记为特殊
+                return;
+            }
+            attempts++;
+        }
+        console.warn("BoardManager: Could not find a suitable place to spawn special tile.");
+    }
+
+    // 检查棋盘上是否存在任何可能的有效移动
+    checkForPossibleMoves() {
+        // 检查水平方向的交换和匹配
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth - 1; x++) {
+                if (this.canSwapAndMatch(this.tileGrid[x][y], this.tileGrid[x + 1][y])) {
+                    // console.log(`Possible horizontal move at [${x},${y}] and [${x+1},${y}]`);
+                    return true; // 找到一个可能的移动
+                }
+            }
+        }
+
+        // 检查垂直方向的交换和匹配
+        for (let x = 0; x < this.gridWidth; x++) {
+            for (let y = 0; y < this.gridHeight - 1; y++) {
+                if (this.canSwapAndMatch(this.tileGrid[x][y], this.tileGrid[x][y + 1])) {
+                    // console.log(`Possible vertical move at [${x},${y}] and [${x},${y+1}]`);
+                    return true; // 找到一个可能的移动
+                }
+            }
+        }
+        
+        console.log("BoardManager: No possible moves found.");
+        return false; // 没有找到可能的移动
+    }
+
+    // 辅助方法：检查两个tile交换后是否能形成匹配 (不实际执行交换)
+    canSwapAndMatch(tile1, tile2) {
+        if (!tile1 || !tile2) return false;
+
+        // 模拟交换它们的类型，在一个临时的grid副本或者直接检查周围
+        // 检查tile1移动到tile2位置后，tile1的新类型是否能形成匹配
+        if (this.checkMatchAround(tile1.tileType, tile2.boardXIndex, tile2.boardYIndex, tile1.boardXIndex, tile1.boardYIndex)) {
+            return true;
+        }
+        // 检查tile2移动到tile1位置后，tile2的新类型是否能形成匹配
+        if (this.checkMatchAround(tile2.tileType, tile1.boardXIndex, tile1.boardYIndex, tile2.boardXIndex, tile2.boardYIndex)) {
+            return true;
+        }
+        return false;
+    }
+
+    // 辅助方法：给定一个类型和目标位置，以及一个要忽略的原始位置，检查是否能形成至少3个的匹配
+    checkMatchAround(typeToMatch, targetX, targetY, ignoreX, ignoreY) {
+        let count;
+
+        // --- 检查水平匹配 ---
+        // 向左检查
+        count = 1;
+        for (let i = 1; targetX - i >= 0; i++) {
+            if (targetX - i === ignoreX && targetY === ignoreY) continue; // 跳过被"交换掉"的原始tile位置
+            const tile = this.tileGrid[targetX - i][targetY];
+            if (tile && tile.tileType === typeToMatch) count++;
+            else break;
+        }
+        // 向右检查
+        for (let i = 1; targetX + i < this.gridWidth; i++) {
+            if (targetX + i === ignoreX && targetY === ignoreY) continue;
+            const tile = this.tileGrid[targetX + i][targetY];
+            if (tile && tile.tileType === typeToMatch) count++;
+            else break;
+        }
+        if (count >= 3) return true;
+
+        // --- 检查垂直匹配 ---
+        // 向上检查
+        count = 1;
+        for (let i = 1; targetY - i >= 0; i++) {
+            if (targetX === ignoreX && targetY - i === ignoreY) continue;
+            const tile = this.tileGrid[targetX][targetY - i];
+            if (tile && tile.tileType === typeToMatch) count++;
+            else break;
+        }
+        // 向下检查
+        for (let i = 1; targetY + i < this.gridHeight; i++) {
+            if (targetX === ignoreX && targetY + i === ignoreY) continue;
+            const tile = this.tileGrid[targetX][targetY + i];
+            if (tile && tile.tileType === typeToMatch) count++;
+            else break;
+        }
+        if (count >= 3) return true;
+
+        return false;
+    }
+
+    isBoardStable() {
+        return !this.isProcessingMove;
+    }
+}
+
+// GameScene class
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super('GameScene');
+        this.boardManager = null;
+        this.uiManager = null;
+        this.quizManager = null;
+        this.playerDataManager = null;
+        // this.abilityManager = null; 
+        this.sounds = {}; // 存储音频对象的引用
+        this.background = null; // 添加背景引用
+
+        this.gameState = 'loading'; // States: loading, preloading, matching, swapping, removing, refilling, quizzing, gameOver
+        this.isShufflingAndRequiresQuiz = false;
+    }
+
+    preload() {
+        console.log("GameScene: preload");
+        this.changeState('preloading');
+
+        // Define asset keys and their corresponding file names
+        this.assetKeys = {
+            happy_face: 'happy_face_transparent.png',
+            sad_face: 'sad_face_transparent.png',
+            pen_tile: 'pen_tile.png',
+            book_tile: 'book_tile.png',
+            abacus_tile: 'abacus_tile.png',
+            magnify_tile: 'magnify_tile.png',
+            compass_tile: 'compass_tile.png',
+            pencil_tile: 'pencil_tile.png',
+            refresh_button_img: 'refresh_button.png' // 添加刷新按钮图片
+        };
+
+        // Load images
+        for (const key in this.assetKeys) {
+            this.load.image(key, `resources/match3/images/${this.assetKeys[key]}`);
+        }
+
+        // 加载音频文件
+        this.load.audio('match_sound', 'resources/match3/audio/collection.wav');
+        this.load.audio('click_sound', 'resources/match3/audio/click.wav');
+        this.load.audio('correct_sound', 'resources/match3/audio/success.wav');
+        this.load.audio('wrong_sound', 'resources/match3/audio/wrong.wav');
+        this.load.audio('fall_sound', 'resources/match3/audio/fall.wav');
+        this.load.audio('skill_sound', 'resources/match3/audio/collection.wav');
+
+        // You can add a loading bar here if you have many assets
+    }
+
+    create() {
+        console.log("GameScene: create");
+
+        // 设置背景
+        let gameWidth = this.sys.game.config.width; // 600
+        let gameHeight = this.sys.game.config.height; // 800
+
+        // 更新背景图的原始尺寸
+        let bgOriginalWidth = 1325; // 新的宽度
+        let bgOriginalHeight = 2000; // 新的高度
+        
+        let scaleX = gameWidth / bgOriginalWidth;   
+        let scaleY = gameHeight / bgOriginalHeight; 
+        this.actualBgScale = Math.min(scaleX, scaleY); 
+
+        const bgScaledWidth = bgOriginalWidth * this.actualBgScale;
+        const bgScaledHeight = bgOriginalHeight * this.actualBgScale;
+        
+        const bgCanvasX = (gameWidth - bgScaledWidth) / 2;
+        const bgCanvasY = (gameHeight - bgScaledHeight) / 2;
+
+        this.background = this.add.image(bgCanvasX, bgCanvasY, 'happy_face');
+        this.background.setOrigin(0, 0); 
+        this.background.setScale(this.actualBgScale);
+
+        try {
+            this.sounds = {
+                match: this.sound.add('match_sound', { volume: 0.5 }),
+                click: this.sound.add('click_sound', { volume: 0.5 }),
+                correct: this.sound.add('correct_sound', { volume: 0.5 }),
+                wrong: this.sound.add('wrong_sound', { volume: 0.5 }),
+                fall: this.sound.add('fall_sound', { volume: 0.5 }),
+                skill: this.sound.add('skill_sound', { volume: 0.5 })
+            };
+        } catch (e) {
+            console.warn("音频加载失败，继续游戏但没有音效", e);
+            this.sounds = {}; 
+        }
+
+        if (typeof Tile === 'undefined') {
+            console.error("GameScene: Tile class is not defined! This will cause errors later.");
+            alert("游戏加载错误：Tile类未定义。请检查控制台获取更多信息。");
+            return; 
+        }
+
+        this.playerDataManager = new PlayerDataManager();
+        this.quizManager = new QuizManager(this); 
+        this.uiManager = new UIManager(this);
+        this.boardManager = new BoardManager(this);
+
+        this.uiManager.createUI(); 
+        this.uiManager.updateScore(this.playerDataManager.getScore());
+
+        // --- 刷新按钮设置 ---
+        const refreshButtonSize = 50; // 调整按钮期望的显示尺寸
+        const refreshButtonMarginFromBgEdge = 15; // 按钮距离背景图内部边缘的边距
+
+        // 背景图在画布上的右上角X坐标
+        const bgTopRightX = bgCanvasX + bgScaledWidth;
+        // 背景图在画布上的右上角Y坐标 (就是bgCanvasY，因为origin是0,0)
+        // const bgTopRightY = bgCanvasY; 
+
+        this.refreshButton = this.add.image(
+            bgTopRightX - refreshButtonMarginFromBgEdge - (refreshButtonSize / 2), // X: 从背景图右上角向左偏移
+            bgCanvasY + refreshButtonMarginFromBgEdge + (refreshButtonSize / 2),     // Y: 从背景图上边缘向下偏移
+            'refresh_button_img'
+        );
+        this.refreshButton.setDisplaySize(refreshButtonSize, refreshButtonSize); 
+        this.refreshButton.setInteractive({ useHandCursor: true });
+        this.refreshButton.setDepth(20); // 确保在UI最上层 (分数文本也是10，背景是0)
+        
+        this.refreshButton.on('pointerdown', () => {
+            if (this.gameState === 'matching' || this.gameState === 'no_moves') { 
+                console.log("Refresh button clicked");
+                this.playSound('click'); 
+                this.changeState('shuffling'); // 先进入洗牌状态，禁用交互
+                this.boardManager.shuffleBoard(true); // true 表示保留特殊块
+                // shuffleBoard 会调用 removeAllInitialMatches, 后者如果清除了匹配，会再次调用 refill 等
+                // 当棋盘稳定后，removeAllInitialMatches 会尝试将状态设置为 matching
+                // 我们需要在 removeAllInitialMatches 完成后，并且在状态变为 matching 之前，插入答题环节
+                // 因此，修改 removeAllInitialMatches，让它在 shuffle 后不直接改回 matching，而是触发一个事件或回调
+                // 或者，更简单的方式是，GameScene 在收到 refreshButton 点击后，设定一个标记
+                // 或者，更简单的方式是，GameScene 在收到 refreshButton 点击后，设定一个标记
+                this.isShufflingAndRequiresQuiz = true; 
+                // removeAllInitialMatches 最终会将 gameState 设置为 matching (如果棋盘稳定)
+                // 我们在 changeState('matching') 处检查这个标记
+            }
+        });
+        // 初始时可以先隐藏，或者根据游戏状态显示/隐藏
+        // this.refreshButton.setVisible(false);
+
+        const tileAssetKeys = ['pen_tile', 'book_tile', 'abacus_tile', 'magnify_tile', 'compass_tile', 'pencil_tile'];
+        
+        // --- 棋盘精确计算 --- 
+        // 按比例放大旧的棋盘相对参数 (基于宽度缩放因子 1325/265 = 5)
+        const widthScaleFactor = 1325 / 265; // = 5
+
+        const boardRelativeX_from_bg = 19 * widthScaleFactor;    // 95
+        const boardRelativeY_from_bg = 204 * widthScaleFactor;   // 1020 (如果Y也按宽度因子缩放)
+                                                                  // 或者，如果棋盘在背景上的Y位置独立于整体缩放：保持204，或用高度因子 2000/390 ≈ 5.128
+                                                                  // 暂时也用 widthScaleFactor, 若不准再调整
+        const boardRelativeWidth_from_bg = 224 * widthScaleFactor; // 1120
+        const boardRelativeHeight_from_bg = 180 * widthScaleFactor;// 900
+
+        const boardGridCols = 5;
+        const boardGridRows = 4;
+
+        const boardPixelWidthOnCanvas = boardRelativeWidth_from_bg * this.actualBgScale;
+        const boardPixelHeightOnCanvas = boardRelativeHeight_from_bg * this.actualBgScale;
+
+        let tileSizeBasedOnWidth = boardPixelWidthOnCanvas / boardGridCols;
+        let tileSizeBasedOnHeight = boardPixelHeightOnCanvas / boardGridRows;
+        let finalTileSize = Math.floor(Math.min(tileSizeBasedOnWidth, tileSizeBasedOnHeight));
+        
+        const boardConfig = {
+            width: boardGridCols, 
+            height: boardGridRows,
+            tileSize: finalTileSize,
+            backgroundInfo: {
+                scale: this.actualBgScale,
+                bgCanvasX: bgCanvasX, 
+                bgCanvasY: bgCanvasY,
+                boardRelativeX: boardRelativeX_from_bg,
+                boardRelativeY: boardRelativeY_from_bg 
+            }
+        };
+
+        this.boardManager.initializeBoard(tileAssetKeys, boardConfig);
+
+        this.boardManager.events.on('matchCompleted', this.handleMatchCompleted, this);
+        this.quizManager.events.on('quizAnswered', this.handleQuizAnswered, this);
+        
+        this.uiManager.attachAnswerButtonListeners((selectedIndex) => {
+            if (this.gameState === 'quizzing') {
+                this.quizManager.submitAnswer(selectedIndex);
+            }
+        });
+
+        console.log("GameScene: Initialization complete. Waiting for board...");
+
+        // 在create中保存刷新按钮的原始缩放值
+        this.refreshButton.setData('originalScale', this.refreshButton.scale);
+    }
+
+    // Helper method to play sounds safely
+    playSound(key) {
+        if (this.sounds[key]) {
+            this.sounds[key].play();
+        } else {
+            console.warn(`Sound ${key} not found`);
+        }
+    }
+
+    update(time, delta) {
+        // Game loop - can be used for continuous checks or animations not handled by tweens
+        // For this game, most logic is event-driven or handled by tweens.
+    }
+
+    changeState(newState) {
+        if (this.gameState === newState && newState !== 'matching') return; 
+        console.log(`GameScene: Changing state from ${this.gameState} to ${newState}`);
+        const oldState = this.gameState;
+        this.gameState = newState;
+
+        switch (newState) {
+            case 'preloading': break;
+            case 'matching':
+                this.boardManager.isProcessingMove = false; 
+                this.uiManager.showQuizPanel(false);
+                if (this.refreshButton) this.refreshButton.setInteractive(true);
+
+                if (this.isShufflingAndRequiresQuiz) {
+                    this.isShufflingAndRequiresQuiz = false; 
+                    console.log("Board shuffled, now presenting quiz for shuffle.");
+                    this.changeState('shuffle_quiz'); 
+                } else if (oldState === 'shuffle_quiz_answered' || 
+                           oldState === 'quizzing' || 
+                           (oldState === 'refilling' && this.boardManager.isBoardStable()) || // 确保 refill 真的完成了
+                           oldState === 'create_initial_board') { // 假设有一个初始创建棋盘的状态
+                    this.checkAndHandleNoMoves();
+                }
+                break;
+            case 'shuffling': 
+            case 'swapping':
+            case 'removing':
+            case 'refilling':
+                if (newState === 'removing') { this.playSound('match');}
+                if (newState === 'refilling') { this.playSound('fall'); }
+                this.boardManager.isProcessingMove = true; 
+                if (this.refreshButton) this.refreshButton.setInteractive(false); 
+                break;
+            case 'quizzing': 
+                this.boardManager.isProcessingMove = true; 
+                if (this.refreshButton) this.refreshButton.setInteractive(false); 
+                const question = this.quizManager.presentRandomQuestion();
+                if (question) {
+                    this.uiManager.displayQuestion(question);
+                    this.uiManager.showQuizPanel(true);
+                } else {
+                    console.warn("GameScene: No question to present. Returning to matching.");
+                    this.changeState('matching'); 
+                }
+                break;
+            case 'shuffle_quiz': 
+                this.boardManager.isProcessingMove = true;
+                if (this.refreshButton) this.refreshButton.setInteractive(false);
+                console.log("Presenting quiz after shuffle.");
+                const shuffleQuestion = this.quizManager.presentRandomQuestion();
+                if (shuffleQuestion) {
+                    this.uiManager.displayQuestion(shuffleQuestion);
+                    this.uiManager.showQuizPanel(true);
+                } else {
+                    console.warn("GameScene: No question for shuffle quiz. Returning to matching.");
+                    this.changeState('matching');
+                }
+                break;
+            case 'gameOver': 
+            case 'no_moves': 
+                this.boardManager.isProcessingMove = true; // 在 no_moves 状态下，棋盘不应该能操作，除非点刷新
+                if (this.refreshButton && this.refreshButton.scene && this.refreshButton.active) { // Ensure button is active
+                    this.refreshButton.setInteractive(true); 
+                    if (this.tweens) { // Check if tween manager is available
+                        const baseScale = this.refreshButton.getData('originalScale') || this.refreshButton.scale;
+                        this.tweens.add({ // Corrected: use this.tweens
+                            targets: this.refreshButton,
+                            scale: baseScale * 1.15, // Base the animation on original/current scale
+                            duration: 300,
+                            yoyo: true,
+                            repeat: -1 // 一直重复直到状态改变
+                        });
+                    } else {
+                        console.warn("GameScene.changeState('no_moves'): this.tweens is not available.");
+                    }
+                }
+                break;
+        }
+    }
+
+    handleMatchCompleted() {
+        console.log("GameScene: Match completed by BoardManager.");
+        // Add a small delay before showing the quiz to let animations finish smoothly
+        this.time.delayedCall(300, () => {
+             this.changeState('quizzing');
+        }, [], this);
+    }
+
+    handleQuizAnswered(isCorrect, question) {
+        // 这个方法现在也需要处理来自 shuffle_quiz 状态的答案
+        console.log(`GameScene: Quiz answered. Correct: ${isCorrect}. Current state: ${this.gameState}`);
+        this.uiManager.showQuizPanel(false); 
+
+        const wasShuffleQuiz = (this.gameState === 'shuffle_quiz');
+
+        if (!wasShuffleQuiz) { // 只有普通答题才改变背景和给奖励
+            this.background.setTexture(isCorrect ? 'happy_face' : 'sad_face');
+            if (isCorrect) {
+                this.playerDataManager.addScore(100); 
+                this.boardManager.spawnSpecialTileRandomly(); 
+                this.playSound('skill');
+            }
+        }
+        // 统一播放对错音效
+        this.playSound(isCorrect ? 'correct' : 'wrong');
+        
+        if (!wasShuffleQuiz) {
+             this.uiManager.updateScore(this.playerDataManager.getScore());
+        }
+
+        this.time.delayedCall(1200, () => {
+            if (wasShuffleQuiz) {
+                this.changeState('shuffle_quiz_answered'); // 特殊状态标记，以便在 matching 中处理
+            } else {
+                this.changeState('matching');
+            }
+        }, [], this);
+    }
+
+    checkAndHandleNoMoves() {
+        // 停止任何可能在 no_moves 状态下运行的刷新按钮动画
+        if (this.refreshButton && this.refreshButton.scene && this.refreshButton.active) { // Ensure button is active
+            if (this.tweens) { // Check if tween manager is available
+                this.tweens.killTweensOf(this.refreshButton); // Corrected: use this.tweens
+                const originalScale = this.refreshButton.getData('originalScale') || this.refreshButton.scale; // Fallback to current scale if not set
+                this.refreshButton.setScale(originalScale);
+            } else {
+                console.warn("GameScene.checkAndHandleNoMoves: this.tweens is not available.");
+            }
+        }
+
+        if (!this.boardManager.checkForPossibleMoves()) {
+            this.changeState('no_moves');
+        }
+    }
+}
+
+// Game configuration
+const config = {
+    type: Phaser.AUTO, // Automatically choose WebGL or Canvas
+    width: 600,        // Game width in pixels
+    height: 800,       // Game height in pixels
+    parent: 'game-container', // ID of the DOM element to parent the canvas to
+    backgroundColor: '#f0f0f0',
+    scene: [GameScene], // Add GameScene here directly
+    render: {
+        antialias: true, // 通常建议开启抗锯齿
+        transparent: false, // 如果你的游戏背景是不透明的，可以设为false以提高一点点性能
+        willReadFrequently: true // 解决控制台的性能提示
+    }
+    // physics: { // Optional: if you need arcade physics for more complex movements
+    //     default: 'arcade',
+    //     arcade: {
+    //         gravity: { y: 0 },
+    //         debug: false
+    //     }
+    // }
+};
+
+// Create a new Phaser game instance
+const game = new Phaser.Game(config);
+
+// No need to manually start the scene if it's the first one in the array.
+// Phaser will automatically start the first scene listed in the config's scene array.
+    </script>
+</body>
+</html> 
