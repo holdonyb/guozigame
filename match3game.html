@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Match-3 Educational Game</title>
     <!-- Add favicon to prevent 404 error -->
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
@@ -11,25 +11,60 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body { 
-            margin: 0; 
+            margin: 0;
             background-color: #f0f0f0; /* Fallback, game canvas will cover this */
-            display: flex; 
-            flex-direction: column; 
+            display: flex;
+            flex-direction: column;
             justify-content: center; /* This centers #game-container and initial #quiz-panel if not absolutely positioned */
-            align-items: center; 
+            align-items: center;
             min-height: 100vh; 
+            height: 100%;
+            width: 100%;
             font-family: 'Nunito', sans-serif; /* Using Nunito, or your preferred playful font */
             overflow: hidden; /* Prevent scrollbars if panel is slightly larger than viewport during transition */
+            position: fixed; /* 防止移动端地址栏变化导致的布局变化 */
+            touch-action: manipulation; /* 防止双击缩放 */
         }
+        
+        html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        
         #game-container {
             /*让 game-container 成为 quiz-panel 的定位上下文 (如果用 absolute)*/
             /*position: relative; */
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+            max-width: 600px;
+            max-height: 800px;
         }
+        
         #game-container canvas { 
             border: 1px solid #ccc; /* Can be removed if background image has its own border */
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            /* 让canvas的尺寸可以适应 */
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            touch-action: none;
+            width: 100%;
+            height: 100%;
         }
+        
         #quiz-panel {
             /* display: none;  由 UIManager 控制 */
             position: fixed; /* 改为 fixed 使其相对于视口定位，覆盖所有内容 */
@@ -37,7 +72,7 @@
             left: 50%;
             /* transform: translate(-50%, -50%) scale(0.95);  初始状态通过 transform 控制 */
             transform: translate(-50%, -50%) scale(0.8); /* 初始更小一点，配合opacity */
-            width: 90%; 
+            width: 90%;
             max-width: 450px; 
             background-color: #fff5e1; 
             padding: 25px;
@@ -128,11 +163,14 @@ class Tile extends Phaser.GameObjects.Sprite {
         }
 
         // 互动性
-        this.setInteractive();
+        this.setInteractive({ useHandCursor: true });
         
         // 处理点击事件
         this.on('pointerdown', this.handlePointerDown, this);
-
+        
+        // 添加触摸事件支持
+        this.on('touchstart', this.handlePointerDown, this);
+        
         // console.log(`Tile created: Type ${tileType} at [${boardXIndex}, ${boardYIndex}]`); // 可以暂时注释掉，减少日志
     }
 
@@ -1352,10 +1390,21 @@ const config = {
     parent: 'game-container', // ID of the DOM element to parent the canvas to
     backgroundColor: '#f0f0f0',
     scene: [GameScene], // Add GameScene here directly
+    scale: {
+        mode: Phaser.Scale.FIT, // 自动缩放以适应屏幕
+        autoCenter: Phaser.Scale.CENTER_BOTH, // 在父容器中居中
+        width: 600,
+        height: 800,
+    },
     render: {
         antialias: true, // 通常建议开启抗锯齿
         transparent: false, // 如果你的游戏背景是不透明的，可以设为false以提高一点点性能
-        willReadFrequently: true // 解决控制台的性能提示
+        willReadFrequently: true, // 解决控制台的性能提示
+        pixelArt: false, // 如果使用像素艺术风格，设为true
+        roundPixels: true // 解决某些设备上的微小渲染瑕疵
+    },
+    input: {
+        activePointers: 2 // 支持多点触控
     }
     // physics: { // Optional: if you need arcade physics for more complex movements
     //     default: 'arcade',
@@ -1365,6 +1414,14 @@ const config = {
     //     }
     // }
 };
+
+// Ensure proper orientation handling
+if ('addEventListener' in window) {
+    window.addEventListener('resize', function() {
+        // 强制游戏重新计算大小
+        game.scale.refresh();
+    });
+}
 
 // Create a new Phaser game instance
 const game = new Phaser.Game(config);

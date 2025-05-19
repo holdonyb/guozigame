@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>果子游戏集</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            text-align: center;
+            padding: 3rem 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .games-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        
+        .game-card {
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .game-image {
+            height: 160px;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .game-image-placeholder {
+            font-size: 3rem;
+            color: #adb5bd;
+        }
+        
+        .game-info {
+            padding: 1.5rem;
+        }
+        
+        .game-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .game-description {
+            font-size: 0.95rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+        }
+        
+        .play-button {
+            display: inline-block;
+            background-color: #4263eb;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        
+        .play-button:hover {
+            background-color: #3b5bdb;
+        }
+        
+        footer {
+            background-color: #343a40;
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+            
+            .games-container {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+    
+        .game-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px 10px 0 0;
+        }
+        </style>
+</head>
+<body>
+<header>
+<div class="container">
+<h1>果子游戏集</h1>
+<p class="subtitle">探索我们的教育游戏与互动应用集合，寓教于乐！</p>
+</div>
+</header>
+<div class="container">
+<div class="games-container">
+<!-- Match-3 教育游戏 -->
+<div class="game-card">
+<div class="game-image"><img alt="Match-3 教育游戏" src="resources/screenshots/match3.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">Match-3 教育游戏</h3>
+<p class="game-description">一款结合Match-3玩法与物理知识问答的教育游戏，通过游戏学习物理概念。</p>
+<a class="play-button" href="match3game.html">开始游戏</a>
+</div>
+</div>
+<!-- 进化球 -->
+<div class="game-card">
+<div class="game-image"><img alt="快乐的吞噬小宝宝" src="resources/screenshots/evolution.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">快乐的吞噬小宝宝</h3>
+<p class="game-description">体验进化和生存的游戏，在不断成长和竞争中成为最强的存在。</p>
+<a class="play-button" href="evolution.html">开始游戏</a>
+</div>
+</div>
+<!-- 语言向导 -->
+<div class="game-card">
+<div class="game-image"><img alt="语言向导" src="resources/screenshots/langwizard.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">语言向导</h3>
+<p class="game-description">词汇学习游戏，通过互动方式增强语言能力和单词记忆。</p>
+<a class="play-button" href="langwizard.html">开始游戏</a>
+</div>
+</div>
+<!-- 英语匹配游戏 -->
+<div class="game-card">
+<div class="game-image"><img alt="英语匹配游戏" src="resources/screenshots/engmatch.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">英语匹配游戏</h3>
+<p class="game-description">英语学习游戏，通过匹配来加强英语词汇和语法知识。</p>
+<a class="play-button" href="engmatchgame.html">开始游戏</a>
+</div>
+</div>
+<!-- 清醒迷宫 -->
+<div class="game-card">
+<div class="game-image"><img alt="清醒迷宫" src="resources/screenshots/lucidmaze.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">清醒迷宫</h3>
+<p class="game-description">3D迷宫探索游戏，测试你的空间认知能力和问题解决技巧。</p>
+<a class="play-button" href="lucidmaze2.html">开始游戏</a>
+</div>
+</div>
+<!-- 清醒游戏3D -->
+<div class="game-card">
+<div class="game-image"><img alt="清醒游戏3D" src="resources/screenshots/lucidgame3d.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">清醒游戏3D</h3>
+<p class="game-description">3D环境中的互动游戏体验，挑战物理和空间逻辑。</p>
+<a class="play-button" href="lucidgame3d.html">开始游戏</a>
+</div>
+</div>
+<!-- 清醒游戏 -->
+<div class="game-card">
+<div class="game-image"><img alt="清醒游戏" src="resources/screenshots/lucidgame.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">清醒游戏</h3>
+<p class="game-description">2D版本的清醒游戏，提供更简单但同样有趣的游戏体验。</p>
+<a class="play-button" href="lucidgame.html">开始游戏</a>
+</div>
+</div>
+<!-- 激光盒2D -->
+<div class="game-card">
+<div class="game-image"><img alt="激光盒2D" src="resources/screenshots/lazerbox.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">激光盒2D</h3>
+<p class="game-description">基于物理的激光反射游戏，考验你的策略和物理知识。</p>
+<a class="play-button" href="lazerbox2D.html">开始游戏</a>
+</div>
+</div>
+<!-- 互动分布 -->
+<div class="game-card">
+<div class="game-image"><img alt="互动分布" src="resources/screenshots/interactivedist.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">互动分布</h3>
+<p class="game-description">探索数据分布的可视化工具，学习统计学概念。</p>
+<a class="play-button" href="interactivedist.html">开始应用</a>
+</div>
+</div>
+<!-- 学习区域 -->
+<div class="game-card">
+<div class="game-image"><img alt="学习区域" src="resources/screenshots/learnarea.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">学习区域</h3>
+<p class="game-description">教育应用，提供结构化的学习环境和练习。</p>
+<a class="play-button" href="learnarea.html">开始学习</a>
+</div>
+</div>
+<!-- 学习区域点 -->
+<div class="game-card">
+<div class="game-image"><img alt="学习区域点" src="resources/screenshots/learnareadot.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">学习区域点</h3>
+<p class="game-description">另一款学习应用，关注点状知识结构和连接。</p>
+<a class="play-button" href="learnareadot.html">开始学习</a>
+</div>
+</div>
+<!-- 龙卷风 -->
+<div class="game-card">
+<div class="game-image"><img alt="龙卷风" src="resources/screenshots/longjuangeng.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">龙卷风</h3>
+<p class="game-description">体验龙卷风的物理模拟，学习气象和动力学知识。</p>
+<a class="play-button" href="longjuangeng.html">开始游戏</a>
+</div>
+</div>
+<!-- 元型金属 -->
+<div class="game-card">
+<div class="game-image"><img alt="元型金属" src="resources/screenshots/yuanxingjinshu.png" style="width: 100%; height: 100%; object-fit: cover;"/></div>
+<div class="game-info">
+<h3 class="game-title">元型金属</h3>
+<p class="game-description">探索金属元素及其特性的教育游戏。</p>
+<a class="play-button" href="yuanxingjinshu.html">开始游戏</a>
+</div>
+</div>
+</div>
+</div>
+<footer>
+<div class="container">
+<p>© 2025 果子游戏集 | 寓教于乐的互动体验</p>
+</div>
+</footer>
+</body>
+</html> 
