@@ -381,6 +381,7 @@ class QuizManager {
         this.events = new Phaser.Events.EventEmitter(); // For emitting events like 'quizAnswered', 'allQuestionsCompleted'
         this.askedQuestionIds = new Set(); // Use a Set for efficient tracking of asked questions
         this._lastQuestionTime = null; // Track timing to prevent rapid-fire questions
+        this.shouldShowCongratulations = false; // Flag to indicate when to show congratulations after Continue is clicked
         
         this.loadQuestions();
     }
@@ -543,12 +544,9 @@ class QuizManager {
         
         // CHEAT MODE: Consider all questions done after 5 unique ones have been asked.
         if (this.askedQuestionIds.size >= 5) {
-            console.warn("QuizManager (CHEAT MODE): 5 unique questions asked. Emitting allQuestionsCompleted event.");
-            // Important: Force a slight delay to ensure the event is handled after current processing
-            setTimeout(() => {
-                console.warn("QuizManager: Actually emitting allQuestionsCompleted now!");
-                this.events.emit('allQuestionsCompleted');
-            }, 100);
+            console.warn("QuizManager (CHEAT MODE): 5 unique questions asked. Will show congratulations after current question resolution.");
+            // DO NOT emit the event here - we'll do it in setContinueCallback after they click Continue 
+            this.currentQuestion = null; // Don't present another question
             return null;
         }
         
@@ -569,14 +567,13 @@ class QuizManager {
         // Record when we presented this question
         this._lastQuestionTime = Date.now();
         
-        // Check again for cheat mode *after* adding the current question, to trigger on the 5th question itself.
+        // Check for completion after this question (since we just added it to askedQuestionIds)
+        // But don't emit the event yet - just flag it for later
         if (this.askedQuestionIds.size >= 5) {
-            console.warn("QuizManager (CHEAT MODE POST-ADD): 5 unique questions now asked. Triggering allQuestionsCompleted.");
-            // We've already selected a question, so present it, but also signal completion for after this one.
-            // To make the congrats appear *after* this 5th question is answered, we'll emit 'allQuestionsCompleted' 
-            // when presentRandomQuestion is called *next* time and askedQuestionIds.size is already >= 5.
-            // The current logic at the top of the function already handles this.
+            console.warn("QuizManager (CHEAT MODE POST-ADD): 5 unique questions now asked. Will show congratulations after this question is resolved.");
+            this.shouldShowCongratulations = true; // Flag for later
         }
+        
         return this.currentQuestion; 
     }
 
@@ -1530,6 +1527,18 @@ class GameScene extends Phaser.Scene {
             console.log("GameScene: Continue callback triggered from UIManager for explanation.");
             const previousExplanationState = this.gameState;
             this.uiManager.showQuizPanel(false); 
+            
+            // Check if this is the last question (5th) and we should show congratulations
+            if (this.quizManager.shouldShowCongratulations) {
+                console.log("GameScene: Last question's continue button clicked. Showing congratulations panel.");
+                this.quizManager.shouldShowCongratulations = false; // Reset the flag
+                this.quizManager.clearCurrentQuestionReference();
+                
+                // Emit the event which will trigger handleAllQuestionsCompleted
+                this.quizManager.events.emit('allQuestionsCompleted');
+                return; // Don't proceed with normal continue flow
+            }
+            
             this.quizManager.clearCurrentQuestionReference(); 
 
             // Force a slight delay to ensure transitions complete correctly
@@ -1560,6 +1569,24 @@ class GameScene extends Phaser.Scene {
                 this.time.delayedCall(150, () => {
                     this.checkAndHandleNoMoves();
                 }, [], this);
+            }, [], this);
+        });
+
+        // Setup UIManager congrats panel button callback
+        this.uiManager.attachCongratsButtonListener(() => {
+            console.log("GameScene: Play Again button clicked.");
+            this.uiManager.showCongratsPanel(false, 0);
+            this.quizManager.resetQuiz();
+            this.playerDataManager.resetScore();
+            this.uiManager.updateScore(this.playerDataManager.getScore());
+            this.background.setTexture('happy_face');
+            
+            // Reset the board
+            this.boardManager.createBoard(); 
+            this.time.delayedCall(100, () => { 
+                this.boardManager.removeAllInitialMatches();
+                this.gameState = 'matching';
+                this.checkAndHandleNoMoves(); 
             }, [], this);
         });
     }
@@ -1722,6 +1749,12 @@ class GameScene extends Phaser.Scene {
             this.uiManager.updateScore(this.playerDataManager.getScore());
         }
 
+        // Check if this was the 5th question after incrementing the count
+        if (this.quizManager.askedQuestionIds.size >= 5) {
+            // Set the flag indicating this was the last question
+            this.quizManager.shouldShowCongratulations = true;
+        }
+
         if (!isCorrect && question && explanation) {
             console.log(`GameScene: Showing explanation for incorrect answer: ${explanation}`);
             
@@ -1761,6 +1794,19 @@ class GameScene extends Phaser.Scene {
             // If correct, or no explanation to show, proceed as before
             this.uiManager.showQuizPanel(false); // Hide quiz panel
             this.quizManager.clearCurrentQuestionReference();
+            
+            // Special case: if this was the 5th question and it was answered correctly,
+            // we need to show congratulations now because there's no explanation/continue step
+            if (this.quizManager.shouldShowCongratulations) {
+                console.log("GameScene: Last question answered correctly. Showing congratulations panel directly.");
+                this.quizManager.shouldShowCongratulations = false; // Reset the flag
+                
+                // Short delay to let the UI update before showing congrats
+                this.time.delayedCall(500, () => {
+                    this.quizManager.events.emit('allQuestionsCompleted');
+                }, [], this);
+                return;
+            }
             
             this.time.delayedCall(500, () => { // Short delay for sound to play
                 if (previousQuizState === 'shuffle_quiz') {
