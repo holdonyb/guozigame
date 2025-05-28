@@ -23,7 +23,7 @@
             background-color: #f0f0f0; /* Fallback, game canvas will cover this */
             display: flex;
             flex-direction: column;
-            justify-content: center; /* This centers #game-container and initial #quiz-panel if not absolutely positioned */
+            justify-content: flex-start; /* Changed from center to flex-start to position at top */
             align-items: center;
             min-height: 100vh; 
             height: 100%;
@@ -51,7 +51,8 @@
             height: 100%;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* Changed from center to flex-start to position at top */
+            padding-top: 10px; /* Add small padding at top */
             touch-action: none;
             max-width: 600px;
             max-height: 800px;
@@ -61,6 +62,7 @@
             /* 移动设备上防止无意义的拖动和缩放 */
             user-select: none;
             -webkit-user-select: none;
+            margin-top: 0; /* Ensure no top margin */
         }
         
         #game-container canvas { 
@@ -170,11 +172,11 @@
     </style>
 </head>
 <body>
-    <!-- 添加移动端防止页面滚动和缩放的辅助脚本 -->
+    <!-- 修改移动端防止页面滚动和缩放的辅助脚本，但保留基本触摸功能 -->
     <script>
-        // 防止页面滚动
+        // 仅阻止文档级别的触摸移动，而不是所有触摸事件
         document.addEventListener('touchmove', function(e) {
-            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && !e.target.closest('#game-container')) {
                 e.preventDefault();
             }
         }, { passive: false });
@@ -184,10 +186,12 @@
             e.preventDefault();
         }, { passive: false });
         
-        // 禁用长按菜单
+        // 禁用长按菜单，但仅在游戏容器内
         document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            return false;
+            if (e.target.closest('#game-container')) {
+                e.preventDefault();
+                return false;
+            }
         }, { passive: false });
     </script>
 
@@ -240,16 +244,24 @@ class Tile extends Phaser.GameObjects.Sprite {
             this.setDisplaySize(this.boardManager.tileSize, this.boardManager.tileSize);
         }
 
-        // 互动性
-        this.setInteractive({ useHandCursor: true, pixelPerfect: false });
+        // 互动性 - 增强移动端触摸支持
+        this.setInteractive({ 
+            useHandCursor: true, 
+            pixelPerfect: false,
+            draggable: false // 确保不会被当作可拖动物体
+        });
         
-        // 处理点击事件
+        // 确保对象有足够大的点击区域，特别是在移动设备上
+        const hitAreaSize = this.boardManager ? this.boardManager.tileSize * 1.5 : 64; // 比实际大50%
+        this.input.hitArea.setTo(-hitAreaSize/2, -hitAreaSize/2, hitAreaSize, hitAreaSize);
+        
+        // 处理点击和触摸事件
         this.on('pointerdown', this.handlePointerDown, this);
         
-        // 添加触摸事件支持
+        // 额外的触摸事件支持
         this.on('touchstart', this.handlePointerDown, this);
         
-        // console.log(`Tile created: Type ${tileType} at [${boardXIndex}, ${boardYIndex}]`); // 可以暂时注释掉，减少日志
+        console.log(`Tile created: Type ${tileType} at [${boardXIndex}, ${boardYIndex}]`); // 可以暂时注释掉，减少日志
     }
 
     // 更新元素的网格位置（例如，在下落后）
@@ -832,7 +844,10 @@ class BoardManager {
 
         this.isProcessingMove = false; // Flag to prevent input during animations/processing
 
-        console.log("BoardManager: Initialized");
+        // 移动设备检测
+        this.isMobileDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        console.log("BoardManager: Initialized. Mobile device: " + this.isMobileDevice);
     }
 
     // Call this from GameScene.create() after assets are loaded
@@ -845,8 +860,14 @@ class BoardManager {
         const bgInfo = boardConfig.backgroundInfo;
 
         // 棋盘区域相对于背景图原点 (已设为左上角) 的偏移（已缩放）
-        const boardRelativeXScaled = bgInfo.boardRelativeX * bgInfo.scale;
-        const boardRelativeYScaled = bgInfo.boardRelativeY * bgInfo.scale;
+        let boardRelativeXScaled = bgInfo.boardRelativeX * bgInfo.scale;
+        let boardRelativeYScaled = bgInfo.boardRelativeY * bgInfo.scale;
+
+        // 移动设备: 特别调整来显著提高棋盘位置
+        if (this.isMobileDevice) {
+            boardRelativeYScaled = bgInfo.boardRelativeY * bgInfo.scale * 0.5; // 移动端垂直位置减少50%
+            console.log("BoardManager: Mobile device detected, adjusting board position higher");
+        }
 
         // 棋盘区域在画布上的绝对左上角坐标
         // bgInfo.bgCanvasX 和 bgInfo.bgCanvasY 是背景图左上角在画布上的坐标
@@ -854,15 +875,14 @@ class BoardManager {
         this.boardOffsetY = bgInfo.bgCanvasY + boardRelativeYScaled;
 
         // 移动设备额外调整：确保 tile 足够大以便于触控
-        const minTouchSize = 40; // 最小触控尺寸，单位像素
-        if (this.tileSize < minTouchSize && 'ontouchstart' in window) {
-            // 移动设备且 tile 尺寸过小
+        let minTouchSize = 60; // 提高最小触控尺寸，单位像素
+        if (this.isMobileDevice || this.tileSize < minTouchSize) {
             console.log(`BoardManager: Increasing tile size for better touch (from ${this.tileSize} to ${minTouchSize}px)`);
             // 调整整个棋盘的比例
             const scaleRatio = minTouchSize / this.tileSize;
             this.tileSize = minTouchSize;
             
-            // 如果有必要，也调整offset以保持棋盘居中
+            // 调整offset以保持棋盘居中
             const newBoardWidth = this.gridWidth * this.tileSize;
             const newBoardHeight = this.gridHeight * this.tileSize;
             const oldBoardWidth = this.gridWidth * (this.tileSize / scaleRatio);
@@ -900,16 +920,20 @@ class BoardManager {
         
         const tile = new Tile(this.scene, worldPos.x, worldPos.y, tileTypeKey, gridX, gridY, tileTypeKey, this);
         
-        // 移动设备：增加碰撞检测区域，使点击更容易
-        if ('ontouchstart' in window) {
+        // 移动设备：显著增加点击区域
+        if (this.isMobileDevice) {
             // 扩大点击区域，但保持视觉大小不变
-            const hitAreaSize = this.tileSize * 1.2; // 比实际显示大20%
+            const hitAreaSize = this.tileSize * 2.0; // 比实际显示大100%
             tile.input.hitArea.setTo(
                 -hitAreaSize/2, 
                 -hitAreaSize/2, 
                 hitAreaSize, 
                 hitAreaSize
             );
+            
+            // 提高交互优先级
+            tile.input.cursor = 'pointer';
+            tile.depth = 100; // 确保在其他元素之上
         }
         
         return tile;
@@ -1412,6 +1436,10 @@ class GameScene extends Phaser.Scene {
     create() {
         console.log("GameScene: create");
 
+        // 检测移动设备
+        this.isMobileDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        console.log("GameScene: Mobile device detected: " + this.isMobileDevice);
+
         // 背景设置 (Background setup)
         let gameWidth = this.sys.game.config.width;
         let gameHeight = this.sys.game.config.height;
@@ -1423,7 +1451,14 @@ class GameScene extends Phaser.Scene {
         const bgScaledWidth = bgOriginalWidth * this.actualBgScale;
         const bgScaledHeight = bgOriginalHeight * this.actualBgScale;
         const bgCanvasX = (gameWidth - bgScaledWidth) / 2;
-        const bgCanvasY = (gameHeight - bgScaledHeight) / 2;
+        
+        // 移动设备情况下，背景高度完全不同的处理
+        let bgCanvasY = 0;
+        if (this.isMobileDevice) {
+            // 移动设备上，倾向于把背景放得更靠上
+            bgCanvasY = -bgScaledHeight * 0.2; // 移动背景向上20%
+        }
+        
         this.background = this.add.image(bgCanvasX, bgCanvasY, 'happy_face');
         this.background.setOrigin(0, 0);
         this.background.setScale(this.actualBgScale);
@@ -1478,7 +1513,15 @@ class GameScene extends Phaser.Scene {
         const tileAssetKeys = ['pen_tile', 'book_tile', 'abacus_tile', 'magnify_tile', 'compass_tile', 'pencil_tile'];
         const widthScaleFactor = 1325 / 265;
         const boardRelativeX_from_bg = 19 * widthScaleFactor;
-        const boardRelativeY_from_bg = 204 * widthScaleFactor;
+        
+        // 修改棋盘在背景中的相对位置
+        let boardRelativeY_from_bg = 204 * widthScaleFactor;
+        
+        // 移动设备上大幅度调整位置
+        if (this.isMobileDevice) {
+            boardRelativeY_from_bg = 80 * widthScaleFactor; // 移动设备上，棋盘放置在更靠上的位置
+        }
+        
         const boardRelativeWidth_from_bg = 224 * widthScaleFactor;
         const boardRelativeHeight_from_bg = 180 * widthScaleFactor;
         const boardGridCols = 5;
@@ -1487,7 +1530,13 @@ class GameScene extends Phaser.Scene {
         const boardPixelHeightOnCanvas = boardRelativeHeight_from_bg * this.actualBgScale;
         let tileSizeBasedOnWidth = boardPixelWidthOnCanvas / boardGridCols;
         let tileSizeBasedOnHeight = boardPixelHeightOnCanvas / boardGridRows;
+        
+        // 移动设备上，增加tile尺寸以改善触控
         let finalTileSize = Math.floor(Math.min(tileSizeBasedOnWidth, tileSizeBasedOnHeight));
+        if (this.isMobileDevice) {
+            finalTileSize = finalTileSize * 1.3; // 移动设备上增大tile 30%
+        }
+        
         const boardConfig = {
             width: boardGridCols, 
             height: boardGridRows,
@@ -1845,6 +1894,9 @@ class GameScene extends Phaser.Scene {
             return;
         }
 
+        // 重新检测移动设备状态
+        this.isMobileDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
         // 获取当前游戏尺寸
         const gameWidth = this.sys.game.config.width;
         const gameHeight = this.sys.game.config.height;
@@ -1867,8 +1919,13 @@ class GameScene extends Phaser.Scene {
             const bgScaledHeight = bgOriginalHeight * this.actualBgScale;
             
             const bgCanvasX = (gameWidth - bgScaledWidth) / 2;
-            const bgCanvasY = (gameHeight - bgScaledHeight) / 2;
-
+            
+            // 移动设备上调整背景位置
+            let bgCanvasY = 0;
+            if (this.isMobileDevice) {
+                bgCanvasY = -bgScaledHeight * 0.2; // 移动背景向上20%
+            }
+            
             this.background.setPosition(bgCanvasX, bgCanvasY);
             this.background.setScale(this.actualBgScale);
             
@@ -1888,9 +1945,14 @@ class GameScene extends Phaser.Scene {
             if (this.boardManager) {
                 const widthScaleFactor = 1325 / 265;
                 const boardRelativeX_from_bg = 19 * widthScaleFactor;    
-                const boardRelativeY_from_bg = 204 * widthScaleFactor;
                 
-                // 发送棋盘重新定位信号 (假设boardManager有updatePosition方法)
+                // 移动设备上大幅度调整位置
+                let boardRelativeY_from_bg = 204 * widthScaleFactor;
+                if (this.isMobileDevice) {
+                    boardRelativeY_from_bg = 80 * widthScaleFactor; // 移动设备上，棋盘放置在更靠上的位置
+                }
+                
+                // 发送棋盘重新定位信号
                 if (typeof this.boardManager.updatePosition === 'function') {
                     this.boardManager.updatePosition({
                         bgCanvasX: bgCanvasX,
@@ -1928,76 +1990,79 @@ class GameScene extends Phaser.Scene {
 
 // Game configuration
 const config = {
-    type: Phaser.AUTO, // Automatically choose WebGL or Canvas
-    width: 600,        // Game width in pixels
-    height: 800,       // Game height in pixels
-    parent: 'game-container', // ID of the DOM element to parent the canvas to
+    type: Phaser.AUTO,
+    width: 600,
+    height: 800,
+    parent: 'game-container',
     backgroundColor: '#f0f0f0',
-    scene: [GameScene], // Add GameScene here directly
+    scene: [GameScene],
     scale: {
-        mode: Phaser.Scale.FIT, // 自动缩放以适应屏幕
-        autoCenter: Phaser.Scale.CENTER_BOTH, // 在父容器中居中
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 600,
         height: 800,
-        fullscreenTarget: 'game-container', // 指定全屏模式的目标容器
-        // 防止某些移动浏览器缩放/滚动问题
-        zoom: Phaser.Scale.MAX_ZOOM
+        fullscreenTarget: 'game-container',
+        zoom: 1
     },
     render: {
-        antialias: true, // 通常建议开启抗锯齿
-        transparent: false, // 如果你的游戏背景是不透明的，可以设为false以提高一点点性能
-        willReadFrequently: true, // 解决控制台的性能提示
-        pixelArt: false, // 如果使用像素艺术风格，设为true
-        roundPixels: true, // 解决某些设备上的微小渲染瑕疵
-        powerPreference: 'high-performance' // 在支持的设备上尝试使用高性能GPU
+        antialias: true,
+        transparent: false,
+        willReadFrequently: true,
+        pixelArt: false,
+        roundPixels: true,
+        powerPreference: 'high-performance'
     },
     input: {
-        activePointers: 3, // 支持多点触控 (增加到3个以支持更多手势)
-        smoothFactor: 0.2, // 平滑触摸移动，减少抖动
-        dragDistanceThreshold: 4, // 降低拖动开始的距离阈值，更灵敏
-        dragTimeThreshold: 50 // 降低拖动开始的时间阈值
+        activePointers: 5, // 增加到5个以支持更多同时触控
+        smoothFactor: 0,   // 取消平滑，立即响应
+        dragDistanceThreshold: 0, // 移除拖动距离阈值，立即响应
+        dragTimeThreshold: 0,     // 移除拖动时间阈值，立即响应
+        tapInterval: 150,         // 减少点击间隔
+        touch: {
+            target: document,
+            capture: true
+        }
     },
-    disableContextMenu: true, // 禁用右键菜单，防止移动长按弹出菜单
-    autoFocus: true // 自动聚焦游戏，便于立即响应用户输入
-    // physics: { // Optional: if you need arcade physics for more complex movements
-    //     default: 'arcade',
-    //     arcade: {
-    //         gravity: { y: 0 },
-    //         debug: false
-    //     }
-    // }
+    disableContextMenu: true,
+    autoFocus: true
 };
 
 // Ensure proper orientation handling
 if ('addEventListener' in window) {
     window.addEventListener('resize', function() {
-        // 短暂延迟以确保浏览器完成布局调整
         setTimeout(() => {
-            game.scale.refresh();
-            if (game && game.scene && game.scene.scenes && game.scene.scenes[0]) {
-                const currentScene = game.scene.scenes[0];
-                if (currentScene.refreshUI && typeof currentScene.refreshUI === 'function') {
-                    currentScene.refreshUI();
-                }
-            }
-        }, 200); // Consistent delay
-    });
-    
-    // 处理移动设备的屏幕旋转
-    window.addEventListener('orientationchange', function() {
-        // 短暂延迟以确保浏览器完成旋转
-        setTimeout(() => {
-            game.scale.refresh();
-            // 如果游戏实例已创建且包含场景
-            if (game && game.scene && game.scene.scenes && game.scene.scenes[0]) {
-                // 刷新后，确保UI元素位置正确
-                const currentScene = game.scene.scenes[0];
-                if (currentScene.refreshUI && typeof currentScene.refreshUI === 'function') {
-                    currentScene.refreshUI();
+            if (game && game.scale) {
+                game.scale.refresh();
+                if (game.scene && game.scene.scenes && game.scene.scenes[0]) {
+                    const currentScene = game.scene.scenes[0];
+                    if (currentScene.refreshUI && typeof currentScene.refreshUI === 'function') {
+                        currentScene.refreshUI();
+                    }
                 }
             }
         }, 200);
     });
+    
+    window.addEventListener('orientationchange', function() {
+        setTimeout(() => {
+            if (game && game.scale) {
+                game.scale.refresh();
+                if (game.scene && game.scene.scenes && game.scene.scenes[0]) {
+                    const currentScene = game.scene.scenes[0];
+                    if (currentScene.refreshUI && typeof currentScene.refreshUI === 'function') {
+                        currentScene.refreshUI();
+                    }
+                }
+            }
+        }, 300); // 稍微延长等待时间，确保旋转完成
+    });
+    
+    // 添加触摸事件增强
+    document.addEventListener('touchstart', function(e) {
+        if (e.target.closest('#game-container canvas')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 
 // Create a new Phaser game instance
