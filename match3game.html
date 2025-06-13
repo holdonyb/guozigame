@@ -252,8 +252,17 @@ class Tile extends Phaser.GameObjects.Sprite {
         });
         
         // 确保对象有足够大的点击区域，特别是在移动设备上
-        const hitAreaSize = this.boardManager ? this.boardManager.tileSize * 1.5 : 64; // 比实际大50%
-        this.input.hitArea.setTo(-hitAreaSize/2, -hitAreaSize/2, hitAreaSize, hitAreaSize);
+        // 修复：使用显示尺寸而不是boardManager.tileSize，并且正确设置hitArea
+        const displayWidth = this.displayWidth || (this.boardManager ? this.boardManager.tileSize : 64);
+        const displayHeight = this.displayHeight || (this.boardManager ? this.boardManager.tileSize : 64);
+        
+        // 点击区域稍微大一些，但以tile中心为原点
+        const hitAreaSize = Math.max(displayWidth, displayHeight) * 1.1; // 比显示大小大10%
+        this.setInteractive({
+            hitArea: new Phaser.Geom.Rectangle(-hitAreaSize/2, -hitAreaSize/2, hitAreaSize, hitAreaSize),
+            hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            useHandCursor: true
+        });
         
         // 处理点击和触摸事件
         this.on('pointerdown', this.handlePointerDown, this);
@@ -261,7 +270,7 @@ class Tile extends Phaser.GameObjects.Sprite {
         // 额外的触摸事件支持
         this.on('touchstart', this.handlePointerDown, this);
         
-        console.log(`Tile created: Type ${tileType} at [${boardXIndex}, ${boardYIndex}]`); // 可以暂时注释掉，减少日志
+        console.log(`Tile created: Type ${tileType} at [${boardXIndex}, ${boardYIndex}]`);
     }
 
     // 更新元素的网格位置（例如，在下落后）
@@ -283,7 +292,9 @@ class Tile extends Phaser.GameObjects.Sprite {
     // 点击处理程序
     handlePointerDown(pointer) {
         // 只在匹配状态下交互
-        if (this.scene.gameState !== 'matching') return;
+        if (this.scene.gameState !== 'matching') {
+            return;
+        }
         
         // 播放点击音效
         if (this.scene.sounds && this.scene.sounds.click) {
@@ -920,22 +931,6 @@ class BoardManager {
         
         const tile = new Tile(this.scene, worldPos.x, worldPos.y, tileTypeKey, gridX, gridY, tileTypeKey, this);
         
-        // 移动设备：显著增加点击区域
-        if (this.isMobileDevice) {
-            // 扩大点击区域，但保持视觉大小不变
-            const hitAreaSize = this.tileSize * 2.0; // 比实际显示大100%
-            tile.input.hitArea.setTo(
-                -hitAreaSize/2, 
-                -hitAreaSize/2, 
-                hitAreaSize, 
-                hitAreaSize
-            );
-            
-            // 提高交互优先级
-            tile.input.cursor = 'pointer';
-            tile.depth = 100; // 确保在其他元素之上
-        }
-        
         return tile;
     }
 
@@ -956,9 +951,11 @@ class BoardManager {
     }
 
     handleTileClick(tile) {
-        if (this.isProcessingMove || this.scene.gameState !== 'matching') return;
+        if (this.isProcessingMove || this.scene.gameState !== 'matching') {
+            return;
+        }
 
-        console.log(`BoardManager: Clicked on tile type ${tile.tileType} at [${tile.boardXIndex}, ${tile.boardYIndex}]`);
+        console.log(`BoardManager: Processing click on tile type ${tile.tileType} at [${tile.boardXIndex}, ${tile.boardYIndex}]`);
 
         if (!this.selectedTile) {
             // First tile selected
@@ -970,7 +967,7 @@ class BoardManager {
             if (this.areAdjacent(this.selectedTile, tile)) {
                 this.trySwapTiles(this.selectedTile, tile);
             } else {
-                 console.log("BoardManager: Tiles are not adjacent.");
+                 console.log("Tiles are not adjacent.");
             }
             this.selectedTile = null; // Reset selection
         }
@@ -1638,6 +1635,10 @@ class GameScene extends Phaser.Scene {
                 this.checkAndHandleNoMoves(); 
             }, [], this);
         });
+
+        console.log("=== GAME SCENE INITIALIZATION COMPLETE ===");
+        console.log("Initial game state:", this.gameState);
+        console.log("BoardManager isProcessingMove:", this.boardManager ? this.boardManager.isProcessingMove : "No BoardManager");
     }
 
     // Helper method to play sounds safely
