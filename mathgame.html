@@ -764,32 +764,40 @@
             platformWidth = 100 * scaleFactor;
             platformGap = 80 * scaleFactor;
             
-            player = {
-                x: window.innerWidth / 2 - playerSize / 2,
-                y: worldHeight - 50 * scaleFactor,
-                width: playerSize,
-                height: playerSize,
-                velocityY: 0
-            };
             platforms = [];
             enemies = [];
             coins = [];
             score = 0;
             level = 1;
-            cameraY = worldHeight - window.innerHeight;
             platformsClimbed = 0;
             platformsSinceLastQuestion = 0;
             currentAbility = null;
             abilityDuration = 0;
 
+            // 地面在按钮区域上方（可视区域的底部）
+            const groundY = worldHeight - (window.innerHeight - playableHeight) - 50;
+            
+            // 生成地面平台（整个屏幕宽度）
             platforms.push({
                 x: 0,
-                y: worldHeight - 20 * scaleFactor,
+                y: groundY,
                 width: window.innerWidth,
                 height: platformHeight
             });
 
+            // 生成其他平台
             generatePlatforms();
+            
+            // 将玩家放在地面平台上
+            player = {
+                x: window.innerWidth / 2 - playerSize / 2,
+                y: groundY - playerSize - 5, // 地面上方5个像素
+                width: playerSize,
+                height: playerSize,
+                velocityY: 0
+            };
+            
+            cameraY = worldHeight - window.innerHeight;
             startScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
             controlsDiv.style.display = 'flex';
@@ -806,13 +814,15 @@
         function generatePlatforms() {
             const enemySize = 25 * scaleFactor;
             const coinSize = 15 * scaleFactor;
+            // 地面在按钮区域上方
+            const groundY = worldHeight - (window.innerHeight - playableHeight) - 50;
             
             for (let i = 1; i < 100; i++) {
                 let minX = Math.max(0, platforms[i - 1].x - platformWidth / 2);
                 let maxX = Math.min(window.innerWidth - platformWidth, platforms[i - 1].x + platformWidth / 2);
                 let platform = {
                     x: Math.random() * (maxX - minX) + minX,
-                    y: worldHeight - 20 * scaleFactor - i * platformGap,
+                    y: groundY - i * platformGap,
                     width: platformWidth,
                     height: platformHeight
                 };
@@ -822,7 +832,7 @@
                 if (i > 20 && Math.random() < 0.3) {
                     enemies.push({
                         x: platform.x + platform.width / 2,
-                        y: platform.y - 20 * scaleFactor,
+                        y: platform.y - 20,
                         width: enemySize,
                         height: enemySize,
                         speed: gameSettings.enemyBaseSpeed * scaleFactor,
@@ -834,7 +844,7 @@
                 if (Math.random() < 0.5) {
                     coins.push({
                         x: Math.random() * (platform.width - coinSize) + platform.x,
-                        y: platform.y - 25 * scaleFactor,
+                        y: platform.y - 25,
                         width: coinSize,
                         height: coinSize
                     });
@@ -942,7 +952,9 @@
         function nextLevel() {
             level++;
             score += 100; // 完成一关的奖励
-            player.y = worldHeight - 50 * scaleFactor;
+            // 地面在按钮区域上方
+            const groundY = worldHeight - (window.innerHeight - playableHeight) - 50;
+            player.y = groundY - player.height - 5;
             cameraY = worldHeight - window.innerHeight;
             platforms = [];
             enemies = [];
@@ -963,7 +975,7 @@
             // 生成新的平台、敌人和金币
             platforms.push({
                 x: 0,
-                y: worldHeight - 20 * scaleFactor,
+                y: groundY,
                 width: window.innerWidth,
                 height: platformHeight
             });
@@ -973,7 +985,7 @@
                 let maxX = Math.min(window.innerWidth - platformWidth, platforms[i - 1].x + platformWidth * overlap);
                 let platform = {
                     x: Math.random() * (maxX - minX) + minX,
-                    y: worldHeight - 20 * scaleFactor - i * distance,
+                    y: groundY - i * distance,
                     width: platformWidth,
                     height: platformHeight
                 };
@@ -982,7 +994,7 @@
                 if (i > 20 && Math.random() < enemyChance) {
                     enemies.push({
                         x: platform.x + platform.width / 2,
-                        y: platform.y - 20 * scaleFactor,
+                        y: platform.y - 20,
                         width: enemySize,
                         height: enemySize,
                         speed: enemySpeed,
@@ -993,7 +1005,7 @@
                 if (Math.random() < 0.5) {
                     coins.push({
                         x: Math.random() * (platform.width - coinSize) + platform.x,
-                        y: platform.y - 25 * scaleFactor,
+                        y: platform.y - 25,
                         width: coinSize,
                         height: coinSize
                     });
@@ -1027,7 +1039,7 @@
             ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
             ctx.shadowBlur = 5 * scaleFactor;
             for (let platform of platforms) {
-                if (platform.y - cameraY > -20 * scaleFactor && platform.y - cameraY < playableHeight) {
+                if (platform.y - cameraY > -20 && platform.y - cameraY < window.innerHeight + 20) {
                     ctx.fillRect(platform.x, platform.y - cameraY, platform.width, platform.height);
                 }
             }
