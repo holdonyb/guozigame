@@ -20,6 +20,8 @@ games = [
     {"file": "learnareadot.html", "name": "learnareadot", "wait_time": 3},
     {"file": "longjuangeng.html", "name": "longjuangeng", "wait_time": 3},
     {"file": "yuanxingjinshu.html", "name": "yuanxingjinshu", "wait_time": 3},
+    {"file": "mathgame.html", "name": "mathgame", "wait_time": 4},
+    {"file": "mathgame2.html", "name": "mathgame2", "wait_time": 4},
 ]
 
 def take_screenshots(games_list):
