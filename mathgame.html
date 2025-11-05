@@ -513,6 +513,28 @@
             background-color: rgba(0, 0, 0, 0.8);
             transform: scale(0.9);
         }
+
+        .difficulty-btn {
+            font-size: 4vmin;
+            padding: 2vmin 4vmin;
+            color: white;
+            border: 3px solid white;
+            border-radius: 1.5vmin;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 20vmin;
+            font-weight: bold;
+        }
+
+        .difficulty-btn:hover, .difficulty-btn:active {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        .difficulty-btn.selected {
+            border-width: 5px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.8);
+        }
     </style>
 </head>
 
@@ -535,7 +557,21 @@
     
     <div id="startScreen">
         <h1>数学跳跃</h1>
+        <p style="max-width: 80%; margin: 2vmin auto; font-size: 3.5vmin; opacity: 0.9;">
+            跳跃躲避敌人，收集金币，答对数学题获得特殊能力！
+        </p>
+        <div style="margin: 3vmin 0;">
+            <p style="font-size: 4vmin; margin-bottom: 2vmin;">选择难度：</p>
+            <div style="display: flex; gap: 2vmin; justify-content: center; flex-wrap: wrap;">
+                <button class="difficulty-btn" data-difficulty="easy" style="background-color: #4CAF50;">简单</button>
+                <button class="difficulty-btn" data-difficulty="normal" style="background-color: #FF9800;">普通</button>
+                <button class="difficulty-btn" data-difficulty="hard" style="background-color: #f44336;">困难</button>
+            </div>
+        </div>
         <button id="startButton">开始游戏</button>
+        <p style="font-size: 3vmin; margin-top: 2vmin; opacity: 0.7;">
+            提示：可用键盘方向键或屏幕按钮控制
+        </p>
     </div>
     
     <div id="controls" style="display: none;">
@@ -655,6 +691,38 @@
 
         const fruits = ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑'];
 
+        // 游戏难度配置
+        const difficultySettings = {
+            easy: {
+                gravity: 0.3,
+                moveSpeed: 3,
+                jumpForce: -8,
+                superJumpForce: -12,
+                enemyBaseSpeed: 0.5,
+                name: '简单'
+            },
+            normal: {
+                gravity: 0.4,
+                moveSpeed: 4,
+                jumpForce: -10,
+                superJumpForce: -15,
+                enemyBaseSpeed: 0.8,
+                name: '普通'
+            },
+            hard: {
+                gravity: 0.5,
+                moveSpeed: 5,
+                jumpForce: -12,
+                superJumpForce: -18,
+                enemyBaseSpeed: 1.2,
+                name: '困难'
+            }
+        };
+
+        // 默认难度
+        let currentDifficulty = 'easy'; // 从简单开始
+        let gameSettings = difficultySettings[currentDifficulty];
+
         // 音效
         const sounds = {
             background: new Howl({
@@ -750,14 +818,14 @@
                 };
                 platforms.push(platform);
 
-                // 在20层以后随机生成敌人
+                // 在20层以后随机生成敌人，使用配置的速度
                 if (i > 20 && Math.random() < 0.3) {
                     enemies.push({
                         x: platform.x + platform.width / 2,
                         y: platform.y - 20 * scaleFactor,
                         width: enemySize,
                         height: enemySize,
-                        speed: 1 * scaleFactor,
+                        speed: gameSettings.enemyBaseSpeed * scaleFactor,
                         direction: Math.random() < 0.5 ? -1 : 1
                     });
                 }
@@ -777,10 +845,11 @@
         function update() {
             if (gamePaused) return;
 
-            player.velocityY += 0.5;
+            // 使用配置的重力和移动速度
+            player.velocityY += gameSettings.gravity;
             player.y += player.velocityY;
 
-            let moveSpeed = 5;
+            let moveSpeed = gameSettings.moveSpeed * scaleFactor;
             if (moveLeft) player.x -= moveSpeed;
             if (moveRight) player.x += moveSpeed;
 
@@ -882,7 +951,11 @@
             // 根据当前等级调整难度
             const overlap = Math.max(0.3, 1 - level * 0.05); // 平台重叠程度随等级减少
             const distance = Math.min(120 * scaleFactor, platformGap + level * 5 * scaleFactor); // 平台间距随等级增加
-            const enemySpeed = Math.min(3 * scaleFactor, (1 + level * 0.2) * scaleFactor); // 敌人速度随等级增加
+            // 敌人速度基于难度设置，并随等级增加
+            const enemySpeed = Math.min(
+                gameSettings.enemyBaseSpeed * 3 * scaleFactor, 
+                (gameSettings.enemyBaseSpeed + level * 0.15) * scaleFactor
+            );
             const enemyChance = Math.min(0.5, 0.3 + level * 0.02); // 敌人出现概率随等级增加
             const enemySize = 25 * scaleFactor;
             const coinSize = 15 * scaleFactor;
@@ -1024,10 +1097,11 @@
             }
             
             sounds.jump.play();
-            const baseJumpForce = -10 * scaleFactor;
-            const superJumpForce = -20 * scaleFactor;
+            // 使用配置的跳跃力度
+            const baseJumpForce = gameSettings.jumpForce;
+            const superJumpForce = gameSettings.superJumpForce;
             
-            if (player.velocityY === 0) {
+            if (player.velocityY === 0 || Math.abs(player.velocityY) < 0.1) {
                 let jumpForce = currentAbility === '超级跳跃' ? superJumpForce : baseJumpForce;
                 player.velocityY = jumpForce;
                 canDoubleJump = currentAbility === '二段跳';
@@ -1432,6 +1506,25 @@
                 rect1.y < rect2.y + rect2.height &&
                 rect1.y + rect1.height > rect2.y;
         }
+        // 难度选择按钮
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 移除所有选中状态
+                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('selected'));
+                // 添加选中状态
+                this.classList.add('selected');
+                // 更新难度设置
+                currentDifficulty = this.dataset.difficulty;
+                gameSettings = difficultySettings[currentDifficulty];
+                
+                // 显示提示
+                showNotification(`已选择${gameSettings.name}难度`, 1500);
+            });
+        });
+
+        // 默认选择简单难度
+        document.querySelector('.difficulty-btn[data-difficulty="easy"]').classList.add('selected');
+
         startButton.addEventListener('click', startGame);
         restartButton.addEventListener('click', restartGame);
 
