@@ -613,8 +613,8 @@
             const displayWidth = window.innerWidth;
             const displayHeight = window.innerHeight;
             
-            // 为底部控制按钮预留空间
-            playableHeight = displayHeight * 0.8; // 80%的屏幕用于游戏，20%给按钮
+            // 可视区域设为80%，底部20%为控制按钮
+            playableHeight = displayHeight * 0.8;
             
             canvas.width = displayWidth * dpr;
             canvas.height = displayHeight * dpr;
@@ -861,7 +861,8 @@
                 }
             }
 
-            if (player.y > cameraY + playableHeight) {
+            // 检查玩家是否掉出游戏世界（给一些缓冲空间）
+            if (player.y > worldHeight + 100) {
                 gameOver();
                 return;
             }
@@ -1293,17 +1294,7 @@
         
         function updateServerLeaderboard(name, score) {
             if (!hasBackend) {
-                // 如果没有后端，使用本地存储模拟服务器排行榜
-                let serverScores = JSON.parse(localStorage.getItem('serverLeaderboard') || '[]');
-                serverScores.push({ name, score, time: new Date().toLocaleString() });
-                serverScores.sort((a, b) => b.score - a.score);
-                serverScores = serverScores.slice(0, 10);
-                localStorage.setItem('serverLeaderboard', JSON.stringify(serverScores));
-                
-                const rank = serverScores.findIndex(entry => entry.name === name && entry.score === score) + 1;
-                if (rank > 0) {
-                    showNotification(`恭喜！您在排行榜上排名第 ${rank}！`, 3000);
-                }
+                // 如果没有后端，只更新本地排行榜，不显示提示
                 displayLeaderboard();
                 return;
             }
@@ -1323,7 +1314,7 @@
                 })
                 .then(data => {
                     if (data.rank) {
-                        showNotification(`恭喜！您在排行榜上排名第 ${data.rank}！`, 3000);
+                        showNotification(`恭喜！您在全服排行榜上排名第 ${data.rank}！`, 3000);
                     } else {
                         showNotification(data.message, 3000);
                     }
@@ -1331,34 +1322,25 @@
                 })
                 .catch((error) => {
                     console.error('Error:', error);
-                    showNotification('更新排行榜时出错，已保存到本地', 3000);
-                    // 失败时使用本地存储
-                    let serverScores = JSON.parse(localStorage.getItem('serverLeaderboard') || '[]');
-                    serverScores.push({ name, score, time: new Date().toLocaleString() });
-                    serverScores.sort((a, b) => b.score - a.score);
-                    serverScores = serverScores.slice(0, 10);
-                    localStorage.setItem('serverLeaderboard', JSON.stringify(serverScores));
+                    // 静默失败，不显示错误消息
                     displayLeaderboard();
                 });
         }
 
         function getServerLeaderboard() {
+            const serverColumn = document.querySelector('.leaderboard-column.server');
+            
             if (!hasBackend) {
-                // 如果没有后端，从本地存储读取
-                let serverScores = JSON.parse(localStorage.getItem('serverLeaderboard') || '[]');
-                const serverScoresElement = document.getElementById('serverScores');
-                if (serverScores.length > 0) {
-                    serverScoresElement.innerHTML = serverScores
-                        .map((entry, index) => 
-                            `<li>
-                                <span>${entry.name}</span>
-                                <span>${entry.score}</span>
-                            </li>`
-                        ).join('');
-                } else {
-                    serverScoresElement.innerHTML = '<li>暂无记录</li>';
+                // 如果没有后端，隐藏服务器排行榜列
+                if (serverColumn) {
+                    serverColumn.style.display = 'none';
                 }
                 return;
+            }
+            
+            // 显示服务器排行榜列
+            if (serverColumn) {
+                serverColumn.style.display = 'block';
             }
             
             fetch('/get_math_leaderboard')
@@ -1375,19 +1357,9 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    // 失败时使用本地存储
-                    let serverScores = JSON.parse(localStorage.getItem('serverLeaderboard') || '[]');
-                    const serverScoresElement = document.getElementById('serverScores');
-                    if (serverScores.length > 0) {
-                        serverScoresElement.innerHTML = serverScores
-                            .map((entry, index) => 
-                                `<li>
-                                    <span>${entry.name}</span>
-                                    <span>${entry.score}</span>
-                                </li>`
-                            ).join('');
-                    } else {
-                        serverScoresElement.innerHTML = '<li>无法连接服务器</li>';
+                    // 连接失败时隐藏服务器排行榜
+                    if (serverColumn) {
+                        serverColumn.style.display = 'none';
                     }
                 });
         }
@@ -1421,10 +1393,17 @@
             topRightButtons.style.display = 'none';
 
             document.getElementById('finalScore').textContent = score;
+            
+            // 更新本地排行榜
+            updateLocalLeaderboard(score);
             displayLeaderboard();
 
             gameOverScreen.style.display = 'flex';
-            document.getElementById('nameInputScreen').style.display = 'block';
+            
+            // 只有在有后端的情况下才显示名字输入框
+            if (hasBackend) {
+                document.getElementById('nameInputScreen').style.display = 'block';
+            }
         }
 
         document.getElementById('confirmNameButton').addEventListener('click', function() {
