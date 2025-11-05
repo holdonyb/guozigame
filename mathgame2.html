@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学平台冒险游戏</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        #questionOverlay, #gameOverOverlay {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+        }
+        .controlButton {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            margin: 5px;
+        }
+        #fruitGame {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        #fruitContainer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .fruit {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 5px;
+            cursor: move;
+        }
+        #dropZone {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .slot {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="startScreen">
+        <h1>数学平台冒险游戏</h1>
+        <button id="startButton">开始游戏</button>
+    </div>
+    <div id="questionOverlay">
+        <p id="questionText"></p>
+        <input type="number" id="answerInput">
+        <button id="submitAnswer">提交</button>
+    </div>
+    <div id="gameOverOverlay">
+        <h2>游戏结束</h2>
+        <p>你的得分: <span id="finalScore"></span></p>
+        <button id="restartButton">重新开始</button>
+    </div>
+    <div id="controls">
+        <button id="leftButton" class="controlButton">←</button>
+        <button id="rightButton" class="controlButton">→</button>
+        <button id="jumpButton" class="controlButton">↑</button>
+    </div>
+    <div id="fruitGame">
+        <div id="fruitContainer"></div>
+        <div id="dropZone">
+            <div class="slot" data-index="0"></div>
+            <div class="slot" data-index="1"></div>
+            <div class="slot" data-index="2"></div>
+            <div class="slot" data-index="3"></div>
+            <div class="slot" data-index="4"></div>
+            <div class="slot" data-index="5"></div>
+            <div class="slot" data-index="6"></div>
+            <div class="slot" data-index="7"></div>
+            <div class="slot" data-index="8"></div>
+            <div class="slot" data-index="9"></div>
+        </div>
+        <button id="checkSum">检查</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const startScreen = document.getElementById('startScreen');
+        const questionOverlay = document.getElementById('questionOverlay');
+        const questionText = document.getElementById('questionText');
+        const answerInput = document.getElementById('answerInput');
+        const submitAnswer = document.getElementById('submitAnswer');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const finalScoreSpan = document.getElementById('finalScore');
+        const restartButton = document.getElementById('restartButton');
+        const leftButton = document.getElementById('leftButton');
+        const rightButton = document.getElementById('rightButton');
+        const jumpButton = document.getElementById('jumpButton');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let player, platforms, enemies, coins, score, gameLoop, moveLeft, moveRight, cameraY;
+        let currentAbility = null;
+        let abilityDuration = 0;
+        let gamePaused = false;
+        let canDoubleJump = false;
+
+        const platformWidth = 100;
+        const platformHeight = 20;
+        const platformGap = 100;
+
+        function initGame() {
+            player = {
+                x: canvas.width / 2,
+                y: canvas.height - 50,
+                width: 30,
+                height: 30,
+                velocityY: 0,
+                speed: 5,
+                climb5LevelsActive: false
+            };
+
+            platforms = [];
+            for (let i = 0; i < 100; i++) {
+                platforms.push({
+                    x: Math.random() * (canvas.width - platformWidth),
+                    y: i * platformGap,
+                    width: platformWidth,
+                    height: platformHeight
+                });
+            }
+
+            enemies = [];
+            for (let i = 0; i < 50; i++) {
+                enemies.push({
+                    x: Math.random() * (canvas.width - 30),
+                    y: i * platformGap * 2,
+                    width: 30,
+                    height: 30,
+                    speed: 2,
+                    direction: Math.random() < 0.5 ? -1 : 1
+                });
+            }
+
+            coins = [];
+            for (let i = 0; i < 100; i++) {
+                coins.push({
+                    x: Math.random() * (canvas.width - 15),
+                    y: i * platformGap + Math.random() * platformGap,
+                    width: 15,
+                    height: 15
+                });
+            }
+
+            score = 0;
+            cameraY = 0;
+            moveLeft = false;
+            moveRight = false;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制平台
+            ctx.fillStyle = 'green';
+            for (let platform of platforms) {
+                if (platform.y - cameraY > -platformHeight && platform.y - cameraY < canvas.height) {
+                    ctx.fillRect(platform.x, platform.y - cameraY, platform.width, platform.height);
+                }
+            }
+
+            // 绘制玩家
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(player.x, player.y - cameraY, player.width, player.height);
+
+            // 绘制敌人
+            ctx.fillStyle = 'red';
+            for (let enemy of enemies) {
+                if (enemy.y - cameraY > -25 && enemy.y - cameraY < canvas.height) {
+                    ctx.beginPath();
+                    ctx.moveTo(enemy.x, enemy.y - cameraY + enemy.height);
+                    ctx.lineTo(enemy.x + enemy.width / 2, enemy.y - cameraY);
+                    ctx.lineTo(enemy.x + enemy.width, enemy.y - cameraY + enemy.height);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            // 绘制金币
+            ctx.fillStyle = 'yellow';
+            for (let coin of coins) {
+                if (coin.y - cameraY > -15 && coin.y - cameraY < canvas.height) {
+                    ctx.beginPath();
+                    ctx.arc(coin.x + coin.width / 2, coin.y - cameraY + coin.height / 2, coin.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // 绘制分数
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.fillText(`得分: ${score}`, 10, 30);
+
+            // 绘制当前能力
+            if (currentAbility) {
+                ctx.fillText(`能力: ${currentAbility} (${Math.ceil(abilityDuration / 60)}s)`, 10, 60);
+            }
+        }
+
+        function update() {
+            if (gamePaused) return;
+
+            player.velocityY += 0.5; // 重力
+            player.y += player.velocityY;
+
+            // 更新能力持续时间
+            if (currentAbility && abilityDuration > 0) {
+                abilityDuration--;
+                if (abilityDuration === 0) {
+                    endAbility();
+                }
+            }
+
+            // 检查平台碰撞
+            for (let platform of platforms) {
+                if (player.y + player.height > platform.y && player.y < platform.y + platform.height &&
+                    player.x < platform.x + platform.width && player.x + player.width > platform.x) {
+                    player.y = platform.y - player.height;
+                    player.velocityY = 0;
+                }
+            }
+
+            let moveSpeed = currentAbility === 'superSpeed' ? 10 : 5;
+            if (moveLeft) player.x -= moveSpeed;
+            if (moveRight) player.x += moveSpeed;
+
+            // 限制玩家在画布范围内
+            player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+
+            // 更新敌人位置
+            for (let enemy of enemies) {
+                enemy.x += enemy.speed * enemy.direction;
+                if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
+                    enemy.direction *= -1;
+                }
+            }
+
+            // 检查金币碰撞
+            for (let i = coins.length - 1; i >= 0; i--) {
+                if (player.x < coins[i].x + coins[i].width &&
+                    player.x + player.width > coins[i].x &&
+                    player.y < coins[i].y + coins[i].height &&
+                    player.y + player.height > coins[i].y) {
+                    coins.splice(i, 1);
+                    score++;
+                }
+            }
+
+            // 检查敌人碰撞
+            for (let enemy of enemies) {
+                if (checkCollision(player, enemy)) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // 更新相机位置
+            cameraY = player.y - canvas.height / 2;
+
+            // 检查是否需要显示问题
+            if (score > 0 && score % 5 === 0) {
+                showQuestion();
+            }
+        }
+
+        function checkCollision(rect1, rect2) {
+            if (currentAbility === 'invincible') return false;
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function jump() {
+            if (player.velocityY === 0) {
+                player.velocityY = -10;
+                canDoubleJump = currentAbility === 'doubleJump';
+                
+                if (player.climb5LevelsActive) {
+                    player.y -= 5 * platformGap;
+                    player.climb5LevelsActive = false;
+                    currentAbility = null;
+                    abilityDuration = 0;
+                }
+            } else if (canDoubleJump) {
+                player.velocityY = -10;
+                canDoubleJump = false;
+            }
+        }
+
+        function showQuestion() {
+            gamePaused = true;
+            const fruitGame = document.getElementById('fruitGame');
+            const fruitContainer = document.getElementById('fruitContainer');
+            const dropZone = document.getElementById('dropZone');
+            
+            fruitContainer.innerHTML = '';
+            dropZone.querySelectorAll('.slot').forEach(slot => slot.innerHTML = '');
+            
+            const fruits = ['🍎', '🍌', '🍇', '🍊', '🍓'];
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            
+            for (let i = 0; i < 10; i++) {
+                const fruit = fruits[Math.floor(Math.random() * fruits.length)];
+                const number = numbers[Math.floor(Math.random() * numbers.length)];
+                const fruitElement = document.createElement('div');
+                fruitElement.className = 'fruit';
+                fruitElement.textContent = `${fruit}${number}`;
+                fruitElement.draggable = true;
+                fruitElement.addEventListener('dragstart', drag);
+                fruitContainer.appendChild(fruitElement);
+            }
+            
+            fruitGame.style.display = 'block';
+        }
+
+        function checkAnswer() {
+            const slots = document.querySelectorAll('.slot');
+            let sum = 0;
+            slots.forEach(slot => {
+                if (slot.firstChild) {
+                    sum += parseInt(slot.firstChild.textContent.match(/\d+/)[0]);
+                }
+            });
+            if (sum === 10) {
+                alert('恭喜！你成功凑出了10！');
+                document.getElementById('fruitGame').style.display = 'none';
+                gamePaused = false;
+                grantAbility();
+            } else {
+                alert('加起来不等于10，请重试！');
+            }
+        }
+
+        function grantAbility() {
+            const abilities = ['invincible', 'doubleJump', 'slowEnemies', 'climb5Levels', 'superSpeed'];
+            currentAbility = abilities[Math.floor(Math.random() * abilities.length)];
+            abilityDuration = 600; // 10 seconds
+
+            switch (currentAbility) {
+                case 'slowEnemies':
+                    for (let enemy of enemies) {
+                        enemy.speed *= 0.5;
+                    }
+                    break;
+                case 'climb5Levels':
+                    player.climb5LevelsActive = true;
+                    break;
+                case 'superSpeed':
+                    player.speed = 10; // 正常速度的两倍
+                    break;
+            }
+        }
+
+        function endAbility() {
+            switch (currentAbility) {
+                case 'slowEnemies':
+                    for (let enemy of enemies) {
+                        enemy.speed *= 2; // 恢复正常速度
+                    }
+                    break;
+                case 'superSpeed':
+                    player.speed = 5; // 恢复正常速度
+                    break;
+            }
+            currentAbility = null;
+        }
+
+        function gameOver() {
+            cancelAnimationFrame(gameLoop);
+            gameOverOverlay.style.display = 'block';
+            finalScoreSpan.textContent = score;
+        }
+
+        function drag(event) {
+            event.dataTransfer.setData("text", event.target.id);
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const data = event.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(data);
+            if (event.target.classList.contains('slot') && !event.target.firstChild) {
+                event.target.appendChild(draggedElement);
+            }
+        }
+
+        startButton.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            initGame();
+            gameLoop = requestAnimationFrame(loop);
+        });
+
+        restartButton.addEventListener('click', () => {
+            gameOverOverlay.style.display = 'none';
+            initGame();
+            gameLoop = requestAnimationFrame(loop);
+        });
+
+        submitAnswer.addEventListener('click', () => {
+            const answer = parseInt(answerInput.value);
+            if (answer === 10) {
+                questionOverlay.style.display = 'none';
+                gamePaused = false;
+                grantAbility();
+            } else {
+                alert('答案不正确，请重试！');
+            }
+            answerInput.value = '';
+        });
+
+        document.getElementById('checkSum').addEventListener('click', checkAnswer);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = true;
+            if (e.key === 'ArrowRight') moveRight = true;
+            if (e.key === 'ArrowUp') jump();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') moveLeft = false;
+            if (e.key === 'ArrowRight') moveRight = false;
+        });
+
+        leftButton.addEventListener('touchstart', () => moveLeft = true);
+        leftButton.addEventListener('touchend', () => moveLeft = false);
+        rightButton.addEventListener('touchstart', () => moveRight = true);
+        rightButton.addEventListener('touchend', () => moveRight = false);
+        jumpButton.addEventListener('touchstart', jump);
+
+        const slots = document.querySelectorAll('.slot');
+        slots.forEach(slot => {
+            slot.addEventListener('dragover', allowDrop);
+            slot.addEventListener('drop', drop);
+        });
+
+        function loop() {
+            update();
+            draw();
+            gameLoop = requestAnimationFrame(loop);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
