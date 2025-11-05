@@ -29,41 +29,41 @@
         }
 
         #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             display: block;
-            width: 100%;
-            height: 100%;
-            max-width: 100vw;
-            max-height: 100vh;
             background-color: #87CEEB;
         }
 
-        #orientationWarning {
-            display: none;
+        #gameContainer {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        #gameInfo {
+            position: fixed;
+            top: 1vmin;
+            left: 1vmin;
+            background-color: rgba(0, 0, 0, 0.6);
             color: white;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 10000;
-            font-size: 5vmin;
-            text-align: center;
-            padding: 5vmin;
+            padding: 1.5vmin 3vmin;
+            border-radius: 1.5vmin;
+            font-size: 3.5vmin;
+            z-index: 50;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
+            display: flex;
+            gap: 2vmin;
         }
 
-        #orientationWarning .icon {
-            font-size: 15vmin;
-            margin-bottom: 3vmin;
-            animation: rotate 2s infinite ease-in-out;
-        }
-
-        @keyframes rotate {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(90deg); }
+        #gameInfo span {
+            font-weight: bold;
         }
 
         #startScreen,
@@ -357,61 +357,90 @@
 
         #controls {
             position: fixed;
-            bottom: 2vmin;
+            bottom: 0;
             left: 0;
+            right: 0;
             display: flex;
             justify-content: space-between;
-            width: 100%;
-            padding: 0 2vmin;
+            align-items: flex-end;
+            padding: 2vmin 3vmin 3vmin 3vmin;
             z-index: 100;
+            background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+            pointer-events: none;
+            height: 25vh;
+        }
+
+        .control-side {
+            display: flex;
+            gap: 3vmin;
             pointer-events: none;
         }
 
         #controls button {
             margin: 0;
             padding: 0;
-            width: 18vmin;
-            height: 18vmin;
-            font-size: 8vmin;
-            background-color: rgba(76, 175, 80, 0.7);
+            width: 16vmin;
+            height: 16vmin;
+            min-width: 60px;
+            min-height: 60px;
+            max-width: 80px;
+            max-height: 80px;
+            font-size: 7vmin;
+            background-color: rgba(76, 175, 80, 0.8);
             color: white;
-            border: 3px solid rgba(255, 255, 255, 0.8);
+            border: 3px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             touch-action: manipulation;
             pointer-events: all;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #controls button:active {
-            background-color: rgba(76, 175, 80, 0.9);
-            transform: scale(0.95);
-        }
-
-        #leftButton {
-            order: 1;
-        }
-
-        #rightButton {
-            order: 3;
+            background-color: rgba(76, 175, 80, 1);
+            transform: scale(0.9);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
         }
 
         #jumpButton {
-            order: 2;
-            background-color: rgba(255, 152, 0, 0.7);
+            background-color: rgba(255, 152, 0, 0.8);
+            width: 18vmin;
+            height: 18vmin;
+            min-width: 70px;
+            min-height: 70px;
+            max-width: 90px;
+            max-height: 90px;
+            font-size: 8vmin;
         }
 
         #jumpButton:active {
-            background-color: rgba(255, 152, 0, 0.9);
+            background-color: rgba(255, 152, 0, 1);
         }
 
-        @media (min-width: 768px) {
+        @media (orientation: portrait) {
+            #controls {
+                height: 20vh;
+            }
+        }
+
+        @media (min-width: 768px) and (orientation: landscape) {
+            #controls {
+                height: 30vh;
+            }
+            
             #controls button {
-                width: 15vmin;
-                height: 15vmin;
-                font-size: 7vmin;
+                width: 14vmin;
+                height: 14vmin;
+            }
+            
+            #jumpButton {
+                width: 16vmin;
+                height: 16vmin;
             }
         }
 
@@ -445,55 +474,76 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
-        #pauseButton, #settingsButton {
+        #topRightButtons {
             position: fixed;
-            top: 2vmin;
-            background-color: rgba(255, 255, 255, 0.3);
+            top: 1vmin;
+            right: 1vmin;
+            display: flex;
+            gap: 2vmin;
+            z-index: 101;
+        }
+
+        #pauseButton, #settingsButton {
+            background-color: rgba(0, 0, 0, 0.6);
             color: white;
             border: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 50%;
-            width: 12vmin;
-            height: 12vmin;
-            font-size: 6vmin;
+            width: 11vmin;
+            height: 11vmin;
+            min-width: 45px;
+            min-height: 45px;
+            max-width: 60px;
+            max-height: 60px;
+            font-size: 5.5vmin;
             cursor: pointer;
-            z-index: 101;
             transition: all 0.2s ease;
             touch-action: manipulation;
-            backdrop-filter: blur(5px);
-        }
-
-        #pauseButton {
-            right: 2vmin;
-        }
-
-        #settingsButton {
-            right: 15vmin;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
 
         #pauseButton:active, #settingsButton:active {
-            background-color: rgba(255, 255, 255, 0.5);
-            transform: scale(0.95);
+            background-color: rgba(0, 0, 0, 0.8);
+            transform: scale(0.9);
         }
     </style>
 </head>
 
 <body>
-    <div id="orientationWarning">
-        <div class="icon">📱</div>
-        <p>请旋转设备至横屏以获得最佳体验</p>
-    </div>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
-    <button id="pauseButton" style="display: none;">⏸</button>
-    <button id="settingsButton" style="display: none;">⚙️</button>
+    
+    <!-- 游戏信息显示 -->
+    <div id="gameInfo" style="display: none;">
+        <div>分数: <span id="scoreDisplay">0</span></div>
+        <div>等级: <span id="levelDisplay">1</span></div>
+    </div>
+    
+    <!-- 右上角按钮 -->
+    <div id="topRightButtons" style="display: none;">
+        <button id="pauseButton">⏸</button>
+        <button id="settingsButton">⚙️</button>
+    </div>
+    
     <div id="notification" style="display: none;"></div>
+    
     <div id="startScreen">
         <h1>数学跳跃</h1>
         <button id="startButton">开始游戏</button>
     </div>
-    <div id="controls">
-        <button id="leftButton">←</button>
-        <button id="jumpButton">跳跃</button>
-        <button id="rightButton">→</button>
+    
+    <div id="controls" style="display: none;">
+        <div class="control-side">
+            <button id="leftButton">←</button>
+        </div>
+        <div class="control-side">
+            <button id="jumpButton">↑</button>
+        </div>
+        <div class="control-side">
+            <button id="rightButton">→</button>
+        </div>
     </div>
     <div id="gameOverScreen" style="display: none;">
         <h1>游戏结束</h1>
@@ -544,14 +594,23 @@
         const fruitImagesContainer = document.getElementById('fruitImages');
         const pauseButton = document.getElementById('pauseButton');
         const settingsButton = document.getElementById('settingsButton');
-        const orientationWarning = document.getElementById('orientationWarning');
+        const gameInfo = document.getElementById('gameInfo');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const topRightButtons = document.getElementById('topRightButtons');
+        const controlsDiv = document.getElementById('controls');
 
         // 响应式Canvas设置
         let scaleFactor = 1;
+        let playableHeight = window.innerHeight;
+        
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
             const displayWidth = window.innerWidth;
             const displayHeight = window.innerHeight;
+            
+            // 为底部控制按钮预留空间
+            playableHeight = displayHeight * 0.8; // 80%的屏幕用于游戏，20%给按钮
             
             canvas.width = displayWidth * dpr;
             canvas.height = displayHeight * dpr;
@@ -563,32 +622,12 @@
             scaleFactor = Math.min(displayWidth / 400, displayHeight / 600);
         }
 
-        // 屏幕方向检测
-        function checkOrientation() {
-            const isPortrait = window.innerHeight > window.innerWidth;
-            const isSmallScreen = window.innerWidth < 768;
-            
-            if (isPortrait && isSmallScreen) {
-                orientationWarning.style.display = 'flex';
-            } else {
-                orientationWarning.style.display = 'none';
-            }
-        }
-
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            checkOrientation();
-        });
-
+        window.addEventListener('resize', resizeCanvas);
         window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                resizeCanvas();
-                checkOrientation();
-            }, 100);
+            setTimeout(resizeCanvas, 100);
         });
 
         resizeCanvas();
-        checkOrientation();
 
         let player;
         let platforms = [];
@@ -681,8 +720,13 @@
             generatePlatforms();
             startScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
-            pauseButton.style.display = 'block';
-            settingsButton.style.display = 'block';
+            controlsDiv.style.display = 'flex';
+            gameInfo.style.display = 'flex';
+            topRightButtons.style.display = 'flex';
+            
+            scoreDisplay.textContent = score;
+            levelDisplay.textContent = level;
+            
             gameLoop = setInterval(update, 1000 / 60);
             sounds.background.play();
         }
@@ -813,7 +857,7 @@
                 }
             }
 
-            if (player.y > cameraY + window.innerHeight) {
+            if (player.y > cameraY + playableHeight) {
                 gameOver();
                 return;
             }
@@ -905,7 +949,7 @@
             ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
             ctx.shadowBlur = 5 * scaleFactor;
             for (let platform of platforms) {
-                if (platform.y - cameraY > -20 * scaleFactor && platform.y - cameraY < window.innerHeight) {
+                if (platform.y - cameraY > -20 * scaleFactor && platform.y - cameraY < playableHeight) {
                     ctx.fillRect(platform.x, platform.y - cameraY, platform.width, platform.height);
                 }
             }
@@ -919,7 +963,7 @@
             // 绘制敌人
             ctx.fillStyle = '#f44336';
             for (let enemy of enemies) {
-                if (enemy.y - cameraY > -25 * scaleFactor && enemy.y - cameraY < window.innerHeight) {
+                if (enemy.y - cameraY > -25 * scaleFactor && enemy.y - cameraY < playableHeight) {
                     ctx.beginPath();
                     ctx.moveTo(enemy.x, enemy.y - cameraY + enemy.height);
                     ctx.lineTo(enemy.x + enemy.width / 2, enemy.y - cameraY);
@@ -932,26 +976,37 @@
             // 绘制金币
             ctx.fillStyle = '#FFD700';
             for (let coin of coins) {
-                if (coin.y - cameraY > -15 * scaleFactor && coin.y - cameraY < window.innerHeight) {
+                if (coin.y - cameraY > -15 * scaleFactor && coin.y - cameraY < playableHeight) {
                     ctx.beginPath();
                     ctx.arc(coin.x + coin.width / 2, coin.y - cameraY + coin.height / 2, coin.width / 2, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
 
-            // 绘制游戏信息
-            const fontSize = Math.max(16, 4 * scaleFactor);
-            ctx.fillStyle = 'white';
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 3;
-            ctx.font = `bold ${fontSize}px Arial`;
-            ctx.strokeText(`分数: ${score}    等级: ${level}`, 10 * scaleFactor, 30 * scaleFactor);
-            ctx.fillText(`分数: ${score}    等级: ${level}`, 10 * scaleFactor, 30 * scaleFactor);
+            // 更新HTML显示的分数和等级
+            scoreDisplay.textContent = score;
+            levelDisplay.textContent = level;
 
+            // 绘制当前能力（如果有）
             if (currentAbility) {
-                const abilityText = `能力: ${currentAbility} (${Math.ceil(abilityDuration / 60)}s)`;
-                ctx.strokeText(abilityText, 10 * scaleFactor, 50 * scaleFactor);
-                ctx.fillText(abilityText, 10 * scaleFactor, 50 * scaleFactor);
+                const fontSize = Math.max(14, 3.5 * scaleFactor);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.font = `bold ${fontSize}px Arial`;
+                const abilityText = `${currentAbility} (${Math.ceil(abilityDuration / 60)}s)`;
+                const textWidth = ctx.measureText(abilityText).width;
+                const x = window.innerWidth / 2 - textWidth / 2;
+                const y = 60 * scaleFactor;
+                
+                // 背景
+                ctx.fillStyle = 'rgba(76, 175, 80, 0.8)';
+                ctx.fillRect(x - 10, y - fontSize - 5, textWidth + 20, fontSize + 15);
+                
+                // 文字
+                ctx.fillStyle = 'white';
+                ctx.strokeText(abilityText, x, y);
+                ctx.fillText(abilityText, x, y);
             }
         }
 
@@ -1356,11 +1411,16 @@
             clearInterval(gameLoop);
             sounds.background.stop();
 
+            // 隐藏游戏控制元素
+            controlsDiv.style.display = 'none';
+            gameInfo.style.display = 'none';
+            topRightButtons.style.display = 'none';
+
             document.getElementById('finalScore').textContent = score;
             displayLeaderboard();
 
             gameOverScreen.style.display = 'flex';
-            document.getElementById('nameInputScreen').style.display = 'block'; // 显示名字输入框
+            document.getElementById('nameInputScreen').style.display = 'block';
         }
 
         document.getElementById('confirmNameButton').addEventListener('click', function() {
