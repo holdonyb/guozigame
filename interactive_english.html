@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Classroom English – Daily Sentences</title>
+  <style>
+    :root{
+      --bg:#f7fbff; --card:#ffffff; --ink:#17324a; --muted:#5a6c7d;
+      --pri:#2b77ff; --pri-ink:#fff; --ok:#1aa36f; --warn:#ef7b2e; --round:16px;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0c1420; --card:#1a2332; --ink:#dfe9f6; --muted:#8899aa;
+        --pri:#5a8dff; --pri-ink:#fff; --ok:#27d391; --warn:#ff9b50; --round:16px;
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:960px;margin:0 auto;padding:16px 16px 100px}
+    header{display:flex;align-items:center;gap:12px;padding:12px 0;position:sticky;top:0;background:linear-gradient(180deg,var(--bg),var(--bg));backdrop-filter: blur(6px); z-index:10;}
+    .logo{width:44px;height:44px;border-radius:12px;background:#e7f0ff;display:grid;place-items:center;font-size:24px}
+    h1{font-size:20px;margin:0}
+    .sub{font-size:13px;color:var(--muted)}
+    .grid{display:grid;gap:14px}
+    @media(min-width:720px){ .grid{grid-template-columns:1.2fr 1fr} }
+    section.card{background:var(--card);border-radius:var(--round);padding:14px;border:1px solid rgba(0,0,0,0.1);box-shadow:0 1px 0 rgba(0,0,0,0.03);}
+    .card h2{font-size:18px;margin:4px 0 10px}
+    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    button{appearance:none;border:none;background:var(--pri);color:var(--pri-ink);padding:10px 14px;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer;touch-action:manipulation}
+    button:active{transform:scale(0.98)}
+    button.secondary{background:#eef4ff;color:#134;border:1px solid #dbe7ff}
+    button.good{background:var(--ok)} button.warn{background:var(--warn)}
+    button:disabled{opacity:0.5;cursor:not-allowed}
+    .pill{font-size:12px;padding:6px 10px;border-radius:999px;background:#f1f6ff;color:#345}
+    .big{font-size:26px;line-height:1.3;margin:10px 0;padding:12px;border-radius:14px;background:rgba(246,251,255,0.5);border:1px dashed #d9e7fb}
+    .muted{color:var(--muted);font-size:14px}
+    .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    @media(min-width:760px){ .cards{grid-template-columns:repeat(3,1fr)} }
+    .flip{perspective:1000px; position:relative; height:150px}
+    .flipper{position:absolute; inset:0; transition:transform .5s; transform-style:preserve-3d; cursor:pointer}
+    .flip.show .flipper{ transform: rotateY(180deg) }
+    .face{position:absolute; inset:0; display:grid; place-items:center; text-align:center; padding:12px;background:var(--card);border:1px solid rgba(0,0,0,0.1);border-radius:14px; backface-visibility:hidden}
+    .back{ transform: rotateY(180deg) }
+    .emoji{font-size:44px} .caption{font-size:16px;font-weight:700;margin-top:6px}
+    .phonic{font-size:13px;font-family:monospace;color:var(--muted);margin-top:4px}
+    .prog{height:10px;background:rgba(0,0,0,0.1);border-radius:999px;overflow:hidden}
+    .prog > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2b77ff,#6ac8ff);transition:width 0.3s}
+    .list{display:grid;gap:8px}
+    .item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid rgba(0,0,0,0.1);border-radius:12px;background:var(--card)}
+    .input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #d9e7fb;font-size:16px}
+    footer{margin-top:20px;color:#678;font-size:12px;text-align:center}
+    #sentenceText span.word{display:inline-block; cursor:pointer; padding:2px 4px; border-radius:4px; transition: background .2s; margin:0 2px}
+    #sentenceText span.word:hover{background: #eef4ff;}
+    #sentenceText span.punc{user-select:none; margin:0}
+    /* Builder chips & keyboard */
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{padding:8px 10px;border-radius:999px;background:#eef4ff;border:1px solid #dbe7ff;cursor:pointer;font-size:14px}
+    .kbd{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:8px;margin-top:8px}
+    .kbd button{background:#f5f8ff;color:#123;border:1px solid #dbe7ff;border-radius:10px;padding:10px;font-weight:600;min-width:60px}
+    .kbd button.fn{background:#fff7e6;border-color:#ffe0b3}
+    .builder-sentence{min-height:48px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--card);border:1px solid rgba(0,0,0,0.1);border-radius:12px;padding:10px;font-size:20px}
+    .token{padding:4px 6px;border-radius:8px;background:#f1f6ff;border:1px dashed #d9e7fb}
+    .token.punc{background:transparent;border:none;padding:2px}
+    .optgrid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+    @media(min-width:560px){ .optgrid{grid-template-columns:1fr 1fr} }
+    .option{padding:12px;border:1.5px solid rgba(0,0,0,0.1);border-radius:12px;background:var(--card);cursor:pointer;text-align:center;font-weight:700;transition:all 0.2s}
+    .option.correct{border-color:#1aa36f;background:#eafff5;animation:pulse 0.3s}
+    .option.wrong{border-color:#b02a37;background:#ffecec;animation:shake 0.3s}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" aria-hidden="true">📘</div>
+      <div>
+        <h1>Classroom English – Learn Every Day</h1>
+        <div class="sub">Listen, repeat, and build sentences.</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card" id="words">
+        <h2>1. Core Word Cards</h2>
+        <div class="row">
+          <button id="btnShuffle" class="secondary">🔀 Shuffle</button>
+          <button id="btnSpeakAll">🔊 Speak All</button>
+          <span class="pill" id="srsHint">Progress saved locally</span>
+        </div>
+        <div class="cards" id="cardGrid"></div>
+        <div style="margin-top:10px">
+          <div class="prog"><i id="progressFill"></i></div>
+          <div class="muted" id="progressLabel" style="font-size:13px">0 / 12 learned today</div>
+        </div>
+      </section>
+
+      <section class="card" id="sentences">
+        <h2>2. Daily Sentences (Click word to speak)</h2>
+        <div class="big" id="sentenceText">I look at my teacher.</div>
+        <div class="row">
+          <button id="btnPrev" class="secondary">◀ Prev</button>
+          <button id="btnPlay">▶ Listen</button>
+          <button id="btnRecord" class="secondary">🎤 Record</button>
+          <button id="btnCompare" class="secondary" disabled>🔁 Compare</button>
+          <button id="btnNext" class="secondary">Next ▶</button>
+        </div>
+        <div class="pill" style="margin-top:8px">Tip: "every day" 是两个词。</div>
+
+        <div class="list" style="margin-top:10px">
+          <div class="item"><div class="muted">Tap Listen ▶ 播放示范；点击任意单词可单独发音。</div></div>
+          <div class="item" style="flex-direction:column;align-items:stretch">
+            <div class="muted">Your recording</div>
+            <audio id="userAudio" controls style="width:100%"></audio>
+            <div id="recHint" class="muted" style="font-size:12px">若录音失败，请用 HTTPS 或本地文件打开，并允许麦克风。</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" id="builder" style="margin-top:14px">
+      <h2>3. Make Your Sentence（点选式）</h2>
+      <div class="list">
+        <div class="item" style="flex-direction:column;align-items:stretch">
+          <div class="chips" id="chipsRow"></div>
+          <div class="builder-sentence" id="builderSentence"></div>
+          <div class="kbd" id="softKeyboard"></div>
+          <div class="row" style="margin-top:8px">
+            <button id="btnSpeakBuilt" class="secondary">▶ Speak</button>
+            <button id="btnUndo" class="secondary">↩ Undo</button>
+            <button id="btnClear" class="warn">🧹 Clear</button>
+            <button id="btnSaveBuilt" class="good">✓ Save</button>
+          </div>
+        </div>
+        <div class="item" style="flex-direction:column;align-items:stretch">
+          <div class="muted">Saved Sentences</div>
+          <div id="savedList" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="quiz" style="margin-top:14px">
+      <h2>4. Listening Quiz（4选1）</h2>
+      <div class="row">
+        <button id="btnStartQuiz" class="warn">Start Quiz</button>
+        <button id="btnPlayQuiz" class="secondary" disabled>▶ Replay</button>
+        <span id="quizProgress" class="pill">0 / 0</span>
+      </div>
+      <div id="quizArea" class="optgrid"></div>
+      <div class="row" id="quizFooter" style="display:none;margin-top:10px">
+        <span id="quizFeedback" class="muted"></span>
+        <button id="btnRestart" class="secondary">↺ Again</button>
+      </div>
+    </section>
+
+    <footer>Classroom English – local, private, and runs in your browser.</footer>
+  </div>
+
+  <script>
+    // Safe storage wrapper
+    const store = (() => {
+      let ok = true;
+      try { const t="__probe__"; localStorage.setItem(t,"1"); localStorage.removeItem(t); }
+      catch(_){ ok=false; }
+      const mem = {};
+      return {
+        get(k,d=null){ 
+          if(!ok) return k in mem?mem[k]:d; 
+          try{ const v=localStorage.getItem(k); return v===null?d:JSON.parse(v);}catch{return d;} 
+        },
+        set(k,v){ 
+          if(!ok){ mem[k]=v; return;} 
+          try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} 
+        },
+        ok
+      };
+    })();
+
+    // Data
+    const classroomWords = [
+      { key:"I",       ph:"/aɪ/",            emoji:"🧑",  example:"I learn every day." },
+      { key:"look",    ph:"/lʊk/",           emoji:"👀",  example:"I look at my teacher." },
+      { key:"at",      ph:"/æt/",            emoji:"📍",  example:"Look at the board." },
+      { key:"my",      ph:"/maɪ/",           emoji:"🫶",  example:"I read my book." },
+      { key:"teacher", ph:"/ˈtiːtʃər/",      emoji:"👩‍🏫", example:"I look at my teacher." },
+      { key:"listen",  ph:"/ˈlɪsən/",        emoji:"👂",  example:"I listen and say." },
+      { key:"say",     ph:"/seɪ/",           emoji:"🗣️",  example:"Say the word." },
+      { key:"read",    ph:"/riːd/",          emoji:"📖",  example:"I read my book." },
+      { key:"book",    ph:"/bʊk/",           emoji:"📗",  example:"This is my book." },
+      { key:"learn",   ph:"/lɜːrn/",         emoji:"🧠",  example:"I learn every day." },
+      { key:"every",   ph:"/ˈevri/",         emoji:"📅",  example:"I learn every day." },
+      { key:"day",     ph:"/deɪ/",           emoji:"🌞",  example:"Every day." }
+    ];
+    const sentences = [
+      "I look at my teacher.",
+      "I listen and say.",
+      "I read my book.",
+      "I learn every day."
+    ];
+
+    // Update hint based on storage availability
+    document.getElementById('srsHint').textContent = store.ok ? 'Progress saved locally' : 'Session-only (no storage)';
+
+    // Enhanced TTS with initialization
+    let ttsVoice = null;
+    let ttsReady = false;
+    
+    function initTTS() {
+      if(!('speechSynthesis' in window)) return false;
+      
+      const loadVoices = () => {
+        const voices = speechSynthesis.getVoices();
+        if(voices.length > 0) {
+          ttsVoice = voices.find(v => /en[-_]|English/i.test(v.lang)) || voices[0];
+          ttsReady = true;
+          return true;
+        }
+        return false;
+      };
+      
+      if(!loadVoices()) {
+        speechSynthesis.addEventListener('voiceschanged', loadVoices);
+      }
+      
+      return true;
+    }
+    
+    function speak(text, rate = 0.95) {
+      if(!('speechSynthesis' in window)) {
+        console.warn("TTS not supported");
+        return Promise.resolve(false);
+      }
+      
+      return new Promise((resolve) => {
+        try {
+          speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          
+          if(ttsVoice) utterance.voice = ttsVoice;
+          utterance.rate = rate;
+          utterance.pitch = 1;
+          utterance.volume = 1;
+          
+          utterance.onend = () => resolve(true);
+          utterance.onerror = (e) => {
+            console.error('TTS error:', e);
+            resolve(false);
+          };
+          
+          speechSynthesis.speak(utterance);
+          
+          // Timeout fallback
+          setTimeout(() => resolve(true), Math.max(1000, text.length * 50));
+        } catch(e) {
+          console.error('Speak error:', e);
+          resolve(false);
+        }
+      });
+    }
+    
+    // Initialize TTS on first user interaction
+    document.addEventListener('click', function initOnClick() {
+      initTTS();
+      document.removeEventListener('click', initOnClick);
+    }, { once: true });
+
+    // Sentence rendering with proper word separation
+    const sentenceText = document.getElementById('sentenceText');
+    function renderClickableSentence(text) {
+      sentenceText.innerHTML = '';
+      const words = text.match(/[A-Za-z]+|[^\w\s]/g) || [];
+      
+      words.forEach((word, index) => {
+        if(/^[A-Za-z]+$/.test(word)) {
+          const span = document.createElement('span');
+          span.className = 'word';
+          span.textContent = word;
+          span.onclick = () => speak(word, 0.9);
+          sentenceText.appendChild(span);
+        } else {
+          const span = document.createElement('span');
+          span.className = 'punc';
+          span.textContent = word;
+          sentenceText.appendChild(span);
+        }
+      });
+    }
+
+    // Sentence navigation
+    let iSentence = 0;
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnPlay = document.getElementById('btnPlay');
+    const btnRecord = document.getElementById('btnRecord');
+    const btnCompare = document.getElementById('btnCompare');
+    const userAudio = document.getElementById('userAudio');
+    const recHint = document.getElementById('recHint');
+    
+    function updateSentence() {
+      renderClickableSentence(sentences[iSentence]);
+    }
+    
+    btnPrev.onclick = () => {
+      iSentence = (iSentence - 1 + sentences.length) % sentences.length;
+      updateSentence();
+    };
+    
+    btnNext.onclick = () => {
+      iSentence = (iSentence + 1) % sentences.length;
+      updateSentence();
+    };
+    
+    btnPlay.onclick = () => speak(sentences[iSentence]);
+
+    // Recording functionality
+    let mediaRecorder = null;
+    let recordingChunks = [];
+    let userBlobUrl = null;
+    let isRecording = false;
+    
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingChunks = [];
+        
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        
+        mediaRecorder.ondataavailable = (e) => {
+          if(e.data.size > 0) recordingChunks.push(e.data);
+        };
+        
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordingChunks, { type: mimeType });
+          if(userBlobUrl) URL.revokeObjectURL(userBlobUrl);
+          userBlobUrl = URL.createObjectURL(blob);
+          userAudio.src = userBlobUrl;
+          btnCompare.disabled = false;
+          recHint.textContent = "Recording saved. Click play to listen.";
+          stream.getTracks().forEach(track => track.stop());
+        };
+        
+        mediaRecorder.start();
+        isRecording = true;
+        btnRecord.textContent = "⏹ Stop";
+        recHint.textContent = "Recording... speak now";
+      } catch(err) {
+        console.error('Recording error:', err);
+        recHint.textContent = "Recording failed. Check microphone permissions.";
+      }
+    }
+    
+    function stopRecording() {
+      if(mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        isRecording = false;
+        btnRecord.textContent = "🎤 Record";
+      }
+    }
+    
+    btnRecord.onclick = () => {
+      if(isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    };
+    
+    btnCompare.onclick = async () => {
+      await speak(sentences[iSentence]);
+      setTimeout(() => {
+        if(userAudio.src) userAudio.play();
+      }, 500);
+    };
+
+    // Word cards with SRS
+    const cardGrid = document.getElementById('cardGrid');
+    const progressFill = document.getElementById('progressFill');
+    const progressLabel = document.getElementById('progressLabel');
+    const storeKey = 'classroom-english-progress-v2';
+    let srs = store.get(storeKey, {});
+    
+    function saveSRS() {
+      store.set(storeKey, srs);
+    }
+    
+    function learnedCount() {
+      return Object.values(srs).filter(v => (v?.score || 0) >= 3).length;
+    }
+    
+    function renderProgress() {
+      const total = classroomWords.length;
+      const learned = learnedCount();
+      const percent = Math.round(learned / total * 100);
+      progressFill.style.width = percent + '%';
+      progressLabel.textContent = `${learned} / ${total} learned`;
+    }
+    
+    function renderCards() {
+      cardGrid.innerHTML = '';
+      
+      classroomWords.forEach(word => {
+        const state = srs[word.key]?.score || 0;
+        const flipDiv = document.createElement('div');
+        flipDiv.className = 'flip';
+        flipDiv.innerHTML = `
+          <div class="flipper">
+            <div class="face front">
+              <div class="emoji">${word.emoji}</div>
+              <div class="caption">${word.key}</div>
+              <div class="phonic">${word.ph || ''}</div>
+              <div class="muted" style="font-size:11px">${state >= 3 ? "✅ Mastered" : "Tap to flip"}</div>
+            </div>
+            <div class="face back">
+              <div class="emoji">${word.emoji}</div>
+              <div class="caption" style="font-size:14px">${word.example}</div>
+              <div class="row" style="justify-content:center; margin-top:10px;">
+                <button class="secondary btnSpeak" data-word="${word.key}">▶</button>
+                <button class="good btnGood" data-word="${word.key}">✓</button>
+                <button class="warn btnAgain" data-word="${word.key}">↺</button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        flipDiv.addEventListener('click', (e) => {
+          if(!e.target.closest('button')) {
+            flipDiv.classList.toggle('show');
+          }
+        });
+        
+        cardGrid.appendChild(flipDiv);
+      });
+      
+      // Wire up buttons
+      cardGrid.querySelectorAll('.btnSpeak').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          speak(btn.dataset.word);
+        };
+      });
+      
+      cardGrid.querySelectorAll('.btnGood').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const key = btn.dataset.word;
+          srs[key] = { score: Math.min(3, (srs[key]?.score || 0) + 1) };
+          saveSRS();
+          renderProgress();
+          btn.closest('.flip').classList.remove('show');
+        };
+      });
+      
+      cardGrid.querySelectorAll('.btnAgain').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const key = btn.dataset.word;
+          srs[key] = { score: Math.max(0, (srs[key]?.score || 0) - 1) };
+          saveSRS();
+          renderProgress();
+        };
+      });
+      
+      renderProgress();
+    }
+    
+    document.getElementById('btnShuffle').onclick = () => {
+      for(let i = classroomWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [classroomWords[i], classroomWords[j]] = [classroomWords[j], classroomWords[i]];
+      }
+      renderCards();
+    };
+    
+    document.getElementById('btnSpeakAll').onclick = async () => {
+      for(let word of classroomWords) {
+        await speak(word.key);
+        await new Promise(r => setTimeout(r, 700));
+      }
+    };
+
+    // Sentence builder
+    const builderSentence = document.getElementById('builderSentence');
+    const chipsRow = document.getElementById('chipsRow');
+    const softKeyboard = document.getElementById('softKeyboard');
+    const savedKey = 'classroom-english-sentences-v2';
+    
+    const chipGroups = [
+      ["I", "You", "We"],
+      ["look", "listen", "read", "learn", "say"],
+      ["at", "to", "with", "my"],
+      ["teacher", "book", "board", "friend"],
+      ["every", "day", "today"]
+    ];
+    
+    function addToken(text, isPunc = false) {
+      const span = document.createElement('span');
+      span.className = 'token' + (isPunc ? ' punc' : '');
+      span.textContent = text;
+      builderSentence.appendChild(span);
+    }
+    
+    function getSentenceText() {
+      const tokens = [...builderSentence.querySelectorAll('.token')];
+      return tokens.map(t => t.textContent).join(' ').replace(/\s+([.,!?])/g, '$1').trim();
+    }
+    
+    function clearBuilder() {
+      builderSentence.innerHTML = '';
+    }
+    
+    function undoBuilder() {
+      const tokens = builderSentence.querySelectorAll('.token');
+      if(tokens.length > 0) {
+        tokens[tokens.length - 1].remove();
+      }
+    }
+    
+    function renderChips() {
+      chipsRow.innerHTML = '';
+      chipGroups.forEach(group => {
+        group.forEach(word => {
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.textContent = word;
+          chip.onclick = () => addToken(word);
+          chipsRow.appendChild(chip);
+        });
+      });
+    }
+    
+    function renderKeyboard() {
+      const keys = ["I", "look", "listen", "my", "teacher", "book", ".", ",", "?"];
+      softKeyboard.innerHTML = '';
+      
+      keys.forEach(key => {
+        const btn = document.createElement('button');
+        btn.textContent = key;
+        btn.onclick = () => {
+          if(/[.,?!]/.test(key)) {
+            addToken(key, true);
+          } else {
+            addToken(key);
+          }
+        };
+        softKeyboard.appendChild(btn);
+      });
+      
+      // Function buttons
+      const fnBtns = [
+        { text: "Space", fn: () => addToken(" ") },
+        { text: "⌫", fn: undoBuilder },
+        { text: "Clear", fn: clearBuilder }
+      ];
+      
+      fnBtns.forEach(({ text, fn }) => {
+        const btn = document.createElement('button');
+        btn.className = 'fn';
+        btn.textContent = text;
+        btn.onclick = fn;
+        softKeyboard.appendChild(btn);
+      });
+    }
+    
+    document.getElementById('btnSpeakBuilt').onclick = () => {
+      const text = getSentenceText();
+      if(text) speak(text);
+    };
+    
+    document.getElementById('btnUndo').onclick = undoBuilder;
+    document.getElementById('btnClear').onclick = clearBuilder;
+    
+    document.getElementById('btnSaveBuilt').onclick = () => {
+      const text = getSentenceText();
+      if(!text) return;
+      
+      const saved = store.get(savedKey, []);
+      saved.unshift(text);
+      store.set(savedKey, saved.slice(0, 20));
+      renderSaved();
+      clearBuilder();
+    };
+    
+    function renderSaved() {
+      const saved = store.get(savedKey, []);
+      const savedList = document.getElementById('savedList');
+      
+      if(saved.length === 0) {
+        savedList.innerHTML = '<div class="muted" style="font-size:13px">No saved sentences yet.</div>';
+        return;
+      }
+      
+      savedList.innerHTML = '';
+      saved.forEach((text, index) => {
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.style.justifyContent = 'space-between';
+        item.innerHTML = `
+          <div style="flex:1">${text}</div>
+          <div class="row">
+            <button class="secondary" data-index="${index}" data-action="speak">▶</button>
+            <button class="warn" data-index="${index}" data-action="delete">×</button>
+          </div>
+        `;
+        savedList.appendChild(item);
+      });
+      
+      savedList.querySelectorAll('button').forEach(btn => {
+        btn.onclick = () => {
+          const index = parseInt(btn.dataset.index);
+          const action = btn.dataset.action;
+          const saved = store.get(savedKey, []);
+          
+          if(action === 'speak') {
+            speak(saved[index]);
+          } else if(action === 'delete') {
+            saved.splice(index, 1);
+            store.set(savedKey, saved);
+            renderSaved();
+          }
+        };
+      });
+    }
+
+    // Quiz functionality
+    const btnStartQuiz = document.getElementById('btnStartQuiz');
+    const btnPlayQuiz = document.getElementById('btnPlayQuiz');
+    const quizArea = document.getElementById('quizArea');
+    const quizProgress = document.getElementById('quizProgress');
+    const quizFooter = document.getElementById('quizFooter');
+    const quizFeedback = document.getElementById('quizFeedback');
+    
+    let quizList = [];
+    let quizIndex = 0;
+    let quizScore = 0;
+    let currentAnswer = '';
+    
+    function shuffle(array) {
+      const arr = [...array];
+      for(let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+    
+    function startQuiz() {
+      const wordPool = classroomWords.map(w => w.key.toLowerCase());
+      quizList = shuffle(wordPool).slice(0, 5);
+      quizIndex = 0;
+      quizScore = 0;
+      quizFooter.style.display = 'none';
+      btnPlayQuiz.disabled = false;
+      renderQuizQuestion();
+    }
+    
+    function renderQuizQuestion() {
+      currentAnswer = quizList[quizIndex];
+      quizProgress.textContent = `${quizIndex + 1} / ${quizList.length}`;
+      quizArea.innerHTML = '';
+      
+      // Generate options
+      const allWords = classroomWords.map(w => w.key.toLowerCase());
+      const distractors = shuffle(allWords.filter(w => w !== currentAnswer)).slice(0, 3);
+      const options = shuffle([currentAnswer, ...distractors]);
+      
+      options.forEach(option => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        div.textContent = option;
+        div.onclick = () => checkAnswer(option, div);
+        quizArea.appendChild(div);
+      });
+      
+      // Play the word
+      speak(currentAnswer, 0.9);
+    }
+    
+    function checkAnswer(selected, element) {
+      const allOptions = quizArea.querySelectorAll('.option');
+      allOptions.forEach(opt => opt.style.pointerEvents = 'none');
+      
+      if(selected === currentAnswer) {
+        element.classList.add('correct');
+        quizScore++;
+        quizFeedback.textContent = '✅ Correct!';
+      } else {
+        element.classList.add('wrong');
+        allOptions.forEach(opt => {
+          if(opt.textContent === currentAnswer) {
+            opt.classList.add('correct');
+          }
+        });
+        quizFeedback.textContent = `❌ Answer: ${currentAnswer}`;
+      }
+      
+      setTimeout(() => {
+        quizIndex++;
+        if(quizIndex >= quizList.length) {
+          // Quiz complete
+          quizProgress.textContent = 'Complete';
+          btnPlayQuiz.disabled = true;
+          quizFooter.style.display = 'flex';
+          quizFeedback.textContent = `Final Score: ${quizScore} / ${quizList.length}`;
+          quizArea.innerHTML = '';
+        } else {
+          renderQuizQuestion();
+        }
+      }, 1500);
+    }
+    
+    btnStartQuiz.onclick = startQuiz;
+    document.getElementById('btnRestart').onclick = startQuiz;
+    btnPlayQuiz.onclick = () => {
+      if(currentAnswer) speak(currentAnswer, 0.9);
+    };
+
+    // Initialize everything
+    function init() {
+      initTTS();
+      updateSentence();
+      renderCards();
+      renderChips();
+      renderKeyboard();
+      renderSaved();
+    }
+    
+    init();
+  </script>
+</body>
+</html>
